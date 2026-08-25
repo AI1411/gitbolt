@@ -26,7 +26,7 @@ $ gitbolt .
 
 # 17. 次フェーズ
 
-- Dioxus vs eguiの小規模PoCと実測比較
+- Dioxus Desktopの最小PoCでパフォーマンス要件(起動100ms / メモリ100MB / UI反応16ms)を実測
 - gix / git CLI fallback対応表
 - AppState / UiEvent / Command / AppMessageのRust型確定
 - Git Service trait設計

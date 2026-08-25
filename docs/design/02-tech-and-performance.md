@@ -3,13 +3,14 @@
 | 要素 | 方針 |
 |------|------|
 | Language | Rust |
-| GUI | Dioxus Desktop 第一候補 |
-| 代替GUI | egui / eframe |
+| GUI | Dioxus Desktop(確定) |
 | Git Engine | gix (gitoxide) |
 | File Watcher | notify |
 | 並列処理 | rayon等 |
 | MVP OS | macOS / Apple Silicon arm64 |
 | 将来 | Windows / Linux |
+
+GUIはDioxus Desktopに確定(egui / eframeは不採用)。
 
 Git操作は可能な限りgixで直接扱い、必要な操作のみgit CLIへfallbackする。UI層からGitを直接操作せずGit Serviceへ集約する。
 
