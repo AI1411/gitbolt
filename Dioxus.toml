@@ -1,0 +1,6 @@
+[application]
+name = "gitbolt"
+default_platform = "desktop"
+
+[web.app]
+title = "gitbolt"

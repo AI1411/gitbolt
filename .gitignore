@@ -1,2 +1,11 @@
-.idea
-.DS_STORE
+# Build artifacts
+/target/
+
+# macOS
+.DS_Store
+
+# IDE
+.idea/
+
+# Dioxus
+.dioxus/
