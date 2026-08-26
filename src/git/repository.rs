@@ -242,6 +242,14 @@ impl GitService for GixService {
     fn blame(&self, path: &Path) -> Result<std::collections::HashMap<u32, CommitInfo>, GitError> {
         blame::blame_at_head(self.workdir()?, path)
     }
+
+    fn blame_lines(
+        &self,
+        path: &Path,
+        lines: &[u32],
+    ) -> Result<std::collections::HashMap<u32, CommitInfo>, GitError> {
+        blame::blame_lines(self.workdir()?, path, lines)
+    }
 }
 
 impl GixService {

@@ -238,6 +238,22 @@ pub trait GitService: Sized {
         Err(GitError::unsupported("blame"))
     }
 
+    /// Blame specific 1-based lines at HEAD (empty = whole file).
+    ///
+    /// # Errors
+    /// Returns [`GitError::Unsupported`] until implemented.
+    fn blame_lines(
+        &self,
+        path: &Path,
+        lines: &[u32],
+    ) -> Result<std::collections::HashMap<u32, CommitInfo>, GitError> {
+        if lines.is_empty() {
+            self.blame(path)
+        } else {
+            Err(GitError::unsupported("blame_lines"))
+        }
+    }
+
     /// List branches.
     ///
     /// # Errors

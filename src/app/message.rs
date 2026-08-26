@@ -6,8 +6,8 @@
 //! (stale results), while still reconciling background bookkeeping.
 
 use super::model::{
-    BranchHealth, BranchInfo, CommitSummary, DiffContent, FileChange, Generation, HeadInfo, Oid,
-    WorktreeInfo,
+    BranchHealth, BranchInfo, CommitSummary, DiffContent, DiffTarget, FileChange, Generation,
+    HeadInfo, Oid, WorktreeInfo,
 };
 
 /// Error payload carried by failed operations.
@@ -80,6 +80,12 @@ pub enum AppMessage {
     DiffLoaded {
         generation: Generation,
         result: Result<DiffContent, Failure>,
+    },
+    BlameEnriched {
+        generation: Generation,
+        target: DiffTarget,
+        origins: std::collections::HashMap<u32, CommitSummary>,
+        remaining: Vec<u32>,
     },
     HistoryPageLoaded {
         generation: Generation,
@@ -158,6 +164,7 @@ impl AppMessage {
             Self::RepositoryOpened { generation, .. }
             | Self::StatusLoaded { generation, .. }
             | Self::DiffLoaded { generation, .. }
+            | Self::BlameEnriched { generation, .. }
             | Self::HistoryPageLoaded { generation, .. }
             | Self::BranchesLoaded { generation, .. }
             | Self::BranchHealthEnriched { generation, .. }

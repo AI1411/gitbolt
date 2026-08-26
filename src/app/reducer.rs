@@ -15,7 +15,9 @@ use std::path::Path;
 use super::command::Command;
 use super::event::UiEvent;
 use super::message::{AppMessage, RemoteOp};
-use super::model::{ChangeKind, DiffTarget, FileChange, Generation, Loadable, View};
+use super::model::{
+    ChangeKind, CommitSummary, DiffContent, DiffTarget, FileChange, Generation, Loadable, View,
+};
 use super::state::{AppState, RepositoryState, RepositoryStatus};
 
 /// Number of commits fetched per history page.
@@ -426,17 +428,57 @@ pub fn apply(state: &mut AppState, message: AppMessage) -> Vec<Command> {
         AppMessage::DiffLoaded { result, .. } => {
             match result {
                 Ok(content) => {
+                    let mut cmds = Vec::new();
                     if state.diff.target.as_ref() == Some(&content.target) {
+                        let lines = old_lines_from_diff(&content);
+                        let target = content.target.clone();
                         state.diff.content = Loadable::Ready(content);
+                        if !lines.is_empty() {
+                            // Phase 1: first line (current) + small nearby window, then rest.
+                            let (priority, remaining) = split_blame_phases(&lines);
+                            cmds.push(Command::EnrichBlame {
+                                target,
+                                lines: priority,
+                                remaining,
+                                generation: gen,
+                            });
+                        }
                     }
+                    issue(state, cmds)
                 }
                 Err(err) => {
                     if state.diff.content.is_loading() {
                         state.diff.content = Loadable::Failed(err);
                     }
+                    Vec::new()
                 }
             }
-            Vec::new()
+        }
+        AppMessage::BlameEnriched {
+            target,
+            origins,
+            remaining,
+            ..
+        } => {
+            if state.diff.target.as_ref() == Some(&target) {
+                if let Loadable::Ready(content) = &mut state.diff.content {
+                    apply_blame_origins(content, &origins);
+                }
+            }
+            if remaining.is_empty() {
+                Vec::new()
+            } else {
+                let (priority, rest) = split_blame_phases(&remaining);
+                issue(
+                    state,
+                    vec![Command::EnrichBlame {
+                        target,
+                        lines: priority,
+                        remaining: rest,
+                        generation: gen,
+                    }],
+                )
+            }
         }
         AppMessage::HistoryPageLoaded { offset, result, .. } => {
             state.history.loading = false;
@@ -734,6 +776,53 @@ fn stage_selected_lines(
             generation,
         }],
     )
+}
+
+fn old_lines_from_diff(content: &DiffContent) -> Vec<u32> {
+    let mut lines = Vec::new();
+    for hunk in content.hunks.iter() {
+        for line in &hunk.lines {
+            if let Some(n) = line.old_line {
+                lines.push(n);
+            }
+        }
+    }
+    lines.sort_unstable();
+    lines.dedup();
+    lines
+}
+
+/// First phase: up to 8 lines (current + nearby); rest deferred (issue #22).
+fn split_blame_phases(lines: &[u32]) -> (Vec<u32>, Vec<u32>) {
+    const FIRST: usize = 8;
+    if lines.len() <= FIRST {
+        return (lines.to_vec(), Vec::new());
+    }
+    (lines[..FIRST].to_vec(), lines[FIRST..].to_vec())
+}
+
+fn apply_blame_origins(
+    content: &mut DiffContent,
+    origins: &std::collections::HashMap<u32, CommitSummary>,
+) {
+    let hunks: Vec<_> = content
+        .hunks
+        .iter()
+        .map(|h| {
+            let mut hunk = h.clone();
+            for line in &mut hunk.lines {
+                if line.change_origin.is_none() {
+                    if let Some(n) = line.old_line {
+                        if let Some(c) = origins.get(&n) {
+                            line.change_origin = Some(c.clone());
+                        }
+                    }
+                }
+            }
+            hunk
+        })
+        .collect();
+    content.hunks = hunks.into();
 }
 
 /// Validates and dispatches a commit.

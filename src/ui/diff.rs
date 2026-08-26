@@ -2,6 +2,7 @@
 
 use dioxus::prelude::*;
 
+use crate::app::blame_format::{format_hover, format_minimal};
 use crate::app::event::UiEvent;
 use crate::app::model::{DiffLine, DiffView as DiffMode, Loadable, Oid};
 use crate::app::state::AppState;
@@ -64,7 +65,7 @@ pub fn DiffPane(props: DiffViewProps) -> Element {
                 } else {
                     span {
                         style: "opacity:0.55;font-size:0.8rem;",
-                        "Click + / − lines to select · origin chips show HEAD blame"
+                        "Click + / − lines to select · Smart Blame: Author · age (hover for detail)"
                     }
                 }
             }
@@ -184,18 +185,17 @@ fn UnifiedLine(line: DiffLine, selected: bool, on_event: EventHandler<UiEvent>) 
             if let Some(origin) = origin {
                 {
                     let oid = Oid(origin.oid.0.clone());
-                    let short = if origin.oid.0.len() > 7 {
-                        origin.oid.0[..7].to_string()
-                    } else {
-                        origin.oid.0.clone()
-                    };
-                    let label = format!("{short} · {}", origin.summary);
+                    let now = std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .map_or(0, |d| i64::try_from(d.as_secs()).unwrap_or(i64::MAX));
+                    let label = format_minimal(&origin, now);
+                    let hover = format_hover(&origin, now);
                     rsx! {
                         button {
-                            style: "flex:0 0 auto;max-width:14rem;overflow:hidden;text-overflow:ellipsis;\
+                            style: "flex:0 0 auto;max-width:12rem;overflow:hidden;text-overflow:ellipsis;\
                                     border:0;background:transparent;color:#7dd3fc;cursor:pointer;\
                                     font-size:0.7rem;font-family:ui-monospace,monospace;padding:0;",
-                            title: "Change Origin — select commit",
+                            title: "{hover}",
                             onclick: move |evt| {
                                 evt.stop_propagation();
                                 on_event.call(UiEvent::SelectCommit(oid.clone()));

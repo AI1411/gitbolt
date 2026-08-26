@@ -175,15 +175,42 @@ impl AppSession {
     }
 
     fn cache_diff_result(&mut self, message: &AppMessage) {
-        if let AppMessage::DiffLoaded {
-            result: Ok(content),
-            ..
-        } = message
-        {
-            if let Some(head) = self.state.repository.head.oid.clone() {
-                let key = CacheKey::new(head, content.target.path.clone(), content.target.staged);
-                self.caches.diff.insert(key, content.clone());
+        match message {
+            AppMessage::DiffLoaded {
+                result: Ok(content),
+                ..
+            } => {
+                if let Some(head) = self.state.repository.head.oid.clone() {
+                    let key =
+                        CacheKey::new(head, content.target.path.clone(), content.target.staged);
+                    self.caches.diff.insert(key, content.clone());
+                }
             }
+            AppMessage::BlameEnriched {
+                target, origins, ..
+            } if !origins.is_empty() => {
+                if let Some(head) = self.state.repository.head.oid.clone() {
+                    let key = CacheKey::new(head.clone(), target.path.clone(), target.staged);
+                    let mut map =
+                        (*self.caches.blame.get(&key).unwrap_or_else(|| {
+                            std::sync::Arc::new(std::collections::HashMap::new())
+                        }))
+                        .clone();
+                    for (line, summary) in origins {
+                        map.insert(
+                            *line,
+                            crate::git::CommitInfo {
+                                oid: summary.oid.0.clone(),
+                                summary: summary.summary.clone(),
+                                author: summary.author.clone(),
+                                time: summary.timestamp,
+                            },
+                        );
+                    }
+                    self.caches.blame.insert(key, map);
+                }
+            }
+            _ => {}
         }
     }
 
@@ -324,7 +351,7 @@ fn command_priority(cmd: &Command) -> Priority {
         | Command::Fetch { .. }
         | Command::Pull { .. }
         | Command::Push { .. } => Priority::P0,
-        Command::LoadDiff { .. } => Priority::P1,
+        Command::LoadDiff { .. } | Command::EnrichBlame { .. } => Priority::P1,
         Command::LoadStatus { .. }
         | Command::LoadHistoryPage { .. }
         | Command::LoadBranches { .. }
