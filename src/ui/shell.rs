@@ -373,6 +373,18 @@ pub fn Shell(props: ShellProps) -> Element {
                 }
 
                 if context_open {
+                    {
+                        let showing_commit_diff = props.state.context.selected_file.is_some()
+                            || !matches!(
+                                props.state.context.file_diff,
+                                crate::app::model::Loadable::Idle
+                            );
+                        let ctx_w = if showing_commit_diff {
+                            context_width().max(360.0)
+                        } else {
+                            context_width()
+                        };
+                        rsx! {
                     div {
                         class: "resize-handle",
                         style: "flex:0 0 4px;cursor:col-resize;background:transparent;",
@@ -388,13 +400,15 @@ pub fn Shell(props: ShellProps) -> Element {
                     div {
                         style: format!(
                             "flex:0 0 {}px;min-width:{}px;max-width:{}px;background:#121820;",
-                            context_width(),
+                            ctx_w,
                             CONTEXT_MIN,
                             CONTEXT_MAX
                         ),
                         ContextPane {
                             state: props.state.clone(),
                             on_event: props.on_event,
+                        }
+                    }
                         }
                     }
                 }
