@@ -326,7 +326,7 @@ pub fn reduce(state: &mut AppState, event: UiEvent) -> Vec<Command> {
                 }],
             )
         }
-        UiEvent::InstantWorktree { branch } => reduce_instant_worktree(state, gen, branch),
+        UiEvent::InstantWorktree { branch } => reduce_instant_worktree(state, gen, &branch),
         UiEvent::RequestRemoveWorktree(path) => {
             state.ui.confirm_remove_worktree = Some(path);
             Vec::new()
@@ -760,7 +760,7 @@ fn reduce_commit(state: &mut AppState, generation: Generation) -> Vec<Command> {
 fn reduce_instant_worktree(
     state: &mut AppState,
     generation: Generation,
-    branch: String,
+    branch: &str,
 ) -> Vec<Command> {
     let branch = branch.trim().to_string();
     if branch.is_empty() {
