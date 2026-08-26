@@ -14,6 +14,7 @@ use super::model::{
     FileChange, HeadInfo, Oid, StashInfo,
 };
 use super::state::HistoryFilter;
+use crate::git::{remote, remote_link};
 use crate::git::{ChangeStatus, GitError, GitService, GixService, RepoStatus};
 
 /// Runs a single command and returns the corresponding worker message.
@@ -401,7 +402,11 @@ fn load_status(repo_path: Option<&Path>) -> Result<StatusData, String> {
     let path = repo_path.ok_or_else(|| "リポジトリが開かれていません".to_string())?;
     let service = GixService::open(path).map_err(|e| e.user_message())?;
     let status = service.status().map_err(|e| e.user_message())?;
-    Ok(status_data(status))
+    let mut data = status_data(status);
+    data.origin_web = remote::origin_url(path)
+        .ok()
+        .and_then(|u| remote_link::parse_remote_url(&u));
+    Ok(data)
 }
 
 fn load_diff(
@@ -640,6 +645,7 @@ fn status_data(status: RepoStatus) -> StatusData {
         unstaged: map_changes(status.unstaged),
         untracked: map_changes(status.untracked),
         conflicted: map_changes(status.conflicted),
+        origin_web: None,
     }
 }
 
@@ -750,6 +756,37 @@ mod tests {
                     .untracked
                     .iter()
                     .any(|f| f.path.ends_with("loose.txt")));
+            }
+            other => panic!("unexpected message: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn load_status_parses_origin_web_host() {
+        let repo = TempRepo::init();
+        repo.write("a.txt", "a\n");
+        repo.stage("a.txt");
+        repo.commit("initial");
+        repo.run(&[
+            "remote",
+            "add",
+            "origin",
+            "https://github.com/ai1411/gitbolt.git",
+        ]);
+
+        let msg = execute(
+            &Command::LoadStatus {
+                generation: Generation(1),
+            },
+            Some(repo.path()),
+        );
+
+        match msg {
+            AppMessage::StatusLoaded {
+                result: Ok(status), ..
+            } => {
+                let web = status.origin_web.expect("origin_web");
+                assert_eq!(web.web_base, "https://github.com/ai1411/gitbolt");
             }
             other => panic!("unexpected message: {other:?}"),
         }

@@ -533,6 +533,10 @@ pub fn reduce(state: &mut AppState, event: UiEvent) -> Vec<Command> {
             state.ui.copy_feedback = None;
             Vec::new()
         }
+        UiEvent::OpenUrl(_url) => {
+            // Browser open happens in the UI layer.
+            Vec::new()
+        }
         UiEvent::DismissError => {
             state.ui.error_banner = None;
             state.background.last_error = None;
@@ -586,6 +590,7 @@ pub fn apply(state: &mut AppState, message: AppMessage) -> Vec<Command> {
                     state.changes.untracked = status.untracked.into();
                     state.changes.conflicted = status.conflicted.into();
                     state.changes.loaded = true;
+                    state.repository.origin_web = status.origin_web;
                 }
                 Err(err) => {
                     if is_fatal_repo_error(&err) {

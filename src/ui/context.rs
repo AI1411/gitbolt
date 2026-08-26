@@ -42,7 +42,10 @@ pub fn ContextPane(props: ContextPaneProps) -> Element {
             } else {
                 match view {
                     View::Changes => rsx! {
-                        FileContext { state: props.state.clone() }
+                        FileContext {
+                            state: props.state.clone(),
+                            on_event: props.on_event,
+                        }
                         CommitBox {
                             staged_n: staged_n,
                             autofocus_key: autofocus_key,
@@ -51,7 +54,10 @@ pub fn ContextPane(props: ContextPaneProps) -> Element {
                         }
                     },
                     View::History => rsx! {
-                        HistoryContext { state: props.state.clone() }
+                        HistoryContext {
+                            state: props.state.clone(),
+                            on_event: props.on_event,
+                        }
                     },
                     View::Branches => rsx! {
                         BranchContextPanel {
@@ -92,16 +98,23 @@ fn CommitDetailPanel(state: AppState, on_event: EventHandler<UiEvent>) -> Elemen
         Loadable::Idle => rsx! {
             p { style: "margin:0;opacity:0.6;font-size:0.85rem;", "Select a commit." }
         },
-        Loadable::Ready(detail) => rsx! {
-            CommitDetailBody {
-                detail: detail.clone(),
-                oid: oid.clone(),
-                can_back: can_back,
-                can_forward: can_forward,
-                selected_file: selected_file,
-                on_event: on_event,
+        Loadable::Ready(detail) => {
+            let remote_commit_url = state.repository.origin_web.as_ref().map(|web| {
+                let id = oid.as_ref().map_or(detail.oid.0.as_str(), |o| o.0.as_str());
+                crate::git::remote_link::commit_url(web, id)
+            });
+            rsx! {
+                CommitDetailBody {
+                    detail: detail.clone(),
+                    oid: oid.clone(),
+                    can_back: can_back,
+                    can_forward: can_forward,
+                    selected_file: selected_file,
+                    remote_commit_url: remote_commit_url,
+                    on_event: on_event,
+                }
             }
-        },
+        }
     }
 }
 
@@ -112,6 +125,7 @@ fn CommitDetailBody(
     can_back: bool,
     can_forward: bool,
     selected_file: Option<std::path::PathBuf>,
+    remote_commit_url: Option<String>,
     on_event: EventHandler<UiEvent>,
 ) -> Element {
     let now = std::time::SystemTime::now()
@@ -172,6 +186,9 @@ fn CommitDetailBody(
                     text: full_oid.to_string(),
                     on_event: on_event,
                 }
+            }
+            if let Some(url) = remote_commit_url {
+                RemoteLinkActions { url: url, on_event: on_event }
             }
             div {
                 style: "font-weight:600;font-size:0.95rem;",
@@ -328,25 +345,39 @@ fn BranchMeta(branch: BranchInfo) -> Element {
 }
 
 #[component]
-fn FileContext(state: AppState) -> Element {
+fn FileContext(state: AppState, on_event: EventHandler<UiEvent>) -> Element {
+    let file_link = remote_file_link(&state);
     rsx! {
-        p {
-            style: "margin:0;font-size:0.9rem;line-height:1.45;opacity:0.85;",
-            if let Some(p) = state.selection.file.as_ref() {
-                "File: {p.display()}\nH → file history · Shift+click blame → line history"
-            } else {
-                "No file selected"
+        div {
+            style: "display:flex;flex-direction:column;gap:0.45rem;",
+            p {
+                style: "margin:0;font-size:0.9rem;line-height:1.45;opacity:0.85;",
+                if let Some(p) = state.selection.file.as_ref() {
+                    "File: {p.display()}\nH → file history · Shift+click blame → line history"
+                } else {
+                    "No file selected"
+                }
+            }
+            if let Some(url) = file_link {
+                RemoteLinkActions { url: url, on_event: on_event }
             }
         }
     }
 }
 
 #[component]
-fn HistoryContext(state: AppState) -> Element {
+fn HistoryContext(state: AppState, on_event: EventHandler<UiEvent>) -> Element {
+    let link = remote_history_link(&state);
     rsx! {
-        p {
-            style: "margin:0;font-size:0.9rem;line-height:1.45;opacity:0.85;",
-            {history_hint(&state)}
+        div {
+            style: "display:flex;flex-direction:column;gap:0.45rem;",
+            p {
+                style: "margin:0;font-size:0.9rem;line-height:1.45;opacity:0.85;",
+                {history_hint(&state)}
+            }
+            if let Some(url) = link {
+                RemoteLinkActions { url: url, on_event: on_event }
+            }
         }
     }
 }
@@ -451,6 +482,64 @@ fn CopyButton(label: String, text: String, on_event: EventHandler<UiEvent>) -> E
             onclick: move |_| on_event.call(UiEvent::CopyText(text.clone())),
             "{label}"
         }
+    }
+}
+
+#[component]
+fn RemoteLinkActions(url: String, on_event: EventHandler<UiEvent>) -> Element {
+    rsx! {
+        div {
+            style: "display:flex;gap:0.35rem;flex-wrap:wrap;align-items:center;",
+            button {
+                style: "border:1px solid #334155;background:transparent;color:#9fb0c7;\
+                        border-radius:4px;padding:0.15rem 0.45rem;cursor:pointer;font-size:0.68rem;",
+                onclick: move |_| on_event.call(UiEvent::OpenUrl(url.clone())),
+                "Open"
+            }
+            CopyButton {
+                label: "Copy link".to_string(),
+                text: url.clone(),
+                on_event: on_event,
+            }
+        }
+    }
+}
+
+fn remote_file_link(state: &AppState) -> Option<String> {
+    let web = state.repository.origin_web.as_ref()?;
+    let path = state.selection.file.as_ref()?;
+    let rev = state
+        .repository
+        .head
+        .oid
+        .as_ref()
+        .map(|o| o.0.as_str())
+        .or(state.repository.head.branch.as_deref())?;
+    let path_str = path.to_string_lossy();
+    Some(crate::git::remote_link::file_url(web, rev, &path_str))
+}
+
+fn remote_history_link(state: &AppState) -> Option<String> {
+    let web = state.repository.origin_web.as_ref()?;
+    let rev = state
+        .repository
+        .head
+        .oid
+        .as_ref()
+        .map(|o| o.0.as_str())
+        .or(state.repository.head.branch.as_deref())?;
+    match &state.history.filter {
+        HistoryFilter::File { path } => {
+            let path_str = path.to_string_lossy();
+            Some(crate::git::remote_link::file_url(web, rev, &path_str))
+        }
+        HistoryFilter::Line { path, line } => {
+            let path_str = path.to_string_lossy();
+            Some(crate::git::remote_link::line_url(
+                web, rev, &path_str, *line,
+            ))
+        }
+        HistoryFilter::All => None,
     }
 }
 

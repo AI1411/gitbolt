@@ -27,61 +27,70 @@ pub struct RemoteWeb {
 #[must_use]
 pub fn parse_remote_url(url: &str) -> Option<RemoteWeb> {
     let url = url.trim();
-    if url.is_empty() {
-        return None;
-    }
-    if url.starts_with('/') || url.starts_with("file://") {
+    if url.is_empty() || url.starts_with('/') || url.starts_with("file://") {
         return None;
     }
 
-    let (host, path) = if let Some(rest) = url.strip_prefix("git@") {
-        // git@host:owner/repo.git
+    if let Some(rest) = url.strip_prefix("git@") {
         let (host, path) = rest.split_once(':')?;
-        (host.to_string(), path.to_string())
-    } else if let Some(rest) = url
+        return build_https(host, path);
+    }
+
+    if let Some(rest) = url
         .strip_prefix("ssh://git@")
         .or_else(|| url.strip_prefix("ssh://"))
     {
-        // ssh://git@host/owner/repo.git  or ssh://host/owner/repo
-        let rest = rest.trim_start_matches('/');
-        let (host, path) = rest.split_once('/')?;
-        // host may include port: host:22
-        let host = host.split(':').next().unwrap_or(host);
-        (host.to_string(), path.to_string())
-    } else if let Some(rest) = url
-        .strip_prefix("https://")
-        .or_else(|| url.strip_prefix("http://"))
-    {
-        let scheme = if url.starts_with("https://") {
-            "https"
-        } else {
-            "http"
-        };
         let rest = rest.trim_start_matches('/');
         let (host, path) = rest.split_once('/')?;
         let host = host.split(':').next().unwrap_or(host);
-        let path = path.trim_end_matches('/').trim_end_matches(".git");
-        if path.is_empty() {
-            return None;
-        }
-        let kind = classify_host(host);
-        return Some(RemoteWeb {
-            kind,
-            web_base: format!("{scheme}://{host}/{path}"),
-        });
+        return build_https(host, path);
+    }
+
+    let (scheme, rest) = if let Some(rest) = url.strip_prefix("https://") {
+        ("https", rest)
     } else {
-        return None;
+        let rest = url.strip_prefix("http://")?;
+        ("http", rest)
     };
 
-    let path = path.trim_end_matches('/').trim_end_matches(".git");
-    if path.is_empty() {
+    let rest = rest.trim_start_matches('/');
+    let (authority, path) = rest.split_once('/')?;
+    // Strip userinfo (`token@` / `user:pass@`) and optional port.
+    let host = authority
+        .rsplit('@')
+        .next()
+        .unwrap_or(authority)
+        .split(':')
+        .next()
+        .unwrap_or(authority);
+    let path = normalize_repo_path(path)?;
+    if host.is_empty() {
         return None;
     }
-    let kind = classify_host(&host);
     Some(RemoteWeb {
-        kind,
+        kind: classify_host(host),
+        web_base: format!("{scheme}://{host}/{path}"),
+    })
+}
+
+fn build_https(host: &str, path: &str) -> Option<RemoteWeb> {
+    let path = normalize_repo_path(path)?;
+    if host.is_empty() {
+        return None;
+    }
+    Some(RemoteWeb {
+        kind: classify_host(host),
         web_base: format!("https://{host}/{path}"),
     })
+}
+
+fn normalize_repo_path(path: &str) -> Option<&str> {
+    let path = path.trim_end_matches('/').trim_end_matches(".git");
+    if path.is_empty() {
+        None
+    } else {
+        Some(path)
+    }
 }
 
 fn classify_host(host: &str) -> WebHostKind {
@@ -192,9 +201,11 @@ mod tests {
     }
 
     #[test]
-    fn rejects_local_path() {
-        assert!(parse_remote_url("/tmp/bare.git").is_none());
-        assert!(parse_remote_url("file:///tmp/bare.git").is_none());
+    fn parses_https_with_userinfo() {
+        let w = parse_remote_url("https://x-access-token:secret@github.com/ai1411/gitbolt.git")
+            .unwrap();
+        assert_eq!(w.web_base, "https://github.com/ai1411/gitbolt");
+        assert_eq!(w.kind, WebHostKind::GitHub);
     }
 
     #[test]

@@ -10,6 +10,7 @@ use super::model::{
     BranchInfo, CommitDetail, CommitSummary, DiffContent, DiffTarget, DiffView, FileChange,
     Generation, HeadInfo, Loadable, Oid, Pane, StashInfo, View, WorktreeInfo,
 };
+use crate::git::remote_link::RemoteWeb;
 
 /// Lifecycle of the currently opened repository.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -28,6 +29,8 @@ pub struct RepositoryState {
     pub status: RepositoryStatus,
     pub head: HeadInfo,
     pub recent: Vec<PathBuf>,
+    /// Parsed `origin` web host for remote links (issue #75).
+    pub origin_web: Option<RemoteWeb>,
 }
 
 /// Working-tree status split by area.
