@@ -90,8 +90,10 @@ pub enum UiEvent {
     CheckoutBranch(String),
     /// Request delete confirmation for a local branch (destructive).
     RequestDeleteBranch(String),
-    /// Confirm the pending branch delete.
+    /// Confirm the pending branch delete (safe `git branch -d`).
     ConfirmDeleteBranch,
+    /// Force-delete the pending branch (`git branch -D`).
+    ForceDeleteBranch,
     /// Cancel the pending branch delete.
     CancelDeleteBranch,
 

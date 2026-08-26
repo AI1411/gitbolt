@@ -366,11 +366,11 @@ pub trait GitService: Sized {
         Err(GitError::unsupported("checkout"))
     }
 
-    /// Delete a local branch (`git branch -d`).
+    /// Delete a local branch (`git branch -d` / `-D`).
     ///
     /// # Errors
     /// Returns [`GitError::Unsupported`] until implemented.
-    fn delete_branch(&self, _name: &str) -> Result<(), GitError> {
+    fn delete_branch(&self, _name: &str, _force: bool) -> Result<(), GitError> {
         Err(GitError::unsupported("delete_branch"))
     }
 

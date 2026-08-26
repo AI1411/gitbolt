@@ -92,6 +92,7 @@ pub enum Command {
     },
     DeleteBranch {
         name: String,
+        force: bool,
         generation: Generation,
     },
     Fetch {

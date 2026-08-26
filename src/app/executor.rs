@@ -274,9 +274,9 @@ fn execute_branch_mutation(cmd: &Command, repo_path: Option<&Path>) -> AppMessag
                 })
             }),
         },
-        Command::DeleteBranch { name, generation } => AppMessage::BranchDeleted {
+        Command::DeleteBranch { name, force, generation } => AppMessage::BranchDeleted {
             generation: *generation,
-            result: with_service(repo_path, |svc| svc.delete_branch(name)),
+            result: with_service(repo_path, |svc| svc.delete_branch(name, *force)),
         },
         _ => unreachable!("branch mutation only"),
     }

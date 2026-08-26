@@ -233,8 +233,8 @@ impl GitService for GixService {
         branch::checkout(self.workdir()?, name)
     }
 
-    fn delete_branch(&self, name: &str) -> Result<(), GitError> {
-        branch::delete_branch(self.workdir()?, name)
+    fn delete_branch(&self, name: &str, force: bool) -> Result<(), GitError> {
+        branch::delete_branch(self.workdir()?, name, force)
     }
 
     fn fetch(&self) -> Result<(), GitError> {

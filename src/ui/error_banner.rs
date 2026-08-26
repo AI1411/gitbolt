@@ -44,6 +44,10 @@ pub struct ConfirmPanelProps {
     pub confirm_label: String,
     pub on_confirm: EventHandler<()>,
     pub on_cancel: EventHandler<()>,
+    #[props(default)]
+    pub secondary_confirm_label: Option<String>,
+    #[props(default)]
+    pub on_secondary_confirm: Option<EventHandler<()>>,
 }
 
 /// Inline confirmation for destructive ops (delete branch / remove worktree / drop stash).
@@ -58,12 +62,22 @@ pub fn ConfirmPanel(props: ConfirmPanelProps) -> Element {
                 "{props.message}"
             }
             div {
-                style: "display:flex;gap:0.4rem;",
+                style: "display:flex;gap:0.4rem;flex-wrap:wrap;",
                 button {
                     style: "border:0;background:var(--gb-danger-strong);color:white;border-radius:var(--gb-radius);\
                             padding:0.3rem 0.65rem;cursor:pointer;font-size:0.78rem;",
                     onclick: move |_| props.on_confirm.call(()),
                     "{props.confirm_label}"
+                }
+                if let Some(label) = props.secondary_confirm_label.clone() {
+                    if let Some(on_secondary) = props.on_secondary_confirm {
+                        button {
+                            style: "border:1px solid var(--gb-danger-border);background:transparent;color:var(--gb-danger);\
+                                    border-radius:var(--gb-radius);padding:0.3rem 0.55rem;cursor:pointer;font-size:0.78rem;",
+                            onclick: move |_| on_secondary.call(()),
+                            "{label}"
+                        }
+                    }
                 }
                 button {
                     style: "border:1px solid var(--gb-border-strong);background:transparent;color:var(--gb-text-muted);\

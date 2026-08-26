@@ -183,10 +183,12 @@ pub fn BranchesView(props: BranchesViewProps) -> Element {
             if let Some(name) = pending_delete.clone() {
                 ConfirmPanel {
                     message: format!(
-                        "Delete local branch {name}? Unmerged branches will be refused."
+                        "Delete local branch {name}? Safe delete refuses unmerged branches."
                     ),
                     confirm_label: String::from("Delete"),
+                    secondary_confirm_label: Some(String::from("Force delete")),
                     on_confirm: move |()| props.on_event.call(UiEvent::ConfirmDeleteBranch),
+                    on_secondary_confirm: move |()| props.on_event.call(UiEvent::ForceDeleteBranch),
                     on_cancel: move |()| props.on_event.call(UiEvent::CancelDeleteBranch),
                 }
             }

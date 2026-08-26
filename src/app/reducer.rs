@@ -357,6 +357,20 @@ pub fn reduce(state: &mut AppState, event: UiEvent) -> Vec<Command> {
                 state,
                 vec![Command::DeleteBranch {
                     name,
+                    force: false,
+                    generation: gen,
+                }],
+            )
+        }
+        UiEvent::ForceDeleteBranch => {
+            let Some(name) = state.ui.confirm_delete_branch.take() else {
+                return Vec::new();
+            };
+            issue(
+                state,
+                vec![Command::DeleteBranch {
+                    name,
+                    force: true,
                     generation: gen,
                 }],
             )
@@ -403,6 +417,7 @@ pub fn reduce(state: &mut AppState, event: UiEvent) -> Vec<Command> {
                 .into_iter()
                 .map(|name| Command::DeleteBranch {
                     name,
+                    force: false,
                     generation: gen,
                 })
                 .collect();
@@ -1916,7 +1931,19 @@ mod tests {
         assert!(state.ui.confirm_delete_branch.is_none());
         assert!(matches!(
             cmds.as_slice(),
-            [Command::DeleteBranch { name, .. }] if name == "feature"
+            [Command::DeleteBranch { name, force: false, .. }] if name == "feature"
+        ));
+    }
+
+    #[test]
+    fn force_delete_branch_dispatches_with_force_flag() {
+        let mut state = AppState::new();
+        reduce(&mut state, UiEvent::RequestDeleteBranch("feature".into()));
+        let cmds = reduce(&mut state, UiEvent::ForceDeleteBranch);
+        assert!(state.ui.confirm_delete_branch.is_none());
+        assert!(matches!(
+            cmds.as_slice(),
+            [Command::DeleteBranch { name, force: true, .. }] if name == "feature"
         ));
     }
 

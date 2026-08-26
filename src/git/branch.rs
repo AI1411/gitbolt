@@ -204,11 +204,11 @@ pub fn is_squash_merged(repo: &Path, branch: &str, base: &str) -> Result<bool, G
     Ok(saw)
 }
 
-/// Deletes a local branch with `git branch -d` (refuses unmerged).
+/// Deletes a local branch with `git branch -d` or `-D` when `force` is true.
 ///
 /// # Errors
 /// Propagates CLI failures; refuses deleting the current branch.
-pub fn delete_branch(repo: &Path, name: &str) -> Result<(), GitError> {
+pub fn delete_branch(repo: &Path, name: &str, force: bool) -> Result<(), GitError> {
     let name = validate_branch_name(name)?;
     let head = read_head(repo)?;
     if head.branch.as_deref() == Some(name) {
@@ -217,7 +217,8 @@ pub fn delete_branch(repo: &Path, name: &str) -> Result<(), GitError> {
         ));
     }
     let cli = GitCli::new(repo)?;
-    cli.run(&["branch", "-d", name])?;
+    let flag = if force { "-D" } else { "-d" };
+    cli.run(&["branch", flag, name])?;
     Ok(())
 }
 
@@ -514,7 +515,7 @@ mod tests {
         assert_eq!(head.branch.as_deref(), Some("topic"));
 
         checkout(repo.path(), "main").expect("back");
-        delete_branch(repo.path(), "topic").expect("delete");
+        delete_branch(repo.path(), "topic", false).expect("delete");
         let names: Vec<_> = list_branches(repo.path())
             .expect("list")
             .into_iter()
@@ -630,12 +631,37 @@ mod tests {
     }
 
     #[test]
+    fn force_delete_removes_unmerged_branch() {
+        let repo = TempRepo::init();
+        repo.write("f.txt", "one\n");
+        repo.stage("f.txt");
+        repo.commit("first");
+        repo.run(&["switch", "-c", "orphan"]);
+        repo.write("f.txt", "orphan\n");
+        repo.stage("f.txt");
+        repo.commit("orphan work");
+        repo.run(&["switch", "main"]);
+
+        let err = delete_branch(repo.path(), "orphan", false).expect_err("safe");
+        assert!(matches!(err, GitError::Backend(_)));
+
+        delete_branch(repo.path(), "orphan", true).expect("force");
+        let names: Vec<_> = list_branches(repo.path())
+            .expect("list")
+            .into_iter()
+            .filter(|b| !b.is_remote)
+            .map(|b| b.name)
+            .collect();
+        assert!(!names.iter().any(|n| n == "orphan"));
+    }
+
+    #[test]
     fn delete_refuses_current_branch() {
         let repo = TempRepo::init();
         repo.write("f.txt", "x\n");
         repo.stage("f.txt");
         repo.commit("c");
-        let err = delete_branch(repo.path(), "main").expect_err("current");
+        let err = delete_branch(repo.path(), "main", false).expect_err("current");
         assert!(matches!(err, GitError::Backend(_)));
     }
 }
