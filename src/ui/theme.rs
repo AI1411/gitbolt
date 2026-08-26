@@ -63,6 +63,8 @@ pub const GLOBAL_CSS: &str = r"
 .gb-selectable{border-radius:var(--gb-radius);}
 .nav-item{position:relative;}
 .nav-item.active{box-shadow:inset 3px 0 0 var(--gb-accent);}
+.resize-handle{flex:0 0 5px;cursor:col-resize;background:transparent;}
+.resize-handle:hover,.resize-handle:active{background:var(--gb-accent);opacity:0.45;}
 ";
 
 /// Inline style for the application root (`:root` equivalent for the window).
@@ -128,6 +130,7 @@ mod tests {
             assert!(css.contains(token), "missing {token}");
         }
         assert!(GLOBAL_CSS.contains(".nav-item.active"));
+        assert!(GLOBAL_CSS.contains(".resize-handle:hover"));
     }
 
     #[test]

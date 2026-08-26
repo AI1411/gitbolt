@@ -345,7 +345,7 @@ pub fn Shell(props: ShellProps) -> Element {
                 }
                 div {
                     class: "resize-handle",
-                    style: "flex:0 0 4px;cursor:col-resize;background:transparent;",
+                    style: "flex:0 0 5px;cursor:col-resize;background:transparent;",
                     onmousedown: move |evt| {
                         evt.prevent_default();
                         drag.set(Some(DragState {
@@ -387,7 +387,7 @@ pub fn Shell(props: ShellProps) -> Element {
                         rsx! {
                     div {
                         class: "resize-handle",
-                        style: "flex:0 0 4px;cursor:col-resize;background:transparent;",
+                        style: "flex:0 0 5px;cursor:col-resize;background:transparent;",
                         onmousedown: move |evt| {
                             evt.prevent_default();
                             drag.set(Some(DragState {
