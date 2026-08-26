@@ -358,7 +358,7 @@ pub fn Shell(props: ShellProps) -> Element {
 
                 main {
                     style: "flex:1 1 auto;min-width:0;display:flex;flex-direction:column;\
-                            padding:0.85rem;overflow:hidden;min-height:0;",
+                            padding:0.85rem;overflow:hidden;min-height:0;background:var(--gb-bg);",
                     h1 {
                         style: "margin:0 0 0.75rem;font-size:var(--gb-size-title);font-weight:var(--gb-weight-semibold);flex:0 0 auto;letter-spacing:-0.01em;",
                         "{heading}"
