@@ -8,6 +8,7 @@ use crate::app::event::UiEvent;
 use crate::app::model::WorktreeInfo;
 use crate::app::state::AppState;
 use crate::git::worktree::default_worktree_path;
+use crate::ui::error_banner::ConfirmPanel;
 
 /// Props for the worktrees pane.
 #[derive(Props, Clone, PartialEq)]
@@ -87,33 +88,11 @@ pub fn WorktreesView(props: WorktreesViewProps) -> Element {
             }
 
             if let Some(path) = pending.clone() {
-                div {
-                    style: "padding:0.55rem 0.65rem;border:1px solid #7f1d1d;background:#1c1212;\
-                            border-radius:4px;display:flex;flex-direction:column;gap:0.4rem;",
-                    p {
-                        style: "margin:0;font-size:0.85rem;",
-                        "Remove worktree "
-                        span {
-                            style: "font-family:ui-monospace,monospace;",
-                            "{path.display()}"
-                        }
-                        "?"
-                    }
-                    div {
-                        style: "display:flex;gap:0.4rem;",
-                        button {
-                            style: "border:0;background:#b91c1c;color:white;border-radius:4px;\
-                                    padding:0.3rem 0.65rem;cursor:pointer;font-size:0.78rem;",
-                            onclick: move |_| props.on_event.call(UiEvent::ConfirmRemoveWorktree),
-                            "Remove"
-                        }
-                        button {
-                            style: "border:1px solid #334155;background:transparent;color:#9fb0c7;\
-                                    border-radius:4px;padding:0.3rem 0.55rem;cursor:pointer;font-size:0.78rem;",
-                            onclick: move |_| props.on_event.call(UiEvent::CancelRemoveWorktree),
-                            "Cancel"
-                        }
-                    }
+                ConfirmPanel {
+                    message: format!("Remove worktree {}?", path.display()),
+                    confirm_label: String::from("Remove"),
+                    on_confirm: move |()| props.on_event.call(UiEvent::ConfirmRemoveWorktree),
+                    on_cancel: move |()| props.on_event.call(UiEvent::CancelRemoveWorktree),
                 }
             }
 

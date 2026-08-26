@@ -525,7 +525,8 @@ pub fn reduce(state: &mut AppState, event: UiEvent) -> Vec<Command> {
         UiEvent::Escape => reduce_escape(state),
         UiEvent::NavigateHistory { delta } => navigate_history(state, delta),
         UiEvent::CopyText(_text) => {
-            state.ui.copy_feedback = Some("Copied to clipboard".into());
+            // Clipboard write happens in the UI layer; no success toast (issue #27).
+            state.ui.copy_feedback = None;
             Vec::new()
         }
         UiEvent::DismissError => {
@@ -582,7 +583,13 @@ pub fn apply(state: &mut AppState, message: AppMessage) -> Vec<Command> {
                     state.changes.conflicted = status.conflicted.into();
                     state.changes.loaded = true;
                 }
-                Err(err) => set_error(state, err),
+                Err(err) => {
+                    if is_fatal_repo_error(&err) {
+                        degrade_repository(state, err);
+                    } else {
+                        set_error(state, err);
+                    }
+                }
             }
             Vec::new()
         }
@@ -889,6 +896,10 @@ pub fn apply(state: &mut AppState, message: AppMessage) -> Vec<Command> {
                 Vec::new()
             }
         },
+        AppMessage::WorkerFault { detail, .. } => {
+            set_error(state, detail);
+            Vec::new()
+        }
         AppMessage::CommitDetailLoaded { oid, result, .. } => {
             if state.selection.commit.as_ref() == Some(&oid) {
                 match result {
@@ -1026,6 +1037,10 @@ fn reduce_escape(state: &mut AppState) -> Vec<Command> {
         state.background.last_error = None;
         return Vec::new();
     }
+    if state.ui.copy_feedback.is_some() {
+        state.ui.copy_feedback = None;
+        return Vec::new();
+    }
     if state.ui.searching {
         state.ui.searching = false;
         state.ui.search_query.clear();
@@ -1076,8 +1091,25 @@ fn issue(state: &mut AppState, commands: Vec<Command>) -> Vec<Command> {
 
 /// Sets both the error banner and the last background error.
 fn set_error(state: &mut AppState, message: String) {
+    state.ui.copy_feedback = None;
     state.ui.error_banner = Some(message.clone());
     state.background.last_error = Some(message);
+}
+
+/// True when a failure string indicates the repository is gone / unusable.
+fn is_fatal_repo_error(err: &str) -> bool {
+    let lower = err.to_lowercase();
+    lower.contains("リポジトリではありません")
+        || lower.contains("アクセスできません")
+        || lower.contains("破損")
+        || lower.contains("not a git repository")
+        || lower.contains("no such file")
+}
+
+/// Keeps the app alive when the open repository becomes unusable.
+fn degrade_repository(state: &mut AppState, message: String) {
+    state.repository.status = RepositoryStatus::Error(message.clone());
+    set_error(state, message);
 }
 
 /// Bumps the generation and invalidates HEAD-dependent views.
@@ -1359,7 +1391,7 @@ mod tests {
     use super::*;
     use crate::app::message::RepositoryData;
     use crate::app::model::{CommitSummary, DiffContent, DiffHunk, HeadInfo, Oid};
-    use crate::app::state::{HistoryFilter, Overlay};
+    use crate::app::state::{HistoryFilter, Overlay, RepositoryStatus};
     use std::path::{Path, PathBuf};
     use std::sync::Arc;
 
@@ -1839,5 +1871,24 @@ mod tests {
         let cmds = reduce(&mut state, UiEvent::ConfirmOverlay);
         assert!(matches!(state.ui.overlay, Overlay::None));
         assert!(matches!(cmds.as_slice(), [Command::Fetch { .. }]));
+    }
+
+    #[test]
+    fn fatal_status_error_degrades_repository() {
+        let mut state = AppState::new();
+        state.repository.status = RepositoryStatus::Ready;
+        let gen = state.generation;
+        apply(
+            &mut state,
+            AppMessage::StatusLoaded {
+                generation: gen,
+                result: Err("Git リポジトリではありません: /tmp/x".into()),
+            },
+        );
+        assert!(matches!(
+            state.repository.status,
+            RepositoryStatus::Error(_)
+        ));
+        assert!(state.ui.error_banner.is_some());
     }
 }

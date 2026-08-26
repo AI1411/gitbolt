@@ -7,6 +7,7 @@ use crate::app::event::UiEvent;
 use crate::app::model::BranchInfo;
 use crate::app::state::AppState;
 use crate::ui::divergence::DivergenceView;
+use crate::ui::error_banner::ConfirmPanel;
 
 /// Props for the branches pane.
 #[derive(Props, Clone, PartialEq)]
@@ -143,30 +144,13 @@ pub fn BranchesView(props: BranchesViewProps) -> Element {
             }
 
             if let Some(name) = pending_delete.clone() {
-                div {
-                    style: "padding:0.55rem 0.65rem;border:1px solid #7f1d1d;background:#1c1212;\
-                            border-radius:4px;display:flex;flex-direction:column;gap:0.4rem;",
-                    p {
-                        style: "margin:0;font-size:0.85rem;",
-                        "Delete local branch "
-                        span { style: "font-family:ui-monospace,monospace;", "{name}" }
-                        "? Unmerged branches will be refused."
-                    }
-                    div {
-                        style: "display:flex;gap:0.4rem;",
-                        button {
-                            style: "border:0;background:#b91c1c;color:white;border-radius:4px;\
-                                    padding:0.3rem 0.65rem;cursor:pointer;font-size:0.78rem;",
-                            onclick: move |_| props.on_event.call(UiEvent::ConfirmDeleteBranch),
-                            "Delete"
-                        }
-                        button {
-                            style: "border:1px solid #334155;background:transparent;color:#9fb0c7;\
-                                    border-radius:4px;padding:0.3rem 0.55rem;cursor:pointer;font-size:0.78rem;",
-                            onclick: move |_| props.on_event.call(UiEvent::CancelDeleteBranch),
-                            "Cancel"
-                        }
-                    }
+                ConfirmPanel {
+                    message: format!(
+                        "Delete local branch {name}? Unmerged branches will be refused."
+                    ),
+                    confirm_label: String::from("Delete"),
+                    on_confirm: move |()| props.on_event.call(UiEvent::ConfirmDeleteBranch),
+                    on_cancel: move |()| props.on_event.call(UiEvent::CancelDeleteBranch),
                 }
             }
 

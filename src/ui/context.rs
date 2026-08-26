@@ -22,7 +22,6 @@ pub fn ContextPane(props: ContextPaneProps) -> Element {
     let view = props.state.navigation.active_view;
     let staged_n = props.state.changes.staged.len();
     let autofocus_key = props.state.ui.commit_focus_token;
-    let copy_feedback = props.state.ui.copy_feedback.clone();
 
     rsx! {
         aside {
@@ -33,13 +32,6 @@ pub fn ContextPane(props: ContextPaneProps) -> Element {
                 style: "margin:0;font-size:0.8rem;letter-spacing:0.06em;text-transform:uppercase;\
                         opacity:0.65;font-weight:600;",
                 "{heading}"
-            }
-
-            if let Some(msg) = copy_feedback {
-                p {
-                    style: "margin:0;font-size:0.75rem;color:#86efac;",
-                    "{msg}"
-                }
             }
 
             if props.state.selection.commit.is_some() {
@@ -55,7 +47,6 @@ pub fn ContextPane(props: ContextPaneProps) -> Element {
                             staged_n: staged_n,
                             autofocus_key: autofocus_key,
                             message: props.state.ui.commit_message.clone(),
-                            error: props.state.ui.error_banner.clone(),
                             on_event: props.on_event,
                         }
                     },
@@ -331,7 +322,6 @@ fn CommitBox(
     staged_n: usize,
     autofocus_key: u64,
     message: String,
-    error: Option<String>,
     on_event: EventHandler<UiEvent>,
 ) -> Element {
     rsx! {
@@ -377,12 +367,6 @@ fn CommitBox(
                 span {
                     style: "font-size:0.75rem;opacity:0.55;",
                     "{staged_n} staged"
-                }
-            }
-            if let Some(err) = error {
-                p {
-                    style: "margin:0;color:#fca5a5;font-size:0.8rem;",
-                    "{err}"
                 }
             }
             p {

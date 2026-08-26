@@ -8,6 +8,7 @@ pub mod changes;
 pub mod context;
 pub mod diff;
 pub mod divergence;
+pub mod error_banner;
 pub mod history;
 pub mod layout_model;
 pub mod nav;
