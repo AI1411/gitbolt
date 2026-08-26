@@ -134,20 +134,19 @@ fn selection_summary(state: &AppState) -> String {
             }
             "No commit selected".into()
         }
-        View::Branches => state
-            .selection
-            .branch
-            .clone()
-            .map(|b| format!("Branch: {b}"))
-            .or_else(|| {
-                state
-                    .repository
-                    .head
-                    .branch
-                    .clone()
-                    .map(|b| format!("Current: {b}"))
-            })
-            .unwrap_or_else(|| "No branch selected".into()),
+        View::Branches => {
+            let selected = state
+                .selection
+                .branch
+                .clone()
+                .or_else(|| state.repository.head.branch.clone());
+            match selected {
+                Some(b) => format!(
+                    "Branch: {b}\nCheckout switches HEAD after Preflight. Delete asks for confirmation."
+                ),
+                None => "No branch selected".into(),
+            }
+        }
         View::Worktrees => "Worktree context".into(),
         View::Stashes => "Stash context".into(),
     }

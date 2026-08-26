@@ -80,7 +80,11 @@ fn classify_stderr(stderr: &str) -> GitError {
         || lower.contains("terminal prompts disabled")
     {
         GitError::Auth(stderr.trim().to_string())
-    } else if lower.contains("conflict") {
+    } else if lower.contains("conflict")
+        || lower.contains("would be overwritten")
+        || lower.contains("local changes")
+        || lower.contains("your local changes to the following files would be overwritten")
+    {
         GitError::Conflict(stderr.trim().to_string())
     } else {
         GitError::Backend(stderr.trim().to_string())

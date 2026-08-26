@@ -42,7 +42,13 @@ impl GitError {
             }
             Self::GitBinaryNotFound => "git コマンドが見つかりません".to_string(),
             Self::Auth(_) => "認証に失敗しました。資格情報を確認してください".to_string(),
-            Self::Conflict(_) => "コンフリクトが発生しました".to_string(),
+            Self::Conflict(detail) => {
+                if detail.is_empty() {
+                    "コンフリクトが発生しました".to_string()
+                } else {
+                    format!("コンフリクトが発生しました: {detail}")
+                }
+            }
             Self::Io(msg) | Self::Backend(msg) => format!("Git 操作に失敗しました: {msg}"),
             Self::Unsupported(op) => format!("未対応の操作です: {op}"),
         }

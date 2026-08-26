@@ -139,6 +139,10 @@ pub struct UiState {
     pub searching: bool,
     /// Bumped to request focus on the commit message field (issue #15).
     pub commit_focus_token: u64,
+    /// Draft name for creating a branch (issue #17).
+    pub new_branch_name: String,
+    /// Pending destructive delete confirmation (local branch name).
+    pub confirm_delete_branch: Option<String>,
 }
 
 /// The whole application state.

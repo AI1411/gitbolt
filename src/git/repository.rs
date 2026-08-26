@@ -198,6 +198,22 @@ impl GitService for GixService {
         branch::set_upstream(self.workdir()?, name, upstream)
     }
 
+    fn create_branch(&self, name: &str) -> Result<(), GitError> {
+        branch::create_branch(self.workdir()?, name)
+    }
+
+    fn checkout_preflight(&self, name: &str) -> Result<(), GitError> {
+        branch::checkout_preflight(self.workdir()?, name)
+    }
+
+    fn checkout(&self, name: &str) -> Result<Head, GitError> {
+        branch::checkout(self.workdir()?, name)
+    }
+
+    fn delete_branch(&self, name: &str) -> Result<(), GitError> {
+        branch::delete_branch(self.workdir()?, name)
+    }
+
     fn worktrees(&self) -> Result<Vec<WorktreeRef>, GitError> {
         worktree::list_worktrees(self.workdir()?)
     }

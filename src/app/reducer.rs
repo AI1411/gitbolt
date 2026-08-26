@@ -251,13 +251,21 @@ pub fn reduce(state: &mut AppState, event: UiEvent) -> Vec<Command> {
             Vec::new()
         }
         UiEvent::Commit => reduce_commit(state, gen),
-        UiEvent::CreateBranch(name) => issue(
-            state,
-            vec![Command::CreateBranch {
-                name,
-                generation: gen,
-            }],
-        ),
+        UiEvent::CreateBranch(name) => {
+            let name = name.trim().to_string();
+            if name.is_empty() {
+                set_error(state, "ブランチ名を入力してください".into());
+                return Vec::new();
+            }
+            state.ui.new_branch_name.clear();
+            issue(
+                state,
+                vec![Command::CreateBranch {
+                    name,
+                    generation: gen,
+                }],
+            )
+        }
         UiEvent::CheckoutBranch(name) => issue(
             state,
             vec![Command::Checkout {
@@ -265,13 +273,29 @@ pub fn reduce(state: &mut AppState, event: UiEvent) -> Vec<Command> {
                 generation: gen,
             }],
         ),
-        UiEvent::DeleteBranch(name) => issue(
-            state,
-            vec![Command::DeleteBranch {
-                name,
-                generation: gen,
-            }],
-        ),
+        UiEvent::RequestDeleteBranch(name) => {
+            if name.trim().is_empty() {
+                return Vec::new();
+            }
+            state.ui.confirm_delete_branch = Some(name);
+            Vec::new()
+        }
+        UiEvent::ConfirmDeleteBranch => {
+            let Some(name) = state.ui.confirm_delete_branch.take() else {
+                return Vec::new();
+            };
+            issue(
+                state,
+                vec![Command::DeleteBranch {
+                    name,
+                    generation: gen,
+                }],
+            )
+        }
+        UiEvent::CancelDeleteBranch => {
+            state.ui.confirm_delete_branch = None;
+            Vec::new()
+        }
         UiEvent::Fetch => issue(state, vec![Command::Fetch { generation: gen }]),
         UiEvent::Pull => issue(state, vec![Command::Pull { generation: gen }]),
         UiEvent::Push => issue(state, vec![Command::Push { generation: gen }]),
@@ -503,7 +527,10 @@ pub fn apply(state: &mut AppState, message: AppMessage) -> Vec<Command> {
         AppMessage::BranchCreated { result, .. }
         | AppMessage::BranchDeleted { result, .. }
         | AppMessage::UpstreamSet { result, .. } => match result {
-            Ok(()) => issue(state, vec![Command::LoadBranches { generation: gen }]),
+            Ok(()) => {
+                state.ui.confirm_delete_branch = None;
+                issue(state, vec![Command::LoadBranches { generation: gen }])
+            }
             Err(err) => {
                 set_error(state, err);
                 Vec::new()
@@ -928,6 +955,25 @@ mod tests {
         assert_eq!(state.diff.content, Loadable::Idle);
         assert_eq!(state.repository.head.branch.as_deref(), Some("dev"));
         assert_eq!(cmds.len(), 3);
+    }
+
+    #[test]
+    fn delete_branch_requires_confirmation_then_dispatches() {
+        let mut state = AppState::new();
+        let cmds = reduce(&mut state, UiEvent::RequestDeleteBranch("feature".into()));
+        assert!(cmds.is_empty());
+        assert_eq!(state.ui.confirm_delete_branch.as_deref(), Some("feature"));
+
+        reduce(&mut state, UiEvent::CancelDeleteBranch);
+        assert!(state.ui.confirm_delete_branch.is_none());
+
+        reduce(&mut state, UiEvent::RequestDeleteBranch("feature".into()));
+        let cmds = reduce(&mut state, UiEvent::ConfirmDeleteBranch);
+        assert!(state.ui.confirm_delete_branch.is_none());
+        assert!(matches!(
+            cmds.as_slice(),
+            [Command::DeleteBranch { name, .. }] if name == "feature"
+        ));
     }
 
     #[test]
