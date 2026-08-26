@@ -5,10 +5,14 @@
 pub mod blame;
 pub mod branches;
 pub mod changes;
+pub mod context;
 pub mod diff;
 pub mod history;
+pub mod layout_model;
+pub mod nav;
 pub mod open;
 pub mod pulse;
+pub mod shell;
 pub mod worktrees;
 
 use std::path::PathBuf;
@@ -22,6 +26,7 @@ use crate::app::session::AppSession;
 use crate::app::state::{AppState, RepositoryStatus};
 
 use open::OpenScreen;
+use shell::Shell;
 
 /// Optional path passed from the CLI (`gitbolt <path>`).
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -74,6 +79,7 @@ pub fn App() -> Element {
 
     let state = snapshot();
     let open_session = session.clone();
+    let ready_session = session.clone();
 
     rsx! {
         div {
@@ -81,7 +87,14 @@ pub fn App() -> Element {
             height: "100vh",
             match state.repository.status {
                 RepositoryStatus::Ready => {
-                    rsx! { ReadyPlaceholder { state: state.clone() } }
+                    rsx! {
+                        Shell {
+                            state: state.clone(),
+                            on_event: move |event| {
+                                dispatch(&ready_session, event, &mut snapshot);
+                            },
+                        }
+                    }
                 }
                 RepositoryStatus::Opening => {
                     rsx! {
@@ -111,36 +124,6 @@ pub fn App() -> Element {
                         }
                     }
                 }
-            }
-        }
-    }
-}
-
-#[component]
-fn ReadyPlaceholder(state: AppState) -> Element {
-    let branch = state.repository.head.branch.clone().unwrap_or_else(|| {
-        if state.repository.head.detached {
-            "detached HEAD".into()
-        } else {
-            "(unknown)".into()
-        }
-    });
-    let path = state
-        .repository
-        .path
-        .as_ref()
-        .map(|p| p.display().to_string())
-        .unwrap_or_default();
-
-    rsx! {
-        div {
-            style: "display:flex;flex-direction:column;gap:0.5rem;padding:1.25rem;\
-                    font-family:ui-sans-serif,system-ui,sans-serif;height:100%;\
-                    background:#0f1419;color:#e8eef7;",
-            div { style: "font-weight:600;font-size:1.1rem;", "GitBolt / {branch}" }
-            div { style: "opacity:0.7;font-family:ui-monospace,monospace;font-size:0.85rem;", "{path}" }
-            div { style: "opacity:0.55;font-size:0.85rem;margin-top:0.75rem;",
-                "Repository ready — layout arrives in the next MVP issues."
             }
         }
     }
@@ -179,6 +162,10 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::app::event::UiEvent;
+    use crate::app::model::View;
+    use crate::app::reducer::reduce;
+    use crate::app::state::AppState;
 
     #[test]
     fn parse_cli_path_reads_positional() {
@@ -189,5 +176,15 @@ mod tests {
         assert_eq!(parse_cli_path(["gitbolt", "."]), Some(PathBuf::from(".")));
         assert_eq!(parse_cli_path(["gitbolt"]), None);
         assert_eq!(parse_cli_path(["gitbolt", "--help"]), None);
+    }
+
+    #[test]
+    fn select_view_updates_navigation_state() {
+        let mut state = AppState::new();
+        assert_eq!(state.navigation.active_view, View::Changes);
+        let _ = reduce(&mut state, UiEvent::SelectView(View::History));
+        assert_eq!(state.navigation.active_view, View::History);
+        let _ = reduce(&mut state, UiEvent::ToggleContextPanel);
+        assert!(!state.navigation.context_panel_open);
     }
 }
