@@ -254,7 +254,8 @@ fn command_priority(cmd: &Command) -> Priority {
         | Command::LoadDivergence { .. }
         | Command::LoadWorktrees { .. }
         | Command::SetUpstream { .. } => Priority::P2,
-        Command::CreateBranch { .. }
+        Command::EnrichBranchHealth { .. }
+        | Command::CreateBranch { .. }
         | Command::DeleteBranch { .. }
         | Command::Fetch { .. }
         | Command::Pull { .. }

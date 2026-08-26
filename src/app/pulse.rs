@@ -1,6 +1,7 @@
-//! Repository Pulse — one-line header summary (issue #11).
+//! Repository Pulse — one-line header summary (issue #11 / #18).
 
-use crate::app::model::View;
+use crate::app::branch_health::format_badge;
+use crate::app::model::{BranchHealth, View};
 use crate::app::state::AppState;
 
 /// Derived pulse values for the shell header.
@@ -16,6 +17,8 @@ pub struct PulseSnapshot {
     pub worktrees: u32,
     pub has_upstream: bool,
     pub detached: bool,
+    pub health: Option<BranchHealth>,
+    pub stale_days: Option<u32>,
 }
 
 fn clamp_u32(n: usize) -> u32 {
@@ -46,9 +49,15 @@ pub fn summary(state: &AppState) -> PulseSnapshot {
     let current =
         current_name.and_then(|name| state.branch.branches.iter().find(|b| b.name == name));
 
-    let (ahead, behind, has_upstream) = match current {
-        Some(b) if b.upstream.is_some() => (Some(b.ahead), Some(b.behind), true),
-        _ => (None, None, false),
+    let (ahead, behind, has_upstream, health, stale_days) = match current {
+        Some(b) => (
+            Some(b.ahead),
+            Some(b.behind),
+            b.upstream.is_some(),
+            Some(b.health),
+            b.stale_days,
+        ),
+        None => (None, None, false, None, None),
     };
 
     let staged = clamp_u32(state.changes.staged.len());
@@ -73,14 +82,24 @@ pub fn summary(state: &AppState) -> PulseSnapshot {
         worktrees,
         has_upstream,
         detached,
+        health,
+        stale_days,
     }
 }
 
-/// Formats the divergence segment (`↑3 ↓1`, `no upstream`, or empty when synced).
+/// Formats the divergence segment (`↑3 ↓1`, `◌ 42d`, `no upstream`, or empty when synced).
 #[must_use]
 pub fn format_divergence(pulse: &PulseSnapshot) -> String {
     if pulse.detached {
         return String::new();
+    }
+    if let Some(BranchHealth::Stale) = pulse.health {
+        return format_badge(
+            BranchHealth::Stale,
+            pulse.ahead.unwrap_or(0),
+            pulse.behind.unwrap_or(0),
+            pulse.stale_days,
+        );
     }
     if !pulse.has_upstream {
         return "no upstream".into();
@@ -151,6 +170,7 @@ mod tests {
             behind: 1,
             last_commit: None,
             is_remote: false,
+            stale_days: None,
         }]);
         state.changes.staged = Arc::from([change("a"), change("b"), change("c"), change("d")]);
         state.changes.unstaged = Arc::from([change("e"), change("f")]);
@@ -206,10 +226,33 @@ mod tests {
             behind: 0,
             last_commit: None,
             is_remote: false,
+            stale_days: None,
         }]);
         let p = summary(&state);
         assert!(!p.has_upstream);
         assert_eq!(format_divergence(&p), "no upstream");
+    }
+
+    #[test]
+    fn stale_branch_shows_days_in_pulse() {
+        let mut state = AppState::new();
+        state.repository.head = HeadInfo {
+            branch: Some("experiment".into()),
+            oid: Some(Oid("abc".into())),
+            detached: false,
+        };
+        state.branch.branches = Arc::from([BranchInfo {
+            name: "experiment".into(),
+            upstream: Some("origin/experiment".into()),
+            health: BranchHealth::Stale,
+            ahead: 0,
+            behind: 0,
+            last_commit: None,
+            is_remote: false,
+            stale_days: Some(42),
+        }]);
+        let p = summary(&state);
+        assert_eq!(format_divergence(&p), "◌ 42d");
     }
 
     #[test]

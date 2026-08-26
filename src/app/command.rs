@@ -30,6 +30,11 @@ pub enum Command {
     LoadBranches {
         generation: Generation,
     },
+    /// Deferred ahead/behind for non-priority branches (issue #18, P3).
+    EnrichBranchHealth {
+        names: Vec<String>,
+        generation: Generation,
+    },
     LoadDivergence {
         left: String,
         right: String,
@@ -106,6 +111,7 @@ impl Command {
             | Self::LoadDiff { generation, .. }
             | Self::LoadHistoryPage { generation, .. }
             | Self::LoadBranches { generation }
+            | Self::EnrichBranchHealth { generation, .. }
             | Self::LoadDivergence { generation, .. }
             | Self::SetUpstream { generation, .. }
             | Self::LoadWorktrees { generation }

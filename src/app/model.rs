@@ -168,6 +168,8 @@ pub struct BranchInfo {
     pub last_commit: Option<CommitSummary>,
     /// Remote-tracking ref (`origin/…`), not a local branch.
     pub is_remote: bool,
+    /// Whole days since tip commit when known (issue #18 Stale).
+    pub stale_days: Option<u32>,
 }
 
 /// A linked or primary worktree.

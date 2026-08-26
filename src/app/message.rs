@@ -6,7 +6,8 @@
 //! (stale results), while still reconciling background bookkeeping.
 
 use super::model::{
-    BranchInfo, CommitSummary, DiffContent, FileChange, Generation, HeadInfo, Oid, WorktreeInfo,
+    BranchHealth, BranchInfo, CommitSummary, DiffContent, FileChange, Generation, HeadInfo, Oid,
+    WorktreeInfo,
 };
 
 /// Error payload carried by failed operations.
@@ -29,12 +30,23 @@ pub struct DivergenceData {
     pub right_only: Vec<CommitSummary>,
 }
 
-/// Loaded branch list payload (issue #30).
+/// Loaded branch list payload (issue #30 / #18).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BranchesData {
     pub branches: Vec<BranchInfo>,
     pub current: Option<String>,
     pub recent: Vec<String>,
+    /// Local branch names still needing ahead/behind (P3 enrichment).
+    pub pending_health: Vec<String>,
+}
+
+/// Ahead/behind enrichment for deferred Branch Health (issue #18).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BranchHealthUpdate {
+    pub name: String,
+    pub ahead: u32,
+    pub behind: u32,
+    pub health: BranchHealth,
 }
 
 /// A full working-tree status snapshot.
@@ -77,6 +89,10 @@ pub enum AppMessage {
     BranchesLoaded {
         generation: Generation,
         result: Result<BranchesData, Failure>,
+    },
+    BranchHealthEnriched {
+        generation: Generation,
+        result: Result<Vec<BranchHealthUpdate>, Failure>,
     },
     DivergenceLoaded {
         generation: Generation,
@@ -139,6 +155,7 @@ impl AppMessage {
             | Self::DiffLoaded { generation, .. }
             | Self::HistoryPageLoaded { generation, .. }
             | Self::BranchesLoaded { generation, .. }
+            | Self::BranchHealthEnriched { generation, .. }
             | Self::DivergenceLoaded { generation, .. }
             | Self::WorktreesLoaded { generation, .. }
             | Self::StageCompleted { generation, .. }
