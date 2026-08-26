@@ -95,6 +95,14 @@ pub fn Shell(props: ShellProps) -> Element {
                             evt.prevent_default();
                             props.on_event.call(UiEvent::NavigateHunk { delta: -1 });
                         }
+                        Key::Character(ch) if ch == " " => {
+                            evt.prevent_default();
+                            props.on_event.call(UiEvent::ToggleStageSelection);
+                        }
+                        Key::Character(ch) if ch == "s" || ch == "S" => {
+                            evt.prevent_default();
+                            props.on_event.call(UiEvent::StageFocusedHunk);
+                        }
                         _ => {}
                     }
                 }

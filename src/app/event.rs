@@ -60,6 +60,10 @@ pub enum UiEvent {
     StageAll,
     /// Unstage everything.
     UnstageAll,
+    /// Toggle stage/unstage for the currently selected Changes file (Space).
+    ToggleStageSelection,
+    /// Stage or unstage all stageable lines in the focused hunk.
+    StageFocusedHunk,
 
     /// Edit the in-progress commit message.
     SetCommitMessage(String),

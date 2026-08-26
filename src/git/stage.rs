@@ -31,6 +31,26 @@ pub fn unstage_file(repo: &Path, path: &Path) -> Result<(), GitError> {
     Ok(())
 }
 
+/// Stages all changes (`git add -A`).
+///
+/// # Errors
+/// Propagates CLI failures.
+pub fn stage_all(repo: &Path) -> Result<(), GitError> {
+    let cli = GitCli::new(repo)?;
+    cli.run(&["add", "-A"])?;
+    Ok(())
+}
+
+/// Unstages everything (`git restore --staged :/`).
+///
+/// # Errors
+/// Propagates CLI failures.
+pub fn unstage_all(repo: &Path) -> Result<(), GitError> {
+    let cli = GitCli::new(repo)?;
+    cli.run(&["restore", "--staged", ":/"])?;
+    Ok(())
+}
+
 /// Stages only the selected lines of an unstaged (or staged) file diff.
 ///
 /// `selected` indexes match the body lines of `git diff` / `git diff --cached`
@@ -153,5 +173,31 @@ mod tests {
         assert_eq!(indexed, "a\nb");
         let work = std::fs::read_to_string(repo.path().join("f.txt")).expect("read");
         assert_eq!(work, "a\nb\nc\n");
+    }
+
+    #[test]
+    fn stage_all_and_unstage_all() {
+        let repo = TempRepo::init();
+        repo.write("a.txt", "a\n");
+        repo.stage("a.txt");
+        repo.commit("init");
+        repo.write("a.txt", "a\nb\n");
+        repo.write("b.txt", "new\n");
+
+        stage_all(repo.path()).expect("stage all");
+        let status = GixService::open(repo.path())
+            .expect("open")
+            .status()
+            .expect("status");
+        assert!(status.unstaged.is_empty());
+        assert!(status.untracked.is_empty());
+        assert!(!status.staged.is_empty());
+
+        unstage_all(repo.path()).expect("unstage all");
+        let status = GixService::open(repo.path())
+            .expect("open")
+            .status()
+            .expect("status");
+        assert!(status.staged.is_empty());
     }
 }

@@ -79,6 +79,16 @@ pub fn execute(cmd: &Command, repo_path: Option<&Path>) -> AppMessage {
             generation: *generation,
             result: load_worktrees(repo_path),
         },
+        Command::StageAll { generation } => AppMessage::StageCompleted {
+            generation: *generation,
+            path: Path::new(".").to_path_buf(),
+            result: with_service(repo_path, GitService::stage_all),
+        },
+        Command::UnstageAll { generation } => AppMessage::UnstageCompleted {
+            generation: *generation,
+            path: Path::new(".").to_path_buf(),
+            result: with_service(repo_path, GitService::unstage_all),
+        },
         other => unsupported(other),
     }
 }
@@ -267,17 +277,9 @@ fn unsupported(cmd: &Command) -> AppMessage {
         | Command::LoadBranches { .. }
         | Command::LoadDivergence { .. }
         | Command::SetUpstream { .. }
-        | Command::LoadWorktrees { .. } => unreachable!("handled in execute"),
-        Command::StageAll { .. } => AppMessage::StageCompleted {
-            generation,
-            path: Path::new(".").to_path_buf(),
-            result: Err(err),
-        },
-        Command::UnstageAll { .. } => AppMessage::UnstageCompleted {
-            generation,
-            path: Path::new(".").to_path_buf(),
-            result: Err(err),
-        },
+        | Command::LoadWorktrees { .. }
+        | Command::StageAll { .. }
+        | Command::UnstageAll { .. } => unreachable!("handled in execute"),
         Command::Commit { .. } => AppMessage::CommitCompleted {
             generation,
             result: Err(err),

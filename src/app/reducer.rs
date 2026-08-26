@@ -208,6 +208,39 @@ pub fn reduce(state: &mut AppState, event: UiEvent) -> Vec<Command> {
             unstage_all(state);
             issue(state, vec![Command::UnstageAll { generation: gen }])
         }
+        UiEvent::ToggleStageSelection => {
+            let Some(target) = state.diff.target.clone() else {
+                return Vec::new();
+            };
+            if target.staged {
+                reduce(state, UiEvent::UnstageFile(target.path))
+            } else {
+                reduce(state, UiEvent::StageFile(target.path))
+            }
+        }
+        UiEvent::StageFocusedHunk => {
+            let Some(content) = state.diff.content.ready().cloned() else {
+                return Vec::new();
+            };
+            let Some(hunk) = content.hunks.get(state.diff.focused_hunk) else {
+                return Vec::new();
+            };
+            let lines: Vec<usize> = hunk
+                .lines
+                .iter()
+                .filter(|l| l.origin == '+' || l.origin == '-')
+                .map(|l| l.body_index)
+                .collect();
+            if lines.is_empty() {
+                return Vec::new();
+            }
+            state.diff.selected_lines = lines;
+            if content.target.staged {
+                stage_selected_lines(state, gen, true)
+            } else {
+                stage_selected_lines(state, gen, false)
+            }
+        }
         UiEvent::SetCommitMessage(message) => {
             state.ui.commit_message = message;
             Vec::new()
