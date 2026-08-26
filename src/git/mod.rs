@@ -6,6 +6,7 @@ pub mod blame;
 pub mod branch;
 pub mod cli;
 pub mod commit;
+pub mod commit_detail;
 pub mod diff;
 pub mod error;
 pub mod history;

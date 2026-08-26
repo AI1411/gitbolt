@@ -7,7 +7,7 @@
 
 use std::path::PathBuf;
 
-use super::model::{DiffTarget, Generation};
+use super::model::{DiffTarget, Generation, Oid};
 use super::state::HistoryFilter;
 
 /// A unit of work to be executed off the UI thread.
@@ -139,6 +139,10 @@ pub enum Command {
         index: usize,
         generation: Generation,
     },
+    LoadCommitDetail {
+        oid: Oid,
+        generation: Generation,
+    },
 }
 
 impl Command {
@@ -176,7 +180,8 @@ impl Command {
             | Self::StashSave { generation, .. }
             | Self::StashApply { generation, .. }
             | Self::StashPop { generation, .. }
-            | Self::StashDrop { generation, .. } => *generation,
+            | Self::StashDrop { generation, .. }
+            | Self::LoadCommitDetail { generation, .. } => *generation,
         }
     }
 }

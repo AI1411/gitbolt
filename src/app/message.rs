@@ -6,8 +6,8 @@
 //! (stale results), while still reconciling background bookkeeping.
 
 use super::model::{
-    BranchHealth, BranchInfo, CommitSummary, DiffContent, DiffTarget, FileChange, Generation,
-    HeadInfo, Oid, StashInfo, WorktreeInfo,
+    BranchHealth, BranchInfo, CommitDetail, CommitSummary, DiffContent, DiffTarget, FileChange,
+    Generation, HeadInfo, Oid, StashInfo, WorktreeInfo,
 };
 use super::state::HistoryFilter;
 
@@ -175,6 +175,11 @@ pub enum AppMessage {
         generation: Generation,
         result: Result<(), Failure>,
     },
+    CommitDetailLoaded {
+        generation: Generation,
+        oid: Oid,
+        result: Result<CommitDetail, Failure>,
+    },
     RemoteCompleted {
         generation: Generation,
         op: RemoteOp,
@@ -212,6 +217,7 @@ impl AppMessage {
             | Self::StashApplied { generation, .. }
             | Self::StashPopped { generation, .. }
             | Self::StashDropped { generation, .. }
+            | Self::CommitDetailLoaded { generation, .. }
             | Self::RemoteCompleted { generation, .. } => *generation,
         }
     }

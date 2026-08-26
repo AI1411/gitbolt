@@ -7,8 +7,8 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use super::model::{
-    BranchInfo, CommitSummary, DiffContent, DiffTarget, DiffView, FileChange, Generation, HeadInfo,
-    Loadable, Oid, Pane, StashInfo, View, WorktreeInfo,
+    BranchInfo, CommitDetail, CommitSummary, DiffContent, DiffTarget, DiffView, FileChange,
+    Generation, HeadInfo, Loadable, Oid, Pane, StashInfo, View, WorktreeInfo,
 };
 
 /// Lifecycle of the currently opened repository.
@@ -114,6 +114,12 @@ pub struct StashState {
     pub diff: Loadable<DiffContent>,
 }
 
+/// Context panel payloads (issue #25).
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct ContextState {
+    pub commit: Loadable<CommitDetail>,
+}
+
 /// The user's current selection across panes.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct SelectionState {
@@ -179,6 +185,8 @@ pub struct UiState {
     pub pending_open_worktree: Option<PathBuf>,
     /// Auto-fetch interval in seconds (issue #19). `0` disables.
     pub auto_fetch_secs: u64,
+    /// Brief copy confirmation (issue #25).
+    pub copy_feedback: Option<String>,
 }
 
 impl Default for UiState {
@@ -196,6 +204,7 @@ impl Default for UiState {
             open_after_instant_worktree: false,
             pending_open_worktree: None,
             auto_fetch_secs: 300,
+            copy_feedback: None,
         }
     }
 }
@@ -213,6 +222,7 @@ pub struct AppState {
     pub divergence: DivergenceState,
     pub worktree: WorktreeState,
     pub stash: StashState,
+    pub context: ContextState,
     pub selection: SelectionState,
     pub navigation: NavigationState,
     pub background: BackgroundTaskState,

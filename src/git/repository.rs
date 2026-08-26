@@ -12,6 +12,7 @@ use gix::bstr::BString;
 use super::blame;
 use super::branch;
 use super::commit;
+use super::commit_detail;
 use super::diff::{self as diff_mod};
 use super::error::GitError;
 use super::history;
@@ -294,6 +295,10 @@ impl GitService for GixService {
 
     fn stash_show(&self, index: usize) -> Result<String, GitError> {
         stash::stash_show(self.workdir()?, index)
+    }
+
+    fn commit_detail(&self, oid: &str) -> Result<commit_detail::CommitDetail, GitError> {
+        commit_detail::show_commit(self.workdir()?, oid)
     }
 }
 

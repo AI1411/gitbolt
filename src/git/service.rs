@@ -469,4 +469,12 @@ pub trait GitService: Sized {
     fn stash_show(&self, _index: usize) -> Result<String, GitError> {
         Err(GitError::unsupported("stash_show"))
     }
+
+    /// Commit metadata and changed files for the Context Panel.
+    ///
+    /// # Errors
+    /// Returns [`GitError::Unsupported`] until implemented.
+    fn commit_detail(&self, _oid: &str) -> Result<super::commit_detail::CommitDetail, GitError> {
+        Err(GitError::unsupported("commit_detail"))
+    }
 }

@@ -104,12 +104,22 @@ pub fn reduce(state: &mut AppState, event: UiEvent) -> Vec<Command> {
             reduce(state, UiEvent::SelectFile { path, staged })
         }
         UiEvent::SelectCommit(oid) => {
-            state.selection.commit = Some(oid);
+            state.selection.commit = Some(oid.clone());
             state.navigation.context_panel_open = true;
-            Vec::new()
+            state.context.commit = Loadable::Loading;
+            issue(
+                state,
+                vec![Command::LoadCommitDetail {
+                    oid,
+                    generation: gen,
+                }],
+            )
         }
         UiEvent::SelectBranch(name) => {
             state.selection.branch = Some(name);
+            state.selection.commit = None;
+            state.context.commit = Loadable::Idle;
+            state.navigation.context_panel_open = true;
             Vec::new()
         }
         UiEvent::SetBranchFilter(filter) => {
@@ -464,6 +474,10 @@ pub fn reduce(state: &mut AppState, event: UiEvent) -> Vec<Command> {
         UiEvent::Search(query) => {
             state.ui.searching = !query.is_empty();
             state.ui.search_query = query;
+            Vec::new()
+        }
+        UiEvent::CopyText(_text) => {
+            state.ui.copy_feedback = Some("Copied to clipboard".into());
             Vec::new()
         }
         UiEvent::DismissError => {
@@ -827,6 +841,15 @@ pub fn apply(state: &mut AppState, message: AppMessage) -> Vec<Command> {
                 Vec::new()
             }
         },
+        AppMessage::CommitDetailLoaded { oid, result, .. } => {
+            if state.selection.commit.as_ref() == Some(&oid) {
+                match result {
+                    Ok(detail) => state.context.commit = Loadable::Ready(detail),
+                    Err(err) => state.context.commit = Loadable::Failed(err),
+                }
+            }
+            Vec::new()
+        }
         AppMessage::RemoteCompleted { op, result, .. } => {
             state.background.remote_label = None;
             match result {
@@ -1602,6 +1625,20 @@ mod tests {
         assert!(matches!(
             cmds.as_slice(),
             [Command::LoadStashDiff { index: 0, .. }]
+        ));
+    }
+
+    #[test]
+    fn select_commit_loads_detail_and_opens_context() {
+        let mut state = AppState::new();
+        let oid = Oid("abc123".into());
+        let cmds = reduce(&mut state, UiEvent::SelectCommit(oid.clone()));
+        assert_eq!(state.selection.commit, Some(oid));
+        assert!(state.navigation.context_panel_open);
+        assert!(state.context.commit.is_loading());
+        assert!(matches!(
+            cmds.as_slice(),
+            [Command::LoadCommitDetail { .. }]
         ));
     }
 }

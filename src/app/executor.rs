@@ -10,8 +10,8 @@ use super::message::{
     StatusData,
 };
 use super::model::{
-    BranchHealth, BranchInfo, ChangeKind, CommitSummary, DiffTarget, FileChange, HeadInfo, Oid,
-    StashInfo,
+    BranchHealth, BranchInfo, ChangeKind, CommitDetail, CommitFileEntry, CommitSummary, DiffTarget,
+    FileChange, HeadInfo, Oid, StashInfo,
 };
 use super::state::HistoryFilter;
 use crate::git::{ChangeStatus, GitError, GitService, GixService, RepoStatus};
@@ -100,6 +100,11 @@ pub fn execute(cmd: &Command, repo_path: Option<&Path>) -> AppMessage {
         | Command::StashApply { .. }
         | Command::StashPop { .. }
         | Command::StashDrop { .. } => execute_stash(cmd, repo_path),
+        Command::LoadCommitDetail { oid, generation } => AppMessage::CommitDetailLoaded {
+            generation: *generation,
+            oid: oid.clone(),
+            result: load_commit_detail(repo_path, oid),
+        },
     }
 }
 
@@ -264,6 +269,29 @@ fn execute_branch_mutation(cmd: &Command, repo_path: Option<&Path>) -> AppMessag
         },
         _ => unreachable!("branch mutation only"),
     }
+}
+
+fn load_commit_detail(repo_path: Option<&Path>, oid: &Oid) -> Result<CommitDetail, String> {
+    let path = repo_path.ok_or_else(|| "リポジトリが開かれていません".to_string())?;
+    let service = GixService::open(path).map_err(|e| e.user_message())?;
+    let detail = service
+        .commit_detail(&oid.0)
+        .map_err(|e| e.user_message())?;
+    Ok(CommitDetail {
+        oid: Oid(detail.oid),
+        summary: detail.summary,
+        author: detail.author,
+        timestamp: detail.timestamp,
+        body: detail.body,
+        files: detail
+            .files
+            .into_iter()
+            .map(|f| CommitFileEntry {
+                status: f.status,
+                path: f.path,
+            })
+            .collect(),
+    })
 }
 
 fn load_stashes(repo_path: Option<&Path>) -> Result<Vec<StashInfo>, String> {
