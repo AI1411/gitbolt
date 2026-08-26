@@ -130,7 +130,8 @@ fn command_priority(cmd: &Command) -> Priority {
         | Command::LoadHistoryPage { .. }
         | Command::LoadBranches { .. }
         | Command::LoadDivergence { .. }
-        | Command::LoadWorktrees { .. } => Priority::P2,
+        | Command::LoadWorktrees { .. }
+        | Command::SetUpstream { .. } => Priority::P2,
         Command::CreateBranch { .. }
         | Command::DeleteBranch { .. }
         | Command::Fetch { .. }

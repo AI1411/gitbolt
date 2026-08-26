@@ -29,6 +29,14 @@ pub struct DivergenceData {
     pub right_only: Vec<CommitSummary>,
 }
 
+/// Loaded branch list payload (issue #30).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BranchesData {
+    pub branches: Vec<BranchInfo>,
+    pub current: Option<String>,
+    pub recent: Vec<String>,
+}
+
 /// A full working-tree status snapshot.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct StatusData {
@@ -68,7 +76,7 @@ pub enum AppMessage {
     },
     BranchesLoaded {
         generation: Generation,
-        result: Result<(Vec<BranchInfo>, Option<String>), Failure>,
+        result: Result<BranchesData, Failure>,
     },
     DivergenceLoaded {
         generation: Generation,
@@ -106,6 +114,10 @@ pub enum AppMessage {
         generation: Generation,
         result: Result<(), Failure>,
     },
+    UpstreamSet {
+        generation: Generation,
+        result: Result<(), Failure>,
+    },
     WorktreeCreated {
         generation: Generation,
         result: Result<WorktreeInfo, Failure>,
@@ -135,6 +147,7 @@ impl AppMessage {
             | Self::CheckoutCompleted { generation, .. }
             | Self::BranchCreated { generation, .. }
             | Self::BranchDeleted { generation, .. }
+            | Self::UpstreamSet { generation, .. }
             | Self::WorktreeCreated { generation, .. }
             | Self::RemoteCompleted { generation, .. } => *generation,
         }

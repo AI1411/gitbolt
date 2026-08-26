@@ -83,6 +83,61 @@ pub fn ahead_behind(repo: &Path, tip: &str, upstream: &str) -> Result<(u32, u32)
     Ok((ahead, behind))
 }
 
+/// Recent branch names from checkout reflog (most recent first, deduped).
+///
+/// # Errors
+/// Propagates CLI failures.
+pub fn recent_branches(repo: &Path, limit: usize) -> Result<Vec<String>, GitError> {
+    let cli = GitCli::new(repo)?;
+    // Prefer checkout messages; fall back to any reflog entry that names a branch.
+    let out = cli.run(&["reflog", "--format=%gs", "-n", "100"])?;
+    let mut recent = Vec::new();
+    for line in out.lines() {
+        if let Some(name) = parse_checkout_branch(line) {
+            if !recent.iter().any(|n| n == &name) {
+                recent.push(name);
+            }
+        }
+        if recent.len() >= limit {
+            break;
+        }
+    }
+    Ok(recent)
+}
+
+fn parse_checkout_branch(reflog_summary: &str) -> Option<String> {
+    // "checkout: moving from main to feature"
+    let lower = reflog_summary.to_ascii_lowercase();
+    if !lower.starts_with("checkout: moving from ") {
+        return None;
+    }
+    let to = reflog_summary.rsplit(" to ").next()?.trim();
+    if to.is_empty() || to == "HEAD" {
+        return None;
+    }
+    Some(to.to_string())
+}
+
+/// Last commit on `branch` (summary / author / time).
+///
+/// # Errors
+/// Propagates CLI failures.
+pub fn branch_last_commit(repo: &Path, branch: &str) -> Result<Option<CommitInfo>, GitError> {
+    let cli = GitCli::new(repo)?;
+    let out = cli.run(&["log", "-1", "--format=%H%x09%s%x09%an%x09%at", branch])?;
+    Ok(parse_log(&out).into_iter().next())
+}
+
+/// Sets `branch` to track `upstream` (`git branch -u upstream branch`).
+///
+/// # Errors
+/// Propagates CLI failures.
+pub fn set_upstream(repo: &Path, branch: &str, upstream: &str) -> Result<(), GitError> {
+    let cli = GitCli::new(repo)?;
+    cli.run(&["branch", "-u", upstream, branch])?;
+    Ok(())
+}
+
 fn parse_log(out: &str) -> Vec<CommitInfo> {
     let mut commits = Vec::new();
     for line in out.lines() {
@@ -153,5 +208,51 @@ mod tests {
         let branches = list_branches(repo.path()).expect("branches");
         assert!(branches.iter().any(|b| b.name == "main" && b.is_head));
         assert!(branches.iter().any(|b| b.name == "feature" && !b.is_head));
+    }
+
+    #[test]
+    fn recent_branches_from_reflog_checkout_order() {
+        let repo = diverged_repo();
+        // diverged_repo ends on main after visiting feature.
+        let recent = recent_branches(repo.path(), 5).expect("recent");
+        assert!(
+            recent.first().is_some_and(|n| n == "main"),
+            "expected main first, got {recent:?}"
+        );
+        assert!(recent.iter().any(|n| n == "feature"));
+    }
+
+    #[test]
+    fn branch_last_commit_reads_tip_summary() {
+        let repo = diverged_repo();
+        let tip = branch_last_commit(repo.path(), "feature")
+            .expect("last")
+            .expect("some");
+        assert!(tip.summary.contains("on feature"));
+    }
+
+    #[test]
+    fn set_upstream_writes_tracking_ref() {
+        let remote = TempRepo::init();
+        remote.write("r.txt", "remote\n");
+        remote.stage("r.txt");
+        remote.commit("remote tip");
+
+        let local = TempRepo::init();
+        local.write("l.txt", "local\n");
+        local.stage("l.txt");
+        local.commit("local tip");
+        local.run(&[
+            "remote",
+            "add",
+            "origin",
+            remote.path().to_str().expect("utf8 path"),
+        ]);
+        local.run(&["fetch", "origin"]);
+
+        set_upstream(local.path(), "main", "origin/main").expect("set upstream");
+        let branches = list_branches(local.path()).expect("list");
+        let main = branches.iter().find(|b| b.name == "main").expect("main");
+        assert_eq!(main.upstream.as_deref(), Some("origin/main"));
     }
 }

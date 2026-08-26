@@ -159,7 +159,7 @@ pub struct BranchInfo {
     pub health: BranchHealth,
     pub ahead: u32,
     pub behind: u32,
-    pub last_commit: Option<Oid>,
+    pub last_commit: Option<CommitSummary>,
 }
 
 /// A linked or primary worktree.
