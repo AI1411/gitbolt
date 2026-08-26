@@ -32,6 +32,7 @@ pub enum PaletteAction {
     ToggleQuickOpen,
     CommitBack,
     CommitForward,
+    ToggleHeatmap,
 }
 
 /// Built-in palette entries.
@@ -141,6 +142,12 @@ pub fn all_commands() -> Vec<PaletteCommand> {
             keys: "⌘]",
             event: PaletteAction::CommitForward,
         },
+        PaletteCommand {
+            id: "diff.heatmap",
+            label: "Toggle Blame Heatmap",
+            keys: "",
+            event: PaletteAction::ToggleHeatmap,
+        },
     ]
 }
 
@@ -182,6 +189,7 @@ pub fn action_to_event(action: PaletteAction) -> UiEvent {
         PaletteAction::ToggleQuickOpen => UiEvent::OpenQuickOpen,
         PaletteAction::CommitBack => UiEvent::NavigateCommit { delta: -1 },
         PaletteAction::CommitForward => UiEvent::NavigateCommit { delta: 1 },
+        PaletteAction::ToggleHeatmap => UiEvent::ToggleHeatmap,
     }
 }
 

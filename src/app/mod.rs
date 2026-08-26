@@ -8,6 +8,7 @@ pub mod command;
 pub mod diff_parse;
 pub mod event;
 pub mod executor;
+pub mod heatmap;
 pub mod message;
 pub mod model;
 pub mod palette;
