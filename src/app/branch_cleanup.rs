@@ -10,6 +10,7 @@ pub const PROTECTED: &[&str] = &["main", "master", "develop", "trunk", "release"
 pub enum CleanupReason {
     Merged,
     Stale,
+    Squashed,
     Both,
 }
 
@@ -26,24 +27,31 @@ pub fn is_protected(name: &str) -> bool {
     PROTECTED.iter().any(|p| p.eq_ignore_ascii_case(name))
 }
 
-/// Builds cleanup candidates from branch list + merged-into-base names.
+/// Builds cleanup candidates from branch list + merged/squashed names.
 #[must_use]
 pub fn candidates(
     branches: &[BranchInfo],
     current: Option<&str>,
     merged_names: &[String],
+    squashed_names: &[String],
+    excluded: &[String],
 ) -> Vec<CleanupCandidate> {
     let mut out = Vec::new();
     for b in branches.iter().filter(|b| !b.is_remote) {
-        if current.is_some_and(|c| c == b.name) || is_protected(&b.name) {
+        if current.is_some_and(|c| c == b.name)
+            || is_protected(&b.name)
+            || excluded.iter().any(|e| e == &b.name)
+        {
             continue;
         }
         let merged = merged_names.iter().any(|m| m == &b.name);
+        let squashed = squashed_names.iter().any(|m| m == &b.name);
         let stale = b.health == BranchHealth::Stale
             || b.stale_days
                 .is_some_and(|d| d >= crate::app::branch_health::STALE_DAYS_THRESHOLD);
-        let reason = match (merged, stale) {
+        let reason = match (merged || squashed, stale) {
             (true, true) => CleanupReason::Both,
+            (true, false) if squashed && !merged => CleanupReason::Squashed,
             (true, false) => CleanupReason::Merged,
             (false, true) => CleanupReason::Stale,
             (false, false) => continue,
@@ -63,7 +71,8 @@ pub fn reason_label(reason: CleanupReason) -> &'static str {
     match reason {
         CleanupReason::Merged => "merged",
         CleanupReason::Stale => "stale",
-        CleanupReason::Both => "merged + stale",
+        CleanupReason::Squashed => "squash-merged",
+        CleanupReason::Both => "outdated",
     }
 }
 
@@ -93,7 +102,7 @@ mod tests {
             local("old", BranchHealth::Stale, Some(40)),
         ];
         let merged = vec!["feature".into(), "main".into()];
-        let c = candidates(&branches, Some("feature"), &merged);
+        let c = candidates(&branches, Some("feature"), &merged, &[], &[]);
         assert!(c.iter().all(|x| x.name != "main" && x.name != "feature"));
         assert_eq!(c.len(), 1);
         assert_eq!(c[0].name, "old");
@@ -104,7 +113,17 @@ mod tests {
     fn marks_merged() {
         let branches = vec![local("done", BranchHealth::Local, None)];
         let merged = vec!["done".into()];
-        let c = candidates(&branches, Some("main"), &merged);
+        let c = candidates(&branches, Some("main"), &merged, &[], &[]);
         assert_eq!(c[0].reason, CleanupReason::Merged);
+    }
+
+    #[test]
+    fn marks_squashed_and_honors_exclude() {
+        let branches = vec![local("topic", BranchHealth::Local, None)];
+        let squashed = vec!["topic".into()];
+        let c = candidates(&branches, Some("main"), &[], &squashed, &[]);
+        assert_eq!(c[0].reason, CleanupReason::Squashed);
+        let c2 = candidates(&branches, Some("main"), &[], &squashed, &["topic".into()]);
+        assert!(c2.is_empty());
     }
 }

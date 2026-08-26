@@ -53,6 +53,8 @@ pub fn BranchesView(props: BranchesViewProps) -> Element {
         &props.state.branch.branches,
         current_opt.as_deref(),
         &props.state.branch.merged_into_base,
+        &props.state.branch.squashed_into_base,
+        &props.state.branch.cleanup_excluded,
     );
 
     rsx! {
@@ -415,7 +417,7 @@ fn CleanupPanel(
             }
             p {
                 style: "margin:0;font-size:0.75rem;opacity:0.7;",
-                "Merged into base and/or stale (≥30d). Current and protected branches are excluded. Uses safe delete (-d)."
+                "Merged, squash-merged, and/or stale (≥30d). Current and protected branches are excluded. Uses safe delete (-d)."
             }
             ul {
                 style: "list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:0.25rem;max-height:12rem;overflow:auto;",
@@ -423,22 +425,35 @@ fn CleanupPanel(
                     {
                         let name = c.name.clone();
                         let name_cb = c.name.clone();
+                        let name_ex = c.name.clone();
                         let checked = selected.iter().any(|s| s == &c.name);
                         let reason = crate::app::branch_cleanup::reason_label(c.reason);
                         rsx! {
                             li {
                                 key: "{name}",
-                                label {
-                                    style: "display:flex;align-items:center;gap:0.4rem;font-size:0.8rem;cursor:pointer;",
-                                    input {
-                                        r#type: "checkbox",
-                                        checked: checked,
-                                        onchange: move |_| {
-                                            on_event.call(UiEvent::ToggleCleanupBranch(name_cb.clone()));
-                                        },
+                                div {
+                                    style: "display:flex;align-items:center;gap:0.4rem;font-size:0.8rem;",
+                                    label {
+                                        style: "display:flex;align-items:center;gap:0.4rem;cursor:pointer;flex:1;",
+                                        input {
+                                            r#type: "checkbox",
+                                            checked: checked,
+                                            onchange: move |_| {
+                                                on_event.call(UiEvent::ToggleCleanupBranch(name_cb.clone()));
+                                            },
+                                        }
+                                        span { style: "font-family:ui-monospace,monospace;", "{name}" }
+                                        span { style: "opacity:0.55;", "({reason})" }
                                     }
-                                    span { style: "font-family:ui-monospace,monospace;", "{name}" }
-                                    span { style: "opacity:0.55;", "({reason})" }
+                                    button {
+                                        r#type: "button",
+                                        title: "Exclude as false positive",
+                                        style: "border:0;background:transparent;color:#94a3b8;cursor:pointer;font-size:0.7rem;",
+                                        onclick: move |_| {
+                                            on_event.call(UiEvent::ExcludeCleanupBranch(name_ex.clone()));
+                                        },
+                                        "Exclude"
+                                    }
                                 }
                             }
                         }

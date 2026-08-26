@@ -97,6 +97,8 @@ pub enum UiEvent {
     ConfirmBranchCleanup,
     /// Cancel cleanup panel.
     CancelBranchCleanup,
+    /// Exclude a branch from cleanup candidates this session (false positive).
+    ExcludeCleanupBranch(String),
 
     /// Fetch from the default remote.
     Fetch,
