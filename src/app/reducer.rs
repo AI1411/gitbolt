@@ -553,6 +553,14 @@ pub fn reduce(state: &mut AppState, event: UiEvent) -> Vec<Command> {
             };
             Vec::new()
         }
+        UiEvent::OpenCheatSheet => {
+            state.ui.overlay = Overlay::CheatSheet;
+            Vec::new()
+        }
+        UiEvent::SetTyping(typing) => {
+            state.ui.typing = typing;
+            Vec::new()
+        }
         UiEvent::CloseOverlay => {
             state.ui.overlay = Overlay::None;
             Vec::new()
@@ -564,7 +572,7 @@ pub fn reduce(state: &mut AppState, event: UiEvent) -> Vec<Command> {
                     *q = query;
                     *selected = 0;
                 }
-                Overlay::None => {}
+                Overlay::None | Overlay::CheatSheet => {}
             }
             Vec::new()
         }
@@ -577,7 +585,7 @@ pub fn reduce(state: &mut AppState, event: UiEvent) -> Vec<Command> {
                 Overlay::CommandPalette { selected, .. } | Overlay::QuickOpen { selected, .. } => {
                     *selected = index;
                 }
-                Overlay::None => {}
+                Overlay::None | Overlay::CheatSheet => {}
             }
             confirm_overlay(state)
         }
@@ -1038,13 +1046,13 @@ fn navigate_overlay(state: &mut AppState, delta: i32) {
             let next = (cur + i64::from(delta)).rem_euclid(len_i);
             *selected = usize::try_from(next).unwrap_or(0);
         }
-        Overlay::None => {}
+        Overlay::None | Overlay::CheatSheet => {}
     }
 }
 
 fn overlay_item_count(state: &AppState) -> usize {
     match &state.ui.overlay {
-        Overlay::None => 0,
+        Overlay::None | Overlay::CheatSheet => 0,
         Overlay::CommandPalette { query, .. } => crate::app::palette::filter_commands(query).len(),
         Overlay::QuickOpen { query, .. } => {
             let items = crate::app::quick_open::collect_items(state);
@@ -1055,7 +1063,7 @@ fn overlay_item_count(state: &AppState) -> usize {
 
 fn confirm_overlay(state: &mut AppState) -> Vec<Command> {
     match state.ui.overlay.clone() {
-        Overlay::None => Vec::new(),
+        Overlay::None | Overlay::CheatSheet => Vec::new(),
         Overlay::CommandPalette { query, selected } => {
             let cmds = crate::app::palette::filter_commands(&query);
             let Some(cmd) = cmds.get(selected) else {

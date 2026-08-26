@@ -14,11 +14,33 @@ pub struct OverlayHostProps {
     pub on_event: EventHandler<UiEvent>,
 }
 
-/// Renders Command Palette or Quick Open when active.
+/// Renders Command Palette, Quick Open, or Cheat Sheet when active.
 #[component]
 pub fn OverlayHost(props: OverlayHostProps) -> Element {
+    let modi = crate::platform::mod_key_label();
     match &props.state.ui.overlay {
         Overlay::None => rsx! {},
+        Overlay::CheatSheet => {
+            rsx! {
+                div {
+                    style: "position:fixed;inset:0;z-index:50;display:flex;align-items:flex-start;\
+                            justify-content:center;padding-top:10vh;background:rgba(0,0,0,0.45);",
+                    onclick: move |_| props.on_event.call(UiEvent::CloseOverlay),
+                    div {
+                        style: "width:min(40rem,92vw);background:#121820;border:1px solid #334155;\
+                                border-radius:8px;box-shadow:0 12px 40px rgba(0,0,0,0.45);\
+                                padding:1rem 1.1rem;max-height:70vh;overflow:auto;",
+                        onclick: move |evt| evt.stop_propagation(),
+                        h2 {
+                            style: "margin:0 0 0.75rem;font-size:1rem;",
+                            "Keyboard shortcuts"
+                        }
+                        CheatSheetBody { modi: modi.to_string() }
+                        OverlayFooter { hint: format!("? · Esc · {modi}K palette · {modi}P quick open") }
+                    }
+                }
+            }
+        }
         Overlay::CommandPalette { query, selected } => {
             let items = filter_commands(query);
             let selected = *selected;
@@ -67,7 +89,7 @@ pub fn OverlayHost(props: OverlayHostProps) -> Element {
                                 }
                             }
                         }
-                        OverlayFooter { hint: String::from("⌘K · ↑↓ · Enter · Esc") }
+                        OverlayFooter { hint: format!("{modi}K · ↑↓ · Enter · Esc") }
                     }
                 }
             }
@@ -129,7 +151,7 @@ pub fn OverlayHost(props: OverlayHostProps) -> Element {
                             }
                         }
                         OverlayFooter {
-                            hint: String::from("⌘P · files / branches / commits · Esc"),
+                            hint: format!("{modi}P · files / branches / commits · Esc"),
                         }
                     }
                 }
@@ -155,6 +177,8 @@ fn OverlayHeader(title: String, query: String, on_event: EventHandler<UiEvent>) 
                         color:#e8eef7;font-size:0.9rem;font-family:inherit;",
                 placeholder: "Type to filter…",
                 value: "{query}",
+                onfocus: move |_| on_event.call(UiEvent::SetTyping(true)),
+                onblur: move |_| on_event.call(UiEvent::SetTyping(false)),
                 oninput: move |evt| {
                     on_event.call(UiEvent::SetOverlayQuery(evt.value()));
                 },
@@ -193,6 +217,48 @@ fn OverlayFooter(hint: String) -> Element {
             style: "padding:0.4rem 0.85rem;border-top:1px solid #243044;\
                     font-size:0.72rem;opacity:0.5;",
             "{hint}"
+        }
+    }
+}
+
+#[component]
+fn CheatSheetBody(modi: String) -> Element {
+    let rows: Vec<(String, String)> = vec![
+        (
+            "1 / 2 / 3 / 4 / 5".into(),
+            "Changes / History / Branches / Worktrees / Stashes".into(),
+        ),
+        ("B / H / W".into(), "Branches / History / Worktrees".into()),
+        (
+            "j k · Space · [ ] · s".into(),
+            "Changes: move · stage · hunk · stage hunk".into(),
+        ),
+        ("C".into(), "Focus commit message (Changes)".into()),
+        ("F".into(), "Fetch".into()),
+        ("Shift+H".into(), "File history for selected file".into()),
+        (format!("{modi}K"), "Command Palette".into()),
+        (format!("{modi}P · /"), "Quick Open / Search".into()),
+        (format!("{modi}I"), "Toggle Context".into()),
+        (format!("{modi}Enter"), "Commit".into()),
+        ("?".into(), "This cheat sheet".into()),
+        ("Esc".into(), "Close overlay / cancel".into()),
+    ];
+    rsx! {
+        table {
+            style: "width:100%;border-collapse:collapse;font-size:0.85rem;",
+            for (keys, desc) in rows {
+                tr {
+                    td {
+                        style: "padding:0.28rem 0.5rem 0.28rem 0;font-family:ui-monospace,monospace;\
+                                opacity:0.85;white-space:nowrap;vertical-align:top;",
+                        "{keys}"
+                    }
+                    td {
+                        style: "padding:0.28rem 0;opacity:0.75;",
+                        "{desc}"
+                    }
+                }
+            }
         }
     }
 }

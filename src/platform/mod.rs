@@ -19,3 +19,22 @@ pub fn current_platform() -> Platform {
         Platform::Linux
     }
 }
+
+/// Modifier key glyph for shortcut hints (`⌘` on macOS, `Ctrl` elsewhere).
+#[must_use]
+pub fn mod_key_label() -> &'static str {
+    match current_platform() {
+        Platform::MacOs => "⌘",
+        Platform::Windows | Platform::Linux => "Ctrl",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn mod_key_label_is_nonempty() {
+        assert!(!mod_key_label().is_empty());
+    }
+}
