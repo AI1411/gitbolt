@@ -87,6 +87,14 @@ pub fn Shell(props: ShellProps) -> Element {
                             evt.prevent_default();
                             props.on_event.call(UiEvent::NavigateChanges { delta: -1 });
                         }
+                        Key::Character(ch) if ch == "]" => {
+                            evt.prevent_default();
+                            props.on_event.call(UiEvent::NavigateHunk { delta: 1 });
+                        }
+                        Key::Character(ch) if ch == "[" => {
+                            evt.prevent_default();
+                            props.on_event.call(UiEvent::NavigateHunk { delta: -1 });
+                        }
                         _ => {}
                     }
                 }

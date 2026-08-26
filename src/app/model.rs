@@ -131,6 +131,8 @@ pub struct DiffHunk {
 pub struct DiffContent {
     pub target: DiffTarget,
     pub hunks: Arc<[DiffHunk]>,
+    /// Optional banner (binary file, truncated, empty).
+    pub notice: Option<String>,
 }
 
 /// A commit as shown in the history list.

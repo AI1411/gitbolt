@@ -64,6 +64,7 @@ pub fn reduce(state: &mut AppState, event: UiEvent) -> Vec<Command> {
             state.diff.target = Some(target.clone());
             state.diff.content = Loadable::Loading;
             state.diff.selected_lines.clear();
+            state.diff.focused_hunk = 0;
             issue(
                 state,
                 vec![Command::LoadDiff {
@@ -151,6 +152,17 @@ pub fn reduce(state: &mut AppState, event: UiEvent) -> Vec<Command> {
         }
         UiEvent::SetDiffView(view) => {
             state.diff.view = view;
+            Vec::new()
+        }
+        UiEvent::NavigateHunk { delta } => {
+            let n = state.diff.content.ready().map_or(0, |c| c.hunks.len());
+            if n == 0 {
+                return Vec::new();
+            }
+            let len = i64::try_from(n).unwrap_or(1);
+            let cur = i64::try_from(state.diff.focused_hunk).unwrap_or(0);
+            let next = (cur + i64::from(delta)).rem_euclid(len);
+            state.diff.focused_hunk = usize::try_from(next).unwrap_or(0);
             Vec::new()
         }
         UiEvent::ToggleDiffLine(index) => {
@@ -741,6 +753,7 @@ mod tests {
                 staged: false,
             },
             hunks: Arc::from([] as [DiffHunk; 0]),
+            notice: None,
         };
         apply(
             &mut state,
@@ -761,6 +774,7 @@ mod tests {
                 header: "@@".into(),
                 lines: vec![],
             }]),
+            notice: None,
         };
         apply(
             &mut state,
@@ -857,6 +871,7 @@ mod tests {
                 staged: false,
             },
             hunks: Arc::from([] as [DiffHunk; 0]),
+            notice: None,
         });
         let gen = state.generation;
         let cmds = apply(

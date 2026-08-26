@@ -40,6 +40,8 @@ pub enum UiEvent {
 
     /// Change the diff presentation.
     SetDiffView(DiffView),
+    /// Move focused hunk by `delta` (−1 / +1) for `[` / `]`.
+    NavigateHunk { delta: i32 },
 
     /// Toggle selection of a diff body line for line-stage.
     ToggleDiffLine(usize),

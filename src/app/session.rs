@@ -14,6 +14,7 @@ use super::message::AppMessage;
 use super::recent::{load_recent, save_recent};
 use super::reducer::{apply, reduce};
 use super::state::{AppState, RepositoryStatus};
+use crate::cache::{CacheKey, RepoCaches};
 use crate::task::{Outcome, Priority, TaskRunner};
 use crate::watcher::{RepoWatcher, WatchEvent};
 
@@ -30,6 +31,8 @@ pub struct AppSession {
     /// Live filesystem watcher for the open repository (issue #12 / #7).
     watcher: Option<RepoWatcher>,
     watch_rx: Option<Receiver<WatchEvent>>,
+    /// Diff/blame caches for the open repository (issue #13).
+    caches: RepoCaches,
 }
 
 impl AppSession {
@@ -46,6 +49,7 @@ impl AppSession {
             repo_path: None,
             watcher: None,
             watch_rx: None,
+            caches: RepoCaches::new(),
         }
     }
 
@@ -60,10 +64,12 @@ impl AppSession {
                 self.repo_path = Some(path);
             }
             self.stop_watcher();
+            self.caches = RepoCaches::new();
         }
         if closing || matches!(self.state.repository.status, RepositoryStatus::NotOpened) {
             self.repo_path = None;
             self.stop_watcher();
+            self.caches = RepoCaches::new();
         }
         self.submit_commands(commands);
     }
@@ -79,6 +85,7 @@ impl AppSession {
     pub fn poll(&mut self) -> bool {
         let mut changed = false;
         while let Ok(outcome) = self.rx.try_recv() {
+            self.cache_diff_result(&outcome.message);
             let follow = apply(&mut self.state, outcome.message);
             self.submit_commands(follow);
             changed = true;
@@ -97,12 +104,26 @@ impl AppSession {
         }
         match self.rx.recv_timeout(timeout) {
             Ok(outcome) => {
+                self.cache_diff_result(&outcome.message);
                 let follow = apply(&mut self.state, outcome.message);
                 self.submit_commands(follow);
                 let _ = self.poll();
                 true
             }
             Err(_) => false,
+        }
+    }
+
+    fn cache_diff_result(&mut self, message: &AppMessage) {
+        if let AppMessage::DiffLoaded {
+            result: Ok(content),
+            ..
+        } = message
+        {
+            if let Some(head) = self.state.repository.head.oid.clone() {
+                let key = CacheKey::new(head, content.target.path.clone(), content.target.staged);
+                self.caches.diff.insert(key, content.clone());
+            }
         }
     }
 
@@ -135,14 +156,22 @@ impl AppSession {
         };
         let mut saw_head = false;
         let mut saw_any = false;
+        let mut wt_paths = Vec::new();
         while let Ok(ev) = rx.try_recv() {
             saw_any = true;
-            if matches!(ev, WatchEvent::Head) {
-                saw_head = true;
+            match ev {
+                WatchEvent::Head => saw_head = true,
+                WatchEvent::WorkingTree(paths) => wt_paths.extend(paths),
             }
         }
         if !saw_any {
             return false;
+        }
+        if saw_head {
+            self.caches.on_head_change();
+        }
+        if !wt_paths.is_empty() {
+            self.caches.on_working_tree_change(wt_paths);
         }
         let gen = self.state.generation;
         let mut cmds = vec![Command::LoadStatus { generation: gen }];
@@ -157,6 +186,24 @@ impl AppSession {
     fn submit_commands(&mut self, commands: Vec<Command>) {
         self.runner.set_generation(self.state.generation);
         for cmd in commands {
+            if let Command::LoadDiff { target, generation } = &cmd {
+                if let Some(head) = self.state.repository.head.oid.clone() {
+                    let key = CacheKey::new(head, target.path.clone(), target.staged);
+                    if let Some(cached) = self.caches.diff.get(&key) {
+                        let follow = apply(
+                            &mut self.state,
+                            AppMessage::DiffLoaded {
+                                generation: *generation,
+                                result: Ok((*cached).clone()),
+                            },
+                        );
+                        // Avoid re-entering cache insert with same content via poll path:
+                        // apply only; do not call cache_diff_result here (already cached).
+                        self.submit_commands(follow);
+                        continue;
+                    }
+                }
+            }
             let generation = cmd.generation();
             let priority = command_priority(&cmd);
             let path = match &cmd {
