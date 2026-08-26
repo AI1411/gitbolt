@@ -4,6 +4,8 @@
 
 **Goal:** Raise visual scan speed without breaking Keyboard First / Fast First.
 
+**Status:** Done. Child PRs #119–#129 landed; this tracker can close.
+
 ## Order
 
 1. **#108 tokens** — CSS variables on the app root; replace UI hex with `var(--gb-*)`. Keep heatmap hex (data colors + tests).
