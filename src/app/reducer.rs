@@ -664,6 +664,13 @@ pub fn reduce(state: &mut AppState, event: UiEvent) -> Vec<Command> {
             state.background.last_error = None;
             Vec::new()
         }
+        UiEvent::ToggleColorScheme => {
+            state.ui.color_scheme = state.ui.color_scheme.toggle();
+            let mut prefs = crate::app::layout_prefs::load_layout_prefs();
+            prefs.color_scheme = state.ui.color_scheme;
+            crate::app::layout_prefs::save_layout_prefs(&prefs);
+            Vec::new()
+        }
     }
 }
 
@@ -2190,6 +2197,16 @@ mod tests {
         assert!(state.diff.heatmap_enabled);
         let _ = reduce(&mut state, UiEvent::ToggleHeatmap);
         assert!(!state.diff.heatmap_enabled);
+    }
+
+    #[test]
+    fn toggle_color_scheme_flips() {
+        let mut state = AppState::new();
+        let start = state.ui.color_scheme;
+        let _ = reduce(&mut state, UiEvent::ToggleColorScheme);
+        assert_ne!(state.ui.color_scheme, start);
+        let _ = reduce(&mut state, UiEvent::ToggleColorScheme);
+        assert_eq!(state.ui.color_scheme, start);
     }
 
     #[test]

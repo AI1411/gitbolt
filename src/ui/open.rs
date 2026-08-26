@@ -19,6 +19,8 @@ pub struct OpenScreenProps {
     pub on_remove_recent: EventHandler<PathBuf>,
     pub on_pin_recent: EventHandler<PathBuf>,
     pub on_prune_recent: EventHandler<()>,
+    pub color_scheme: crate::app::layout_prefs::ColorScheme,
+    pub on_toggle_theme: EventHandler<()>,
 }
 
 /// Renders the repository open / welcome surface.
@@ -54,6 +56,16 @@ pub fn OpenScreen(props: OpenScreenProps) -> Element {
             }
             p { style: "margin:0;opacity:0.75;font-size:var(--gb-size-body);",
                 "Open a Git repository to get started"
+            }
+            button {
+                style: "border:1px solid var(--gb-border-strong);background:var(--gb-surface);color:var(--gb-text-muted);\
+                        border-radius:var(--gb-radius);padding:0.25rem 0.65rem;cursor:pointer;font-size:var(--gb-size-hint);",
+                onclick: move |_| props.on_toggle_theme.call(()),
+                if props.color_scheme == crate::app::layout_prefs::ColorScheme::Light {
+                    "Use dark theme"
+                } else {
+                    "Use light theme"
+                }
             }
 
             button {

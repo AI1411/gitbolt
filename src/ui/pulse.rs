@@ -175,6 +175,18 @@ pub fn PulseHeader(props: PulseHeaderProps) -> Element {
                     onclick: move |_| props.on_event.call(UiEvent::CloseRepository),
                     "Repos…"
                 }
+                button {
+                    style: "{action}",
+                    title: "Toggle light / dark theme",
+                    onclick: move |_| props.on_event.call(UiEvent::ToggleColorScheme),
+                    if props.state.ui.color_scheme
+                        == crate::app::layout_prefs::ColorScheme::Light
+                    {
+                        "Dark"
+                    } else {
+                        "Light"
+                    }
+                }
                 span {
                     style: "opacity:0.4;font-size:var(--gb-size-hint);font-weight:var(--gb-weight-regular);\
                             margin-left:0.25rem;",

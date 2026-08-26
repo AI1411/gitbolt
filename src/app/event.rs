@@ -193,4 +193,6 @@ pub enum UiEvent {
     BeginListSearch,
     /// Dismiss the current error banner.
     DismissError,
+    /// Flip dark / light chrome (issue #118).
+    ToggleColorScheme,
 }
