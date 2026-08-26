@@ -1,5 +1,72 @@
-//! UI event definitions forwarded from the view layer.
+//! UI events forwarded from the view layer (UI -> State).
+//!
+//! Events never perform Git I/O directly; the reducer translates them into
+//! optimistic state updates and [`crate::app::command::Command`]s
+//! (see `docs/design/05-architecture.md` section 9).
 
-/// Placeholder for the `UiEvent` enum (to be defined in a later issue).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub struct UiEventPlaceholder;
+use std::path::PathBuf;
+
+use super::model::{DiffView, Oid, View};
+
+/// A user-originated event.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum UiEvent {
+    /// Open the repository rooted at the given path.
+    OpenRepository(PathBuf),
+    /// Close the current repository and reset state.
+    CloseRepository,
+
+    /// Switch the active navigation view.
+    SelectView(View),
+    /// Toggle the right-hand context panel.
+    ToggleContextPanel,
+
+    /// Select a file (shows its diff).
+    SelectFile(PathBuf),
+    /// Select a commit (shows its detail).
+    SelectCommit(Oid),
+    /// Select a branch.
+    SelectBranch(String),
+
+    /// Change the diff presentation.
+    SetDiffView(DiffView),
+
+    /// Stage a single file (optimistic).
+    StageFile(PathBuf),
+    /// Unstage a single file (optimistic).
+    UnstageFile(PathBuf),
+    /// Stage everything.
+    StageAll,
+    /// Unstage everything.
+    UnstageAll,
+
+    /// Edit the in-progress commit message.
+    SetCommitMessage(String),
+    /// Commit the staged changes with the current message.
+    Commit,
+
+    /// Create a branch with the given name.
+    CreateBranch(String),
+    /// Checkout / switch to a branch.
+    CheckoutBranch(String),
+    /// Delete a branch.
+    DeleteBranch(String),
+
+    /// Fetch from the default remote.
+    Fetch,
+    /// Pull from the upstream.
+    Pull,
+    /// Push to the upstream.
+    Push,
+
+    /// Create a worktree for a branch at a path.
+    CreateWorktree { branch: String, path: PathBuf },
+
+    /// Load the next page of history.
+    LoadMoreHistory,
+
+    /// Update the search query.
+    Search(String),
+    /// Dismiss the current error banner.
+    DismissError,
+}
