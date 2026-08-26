@@ -360,7 +360,7 @@ pub fn Shell(props: ShellProps) -> Element {
                     style: "flex:1 1 auto;min-width:0;display:flex;flex-direction:column;\
                             padding:0.85rem;overflow:hidden;min-height:0;",
                     h1 {
-                        style: "margin:0 0 0.75rem;font-size:1.05rem;font-weight:600;flex:0 0 auto;",
+                        style: "margin:0 0 0.75rem;font-size:var(--gb-size-title);font-weight:var(--gb-weight-semibold);flex:0 0 auto;letter-spacing:-0.01em;",
                         "{heading}"
                     }
                     div {

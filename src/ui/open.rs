@@ -48,10 +48,10 @@ pub fn OpenScreen(props: OpenScreenProps) -> Element {
                 }
             },
 
-            h1 { style: "margin:0;font-size:2rem;letter-spacing:0.04em;font-weight:600;",
+            h1 { style: "margin:0;font-size:var(--gb-size-hero);letter-spacing:0.04em;font-weight:var(--gb-weight-semibold);",
                 "GitBolt"
             }
-            p { style: "margin:0;opacity:0.75;font-size:0.95rem;",
+            p { style: "margin:0;opacity:0.75;font-size:var(--gb-size-body);",
                 "Open a Git repository to get started"
             }
 

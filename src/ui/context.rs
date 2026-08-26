@@ -30,8 +30,8 @@ pub fn ContextPane(props: ContextPaneProps) -> Element {
             style: "display:flex;flex-direction:column;gap:0.75rem;padding:0.85rem;\
                     height:100%;box-sizing:border-box;overflow:auto;border-left:1px solid var(--gb-border);",
             h2 {
-                style: "margin:0;font-size:0.8rem;letter-spacing:0.06em;text-transform:uppercase;\
-                        opacity:0.65;font-weight:600;",
+                style: "margin:0;font-size:var(--gb-size-label);letter-spacing:0.06em;text-transform:uppercase;\
+                        opacity:0.65;font-weight:var(--gb-weight-semibold);",
                 "{heading}"
             }
 
