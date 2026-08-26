@@ -15,6 +15,12 @@ pub enum UiEvent {
     OpenRepository(PathBuf),
     /// Close the current repository and reset state.
     CloseRepository,
+    /// Remove a path from the Recent list.
+    RemoveRecent(PathBuf),
+    /// Pin a Recent path to the top.
+    PinRecent(PathBuf),
+    /// Drop missing Recent paths.
+    PruneRecent,
 
     /// Switch the active navigation view.
     SelectView(View),

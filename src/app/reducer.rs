@@ -46,6 +46,21 @@ pub fn reduce(state: &mut AppState, event: UiEvent) -> Vec<Command> {
             state.repository.recent = recent;
             Vec::new()
         }
+        UiEvent::RemoveRecent(path) => {
+            crate::app::recent::remove_recent(&mut state.repository.recent, &path);
+            let _ = crate::app::recent::save_recent(&state.repository.recent);
+            Vec::new()
+        }
+        UiEvent::PinRecent(path) => {
+            crate::app::recent::pin_recent(&mut state.repository.recent, path);
+            let _ = crate::app::recent::save_recent(&state.repository.recent);
+            Vec::new()
+        }
+        UiEvent::PruneRecent => {
+            crate::app::recent::prune_missing(&mut state.repository.recent);
+            let _ = crate::app::recent::save_recent(&state.repository.recent);
+            Vec::new()
+        }
         UiEvent::SelectView(view) => {
             if state.navigation.active_view != view {
                 state

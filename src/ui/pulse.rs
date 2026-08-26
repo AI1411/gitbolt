@@ -32,7 +32,12 @@ pub fn PulseHeader(props: PulseHeaderProps) -> Element {
             style: "flex:0 0 auto;padding:0.55rem 0.85rem;border-bottom:1px solid #243044;\
                     font-weight:600;font-size:0.9rem;display:flex;flex-wrap:wrap;gap:0.35rem 0.55rem;\
                     align-items:center;",
-            span { style: "opacity:0.9;", "GitBolt /" }
+            span {
+                style: "opacity:0.9;cursor:pointer;",
+                title: "Switch repository",
+                onclick: move |_| props.on_event.call(UiEvent::CloseRepository),
+                "GitBolt /"
+            }
             button {
                 style: "{btn}",
                 title: "Branches",
@@ -113,6 +118,12 @@ pub fn PulseHeader(props: PulseHeaderProps) -> Element {
                     title: "Push",
                     onclick: move |_| props.on_event.call(UiEvent::Push),
                     "Push"
+                }
+                button {
+                    style: "{muted}",
+                    title: "Switch repository",
+                    onclick: move |_| props.on_event.call(UiEvent::CloseRepository),
+                    "Repos…"
                 }
                 span { "{crate::platform::mod_key_label()}I context · ? help" }
             }
