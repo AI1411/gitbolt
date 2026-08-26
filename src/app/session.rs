@@ -191,12 +191,11 @@ impl AppSession {
             } if !origins.is_empty() => {
                 if let Some(head) = self.state.repository.head.oid.clone() {
                     let key = CacheKey::new(head.clone(), target.path.clone(), target.staged);
-                    let mut map = (*self
-                        .caches
-                        .blame
-                        .get(&key)
-                        .unwrap_or_else(|| std::sync::Arc::new(std::collections::HashMap::new())))
-                    .clone();
+                    let mut map =
+                        (*self.caches.blame.get(&key).unwrap_or_else(|| {
+                            std::sync::Arc::new(std::collections::HashMap::new())
+                        }))
+                        .clone();
                     for (line, summary) in origins {
                         map.insert(
                             *line,
