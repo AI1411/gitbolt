@@ -170,6 +170,13 @@ fn selection_summary(state: &AppState) -> String {
             }
         }
         View::Worktrees => "Worktree context".into(),
-        View::Stashes => "Stash context".into(),
+        View::Stashes => {
+            if let Some(index) = state.stash.selected {
+                if let Some(entry) = state.stash.entries.iter().find(|e| e.index == index) {
+                    return format!("stash@{{{index}}}\n{}", entry.message);
+                }
+            }
+            format!("{} stash(es)", state.stash.entries.len())
+        }
     }
 }

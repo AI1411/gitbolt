@@ -289,7 +289,7 @@ fn mode_style(active: bool) -> String {
 }
 
 /// Very light syntax tint: comments / strings get muted spans (HTML-escaped).
-fn tint_line(content: &str) -> String {
+pub(crate) fn tint_line(content: &str) -> String {
     let esc = html_escape(content);
     let trimmed = content.trim_start();
     if trimmed.starts_with("//") || trimmed.starts_with('#') || trimmed.starts_with("/*") {

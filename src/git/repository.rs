@@ -17,9 +17,11 @@ use super::error::GitError;
 use super::history;
 use super::remote;
 use super::service::{
-    BranchRef, ChangeStatus, CommitInfo, FileChange, GitService, Head, RepoStatus, WorktreeRef,
+    BranchRef, ChangeStatus, CommitInfo, FileChange, GitService, Head, RepoStatus, StashEntry,
+    WorktreeRef,
 };
 use super::stage;
+use super::stash;
 use super::worktree;
 
 /// A repository opened through gitoxide.
@@ -268,6 +270,30 @@ impl GitService for GixService {
         lines: &[u32],
     ) -> Result<std::collections::HashMap<u32, CommitInfo>, GitError> {
         blame::blame_lines(self.workdir()?, path, lines)
+    }
+
+    fn stash_list(&self) -> Result<Vec<StashEntry>, GitError> {
+        stash::list_stashes(self.workdir()?)
+    }
+
+    fn stash_save(&self, message: Option<&str>) -> Result<(), GitError> {
+        stash::stash_push(self.workdir()?, message)
+    }
+
+    fn stash_apply(&self, index: usize) -> Result<(), GitError> {
+        stash::stash_apply(self.workdir()?, index)
+    }
+
+    fn stash_pop(&self, index: usize) -> Result<(), GitError> {
+        stash::stash_pop(self.workdir()?, index)
+    }
+
+    fn stash_drop(&self, index: usize) -> Result<(), GitError> {
+        stash::stash_drop(self.workdir()?, index)
+    }
+
+    fn stash_show(&self, index: usize) -> Result<String, GitError> {
+        stash::stash_show(self.workdir()?, index)
     }
 }
 

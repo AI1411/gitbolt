@@ -8,7 +8,7 @@ use std::sync::Arc;
 
 use super::model::{
     BranchInfo, CommitSummary, DiffContent, DiffTarget, DiffView, FileChange, Generation, HeadInfo,
-    Loadable, Oid, Pane, View, WorktreeInfo,
+    Loadable, Oid, Pane, StashInfo, View, WorktreeInfo,
 };
 
 /// Lifecycle of the currently opened repository.
@@ -105,6 +105,15 @@ pub struct WorktreeState {
     pub loaded: bool,
 }
 
+/// Stash list and selected entry diff (issue #24).
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct StashState {
+    pub entries: Arc<[StashInfo]>,
+    pub loaded: bool,
+    pub selected: Option<usize>,
+    pub diff: Loadable<DiffContent>,
+}
+
 /// The user's current selection across panes.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct SelectionState {
@@ -162,6 +171,8 @@ pub struct UiState {
     pub confirm_delete_branch: Option<String>,
     /// Pending worktree removal path (issue #20).
     pub confirm_remove_worktree: Option<PathBuf>,
+    /// Pending stash drop confirmation index (issue #24).
+    pub confirm_drop_stash: Option<usize>,
     /// When true, Instant Worktree opens the new worktree after create (#21).
     pub open_after_instant_worktree: bool,
     /// Path to open after a successful Instant Worktree create.
@@ -181,6 +192,7 @@ impl Default for UiState {
             new_branch_name: String::new(),
             confirm_delete_branch: None,
             confirm_remove_worktree: None,
+            confirm_drop_stash: None,
             open_after_instant_worktree: false,
             pending_open_worktree: None,
             auto_fetch_secs: 300,
@@ -200,6 +212,7 @@ pub struct AppState {
     pub branch: BranchState,
     pub divergence: DivergenceState,
     pub worktree: WorktreeState,
+    pub stash: StashState,
     pub selection: SelectionState,
     pub navigation: NavigationState,
     pub background: BackgroundTaskState,

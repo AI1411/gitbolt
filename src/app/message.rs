@@ -7,7 +7,7 @@
 
 use super::model::{
     BranchHealth, BranchInfo, CommitSummary, DiffContent, DiffTarget, FileChange, Generation,
-    HeadInfo, Oid, WorktreeInfo,
+    HeadInfo, Oid, StashInfo, WorktreeInfo,
 };
 use super::state::HistoryFilter;
 
@@ -150,6 +150,31 @@ pub enum AppMessage {
         generation: Generation,
         result: Result<(), Failure>,
     },
+    StashesLoaded {
+        generation: Generation,
+        result: Result<Vec<StashInfo>, Failure>,
+    },
+    StashDiffLoaded {
+        generation: Generation,
+        index: usize,
+        result: Result<DiffContent, Failure>,
+    },
+    StashSaved {
+        generation: Generation,
+        result: Result<(), Failure>,
+    },
+    StashApplied {
+        generation: Generation,
+        result: Result<(), Failure>,
+    },
+    StashPopped {
+        generation: Generation,
+        result: Result<(), Failure>,
+    },
+    StashDropped {
+        generation: Generation,
+        result: Result<(), Failure>,
+    },
     RemoteCompleted {
         generation: Generation,
         op: RemoteOp,
@@ -181,6 +206,12 @@ impl AppMessage {
             | Self::UpstreamSet { generation, .. }
             | Self::WorktreeCreated { generation, .. }
             | Self::WorktreeRemoved { generation, .. }
+            | Self::StashesLoaded { generation, .. }
+            | Self::StashDiffLoaded { generation, .. }
+            | Self::StashSaved { generation, .. }
+            | Self::StashApplied { generation, .. }
+            | Self::StashPopped { generation, .. }
+            | Self::StashDropped { generation, .. }
             | Self::RemoteCompleted { generation, .. } => *generation,
         }
     }

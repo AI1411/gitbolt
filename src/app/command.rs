@@ -116,6 +116,29 @@ pub enum Command {
         path: PathBuf,
         generation: Generation,
     },
+    LoadStashes {
+        generation: Generation,
+    },
+    LoadStashDiff {
+        index: usize,
+        generation: Generation,
+    },
+    StashSave {
+        message: Option<String>,
+        generation: Generation,
+    },
+    StashApply {
+        index: usize,
+        generation: Generation,
+    },
+    StashPop {
+        index: usize,
+        generation: Generation,
+    },
+    StashDrop {
+        index: usize,
+        generation: Generation,
+    },
 }
 
 impl Command {
@@ -147,7 +170,13 @@ impl Command {
             | Self::Pull { generation }
             | Self::Push { generation }
             | Self::CreateWorktree { generation, .. }
-            | Self::RemoveWorktree { generation, .. } => *generation,
+            | Self::RemoveWorktree { generation, .. }
+            | Self::LoadStashes { generation }
+            | Self::LoadStashDiff { generation, .. }
+            | Self::StashSave { generation, .. }
+            | Self::StashApply { generation, .. }
+            | Self::StashPop { generation, .. }
+            | Self::StashDrop { generation, .. } => *generation,
         }
     }
 }
