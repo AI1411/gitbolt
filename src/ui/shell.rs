@@ -48,8 +48,9 @@ enum DragTarget {
 /// Resizable Navigation / Content / Context layout.
 #[component]
 pub fn Shell(props: ShellProps) -> Element {
-    let mut nav_width = use_signal(|| 200.0_f64);
-    let mut context_width = use_signal(|| 280.0_f64);
+    let prefs = crate::app::layout_prefs::load_layout_prefs();
+    let mut nav_width = use_signal(|| prefs.nav_width);
+    let mut context_width = use_signal(|| prefs.context_width);
     let mut drag = use_signal(|| None::<DragState>);
 
     let context_open = props.state.navigation.context_panel_open;
@@ -288,8 +289,28 @@ pub fn Shell(props: ShellProps) -> Element {
                     }
                 }
             },
-            onmouseup: move |_| drag.set(None),
-            onmouseleave: move |_| drag.set(None),
+            onmouseup: move |_| {
+                if drag().is_some() {
+                    crate::app::layout_prefs::save_layout_prefs(
+                        &crate::app::layout_prefs::LayoutPrefs {
+                            nav_width: nav_width(),
+                            context_width: context_width(),
+                        },
+                    );
+                }
+                drag.set(None);
+            },
+            onmouseleave: move |_| {
+                if drag().is_some() {
+                    crate::app::layout_prefs::save_layout_prefs(
+                        &crate::app::layout_prefs::LayoutPrefs {
+                            nav_width: nav_width(),
+                            context_width: context_width(),
+                        },
+                    );
+                }
+                drag.set(None);
+            },
 
             OverlayHost {
                 state: props.state.clone(),

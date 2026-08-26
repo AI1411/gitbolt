@@ -123,8 +123,21 @@ pub fn DiffPane(props: DiffViewProps) -> Element {
                                         key: "{hi}",
                                         style: format!("background:{hunk_bg};"),
                                         div {
-                                            style: "padding:0.25rem 0.65rem;opacity:0.55;background:#0f1419;",
-                                            "{hunk.header}"
+                                            style: "padding:0.25rem 0.65rem;opacity:0.55;background:#0f1419;\
+                                                    display:flex;align-items:center;justify-content:space-between;gap:0.5rem;",
+                                            span { "{hunk.header}" }
+                                            if hi == focused {
+                                                button {
+                                                    r#type: "button",
+                                                    style: "border:1px solid #334155;background:#1e293b;color:#cbd5e1;\
+                                                            border-radius:3px;padding:0.1rem 0.4rem;cursor:pointer;font-size:0.68rem;",
+                                                    title: "Stage hunk (s)",
+                                                    onclick: move |_| {
+                                                        props.on_event.call(UiEvent::StageFocusedHunk);
+                                                    },
+                                                    "Stage hunk"
+                                                }
+                                            }
                                         }
                                         if mode == DiffMode::Split {
                                             SplitHunk {
