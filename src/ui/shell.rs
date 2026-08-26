@@ -75,7 +75,10 @@ pub fn Shell(props: ShellProps) -> Element {
                         _ => {}
                     }
                 } else if let Key::Character(ch) = evt.data().key() {
-                    if ch.eq_ignore_ascii_case("c")
+                    if ch.eq_ignore_ascii_case("f") {
+                        evt.prevent_default();
+                        props.on_event.call(UiEvent::Fetch);
+                    } else if ch.eq_ignore_ascii_case("c")
                         && props.state.navigation.active_view == View::Changes
                     {
                         // Don't steal typing from inputs — only when not in an editable.

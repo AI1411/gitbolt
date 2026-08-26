@@ -88,6 +88,10 @@ pub enum Command {
     Fetch {
         generation: Generation,
     },
+    /// Background auto-fetch (issue #19); same work as Fetch at P3.
+    AutoFetch {
+        generation: Generation,
+    },
     Pull {
         generation: Generation,
     },
@@ -125,6 +129,7 @@ impl Command {
             | Self::Checkout { generation, .. }
             | Self::DeleteBranch { generation, .. }
             | Self::Fetch { generation }
+            | Self::AutoFetch { generation }
             | Self::Pull { generation }
             | Self::Push { generation }
             | Self::CreateWorktree { generation, .. } => *generation,

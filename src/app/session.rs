@@ -33,6 +33,8 @@ pub struct AppSession {
     watch_rx: Option<Receiver<WatchEvent>>,
     /// Diff/blame caches for the open repository (issue #13).
     caches: RepoCaches,
+    /// Next auto-fetch deadline (issue #19).
+    next_auto_fetch: Option<std::time::Instant>,
 }
 
 impl AppSession {
@@ -50,6 +52,7 @@ impl AppSession {
             watcher: None,
             watch_rx: None,
             caches: RepoCaches::new(),
+            next_auto_fetch: None,
         }
     }
 
@@ -57,6 +60,7 @@ impl AppSession {
     pub fn dispatch_event(&mut self, event: UiEvent) {
         let opening = matches!(event, UiEvent::OpenRepository(_));
         let closing = matches!(event, UiEvent::CloseRepository);
+        let is_fetch = matches!(event, UiEvent::Fetch);
         let commands = reduce(&mut self.state, event);
         if opening {
             let _ = save_recent(&self.state.repository.recent);
@@ -65,11 +69,16 @@ impl AppSession {
             }
             self.stop_watcher();
             self.caches = RepoCaches::new();
+            self.schedule_auto_fetch();
         }
         if closing || matches!(self.state.repository.status, RepositoryStatus::NotOpened) {
             self.repo_path = None;
             self.stop_watcher();
             self.caches = RepoCaches::new();
+            self.next_auto_fetch = None;
+        }
+        if is_fetch {
+            self.schedule_auto_fetch();
         }
         self.submit_commands(commands);
     }
@@ -90,8 +99,23 @@ impl AppSession {
                 &outcome.message,
                 AppMessage::CheckoutCompleted { result: Ok(_), .. }
                     | AppMessage::CommitCompleted { result: Ok(_), .. }
+                    | AppMessage::RemoteCompleted {
+                        op: crate::app::message::RemoteOp::Pull,
+                        result: Ok(_),
+                        ..
+                    }
             ) {
                 self.caches.on_head_change();
+            }
+            if matches!(
+                &outcome.message,
+                AppMessage::RemoteCompleted {
+                    op: crate::app::message::RemoteOp::Fetch,
+                    result: Ok(_),
+                    ..
+                }
+            ) {
+                self.schedule_auto_fetch();
             }
             let follow = apply(&mut self.state, outcome.message);
             self.submit_commands(follow);
@@ -99,6 +123,9 @@ impl AppSession {
         }
         self.ensure_watcher();
         if self.poll_watch() {
+            changed = true;
+        }
+        if self.poll_auto_fetch() {
             changed = true;
         }
         changed
@@ -116,8 +143,23 @@ impl AppSession {
                     &outcome.message,
                     AppMessage::CheckoutCompleted { result: Ok(_), .. }
                         | AppMessage::CommitCompleted { result: Ok(_), .. }
+                        | AppMessage::RemoteCompleted {
+                            op: crate::app::message::RemoteOp::Pull,
+                            result: Ok(_),
+                            ..
+                        }
                 ) {
                     self.caches.on_head_change();
+                }
+                if matches!(
+                    &outcome.message,
+                    AppMessage::RemoteCompleted {
+                        op: crate::app::message::RemoteOp::Fetch,
+                        result: Ok(_),
+                        ..
+                    } | AppMessage::RepositoryOpened { result: Ok(_), .. }
+                ) {
+                    self.schedule_auto_fetch();
                 }
                 let follow = apply(&mut self.state, outcome.message);
                 self.submit_commands(follow);
@@ -162,6 +204,34 @@ impl AppSession {
     fn stop_watcher(&mut self) {
         self.watcher = None;
         self.watch_rx = None;
+    }
+
+    fn schedule_auto_fetch(&mut self) {
+        let secs = self.state.ui.auto_fetch_secs;
+        self.next_auto_fetch = if secs == 0 || !self.state.is_ready() {
+            None
+        } else {
+            Some(std::time::Instant::now() + Duration::from_secs(secs))
+        };
+    }
+
+    fn poll_auto_fetch(&mut self) -> bool {
+        let Some(deadline) = self.next_auto_fetch else {
+            return false;
+        };
+        if std::time::Instant::now() < deadline {
+            return false;
+        }
+        if !self.state.is_ready() || self.state.background.remote_label.is_some() {
+            self.schedule_auto_fetch();
+            return false;
+        }
+        self.state.background.remote_label = Some("fetching…".into());
+        self.state.background.inflight = self.state.background.inflight.saturating_add(1);
+        let gen = self.state.generation;
+        self.schedule_auto_fetch();
+        self.submit_commands(vec![Command::AutoFetch { generation: gen }]);
+        true
     }
 
     fn poll_watch(&mut self) -> bool {
@@ -246,7 +316,10 @@ fn command_priority(cmd: &Command) -> Priority {
         | Command::StageAll { .. }
         | Command::UnstageAll { .. }
         | Command::Commit { .. }
-        | Command::Checkout { .. } => Priority::P0,
+        | Command::Checkout { .. }
+        | Command::Fetch { .. }
+        | Command::Pull { .. }
+        | Command::Push { .. } => Priority::P0,
         Command::LoadDiff { .. } => Priority::P1,
         Command::LoadStatus { .. }
         | Command::LoadHistoryPage { .. }
@@ -257,9 +330,7 @@ fn command_priority(cmd: &Command) -> Priority {
         Command::EnrichBranchHealth { .. }
         | Command::CreateBranch { .. }
         | Command::DeleteBranch { .. }
-        | Command::Fetch { .. }
-        | Command::Pull { .. }
-        | Command::Push { .. }
+        | Command::AutoFetch { .. }
         | Command::CreateWorktree { .. } => Priority::P3,
     }
 }
