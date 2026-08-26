@@ -69,6 +69,26 @@ pub fn Shell(props: ShellProps) -> Element {
                             props.on_event.call(UiEvent::ToggleContextPanel);
                         }
                     }
+                } else if props.state.navigation.active_view == View::Changes {
+                    match evt.data().key() {
+                        Key::Character(ch) if ch == "j" || ch == "J" => {
+                            evt.prevent_default();
+                            props.on_event.call(UiEvent::NavigateChanges { delta: 1 });
+                        }
+                        Key::Character(ch) if ch == "k" || ch == "K" => {
+                            evt.prevent_default();
+                            props.on_event.call(UiEvent::NavigateChanges { delta: -1 });
+                        }
+                        Key::ArrowDown => {
+                            evt.prevent_default();
+                            props.on_event.call(UiEvent::NavigateChanges { delta: 1 });
+                        }
+                        Key::ArrowUp => {
+                            evt.prevent_default();
+                            props.on_event.call(UiEvent::NavigateChanges { delta: -1 });
+                        }
+                        _ => {}
+                    }
                 }
             },
             onmousemove: move |evt| {

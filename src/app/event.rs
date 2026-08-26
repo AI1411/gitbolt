@@ -21,8 +21,10 @@ pub enum UiEvent {
     /// Toggle the right-hand context panel.
     ToggleContextPanel,
 
-    /// Select a file (shows its diff).
-    SelectFile(PathBuf),
+    /// Select a file (shows its diff). `staged` selects index↔HEAD vs worktree↔index.
+    SelectFile { path: PathBuf, staged: bool },
+    /// Move the Changes list selection by `delta` (−1 / +1).
+    NavigateChanges { delta: i32 },
     /// Select a commit (shows its detail).
     SelectCommit(Oid),
     /// Select a branch.

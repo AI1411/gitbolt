@@ -1,4 +1,4 @@
-//! Changes (staging area) view — lists files and opens diffs (issue #12/#28).
+//! Changes (staging area) view — lists files and opens diffs (issue #12).
 
 use dioxus::prelude::*;
 
@@ -13,7 +13,7 @@ pub struct ChangesViewProps {
     pub on_event: EventHandler<UiEvent>,
 }
 
-/// Staging / unstaged file list.
+/// Staging / unstaged / conflicted file list.
 #[component]
 pub fn ChangesView(props: ChangesViewProps) -> Element {
     let staged = props.state.changes.staged.clone();
@@ -25,7 +25,9 @@ pub fn ChangesView(props: ChangesViewProps) -> Element {
         .chain(props.state.changes.untracked.iter())
         .cloned()
         .collect();
+    let conflicted = props.state.changes.conflicted.clone();
     let loaded = props.state.changes.loaded;
+    let selected = props.state.diff.target.clone();
 
     rsx! {
         div {
@@ -33,14 +35,29 @@ pub fn ChangesView(props: ChangesViewProps) -> Element {
             if !loaded {
                 p { style: "margin:0;opacity:0.6;", "Loading status…" }
             }
+            p {
+                style: "margin:0;opacity:0.45;font-size:0.75rem;",
+                "j / k or ↑ / ↓ to move · click to open diff"
+            }
             FileSection {
                 title: "STAGED",
                 files: staged.to_vec(),
+                staged_area: true,
+                selected: selected.clone(),
+                on_event: props.on_event,
+            }
+            FileSection {
+                title: "CONFLICTED",
+                files: conflicted.to_vec(),
+                staged_area: false,
+                selected: selected.clone(),
                 on_event: props.on_event,
             }
             FileSection {
                 title: "UNSTAGED",
                 files: unstaged,
+                staged_area: false,
+                selected: selected,
                 on_event: props.on_event,
             }
         }
@@ -51,8 +68,15 @@ pub fn ChangesView(props: ChangesViewProps) -> Element {
 fn FileSection(
     title: &'static str,
     files: Vec<FileChange>,
+    staged_area: bool,
+    selected: Option<crate::app::model::DiffTarget>,
     on_event: EventHandler<UiEvent>,
 ) -> Element {
+    // Hide empty conflicted section to reduce noise.
+    if title == "CONFLICTED" && files.is_empty() {
+        return rsx! {};
+    }
+
     rsx! {
         div {
             h3 {
@@ -70,14 +94,23 @@ fn FileSection(
                             let path = file.path.clone();
                             let mark = status_mark(file.kind);
                             let label = path.display().to_string();
+                            let is_sel = selected.as_ref().is_some_and(|t| {
+                                t.path == path && t.staged == staged_area
+                            });
+                            let bg = if is_sel { "#1e3a5f" } else { "transparent" };
                             rsx! {
                                 li {
                                     button {
-                                        style: "width:100%;text-align:left;border:0;background:transparent;\
-                                                color:#e8eef7;cursor:pointer;font-family:ui-monospace,monospace;\
-                                                font-size:0.82rem;padding:0.2rem 0.35rem;border-radius:3px;",
+                                        style: format!(
+                                            "width:100%;text-align:left;border:0;background:{bg};\
+                                             color:#e8eef7;cursor:pointer;font-family:ui-monospace,monospace;\
+                                             font-size:0.82rem;padding:0.2rem 0.35rem;border-radius:3px;"
+                                        ),
                                         onclick: move |_| {
-                                            on_event.call(UiEvent::SelectFile(path.clone()));
+                                            on_event.call(UiEvent::SelectFile {
+                                                path: path.clone(),
+                                                staged: staged_area,
+                                            });
                                         },
                                         span { style: "opacity:0.7;margin-right:0.5rem;", "{mark}" }
                                         "{label}"

@@ -58,12 +58,9 @@ pub fn reduce(state: &mut AppState, event: UiEvent) -> Vec<Command> {
             state.navigation.context_panel_open = !state.navigation.context_panel_open;
             Vec::new()
         }
-        UiEvent::SelectFile(path) => {
+        UiEvent::SelectFile { path, staged } => {
             state.selection.file = Some(path.clone());
-            let target = DiffTarget {
-                path,
-                staged: false,
-            };
+            let target = DiffTarget { path, staged };
             state.diff.target = Some(target.clone());
             state.diff.content = Loadable::Loading;
             state.diff.selected_lines.clear();
@@ -74,6 +71,34 @@ pub fn reduce(state: &mut AppState, event: UiEvent) -> Vec<Command> {
                     generation: gen,
                 }],
             )
+        }
+        UiEvent::NavigateChanges { delta } => {
+            let entries = changes_entries(state);
+            if entries.is_empty() {
+                return Vec::new();
+            }
+            let current = state.diff.target.as_ref().and_then(|t| {
+                entries
+                    .iter()
+                    .position(|(p, staged)| p == &t.path && *staged == t.staged)
+            });
+            let len = i64::try_from(entries.len()).unwrap_or(1);
+            let next = match current {
+                Some(i) => {
+                    let i = i64::try_from(i).unwrap_or(0);
+                    let idx = (i + i64::from(delta)).rem_euclid(len);
+                    usize::try_from(idx).unwrap_or(0)
+                }
+                None => {
+                    if delta >= 0 {
+                        0
+                    } else {
+                        entries.len() - 1
+                    }
+                }
+            };
+            let (path, staged) = entries[next].clone();
+            reduce(state, UiEvent::SelectFile { path, staged })
         }
         UiEvent::SelectCommit(oid) => {
             state.selection.commit = Some(oid);
@@ -484,6 +509,26 @@ fn merge_recent(repo: &RepositoryState, path: &Path) -> Vec<std::path::PathBuf> 
     recent
 }
 
+/// Flat Changes list order: staged → conflicted → unstaged → untracked.
+fn changes_entries(state: &AppState) -> Vec<(std::path::PathBuf, bool)> {
+    let mut out = Vec::new();
+    for f in state.changes.staged.iter() {
+        out.push((f.path.clone(), true));
+    }
+    for f in state.changes.conflicted.iter() {
+        out.push((f.path.clone(), false));
+    }
+    for f in state
+        .changes
+        .unstaged
+        .iter()
+        .chain(state.changes.untracked.iter())
+    {
+        out.push((f.path.clone(), false));
+    }
+    out
+}
+
 /// Dispatches line-level stage/unstage for the current selection.
 fn stage_selected_lines(
     state: &mut AppState,
@@ -679,7 +724,13 @@ mod tests {
     #[test]
     fn select_file_requests_diff_and_only_matching_diff_is_applied() {
         let mut state = AppState::new();
-        reduce(&mut state, UiEvent::SelectFile(PathBuf::from("a.rs")));
+        reduce(
+            &mut state,
+            UiEvent::SelectFile {
+                path: PathBuf::from("a.rs"),
+                staged: false,
+            },
+        );
         assert!(state.diff.content.is_loading());
         let gen = state.generation;
 
@@ -890,7 +941,13 @@ mod tests {
     #[test]
     fn toggle_diff_line_and_stage_selected_emits_stage_lines() {
         let mut state = AppState::new();
-        reduce(&mut state, UiEvent::SelectFile(PathBuf::from("f.txt")));
+        reduce(
+            &mut state,
+            UiEvent::SelectFile {
+                path: PathBuf::from("f.txt"),
+                staged: false,
+            },
+        );
         reduce(&mut state, UiEvent::ToggleDiffLine(3));
         reduce(&mut state, UiEvent::ToggleDiffLine(5));
         assert_eq!(state.diff.selected_lines, vec![3, 5]);
@@ -904,5 +961,37 @@ mod tests {
                 ..
             }] if lines == &[3, 5]
         ));
+    }
+
+    #[test]
+    fn navigate_changes_walks_staged_then_unstaged() {
+        use crate::app::model::{ChangeKind, FileChange};
+        use std::sync::Arc;
+
+        let mut state = AppState::new();
+        state.changes.staged = Arc::from([FileChange::new("a.txt", ChangeKind::Modified)]);
+        state.changes.unstaged = Arc::from([FileChange::new("b.txt", ChangeKind::Modified)]);
+        state.changes.loaded = true;
+
+        let cmds = reduce(&mut state, UiEvent::NavigateChanges { delta: 1 });
+        assert_eq!(
+            state
+                .diff
+                .target
+                .as_ref()
+                .map(|t| (t.path.as_path(), t.staged)),
+            Some((Path::new("a.txt"), true))
+        );
+        assert!(matches!(cmds.as_slice(), [Command::LoadDiff { .. }]));
+
+        let _ = reduce(&mut state, UiEvent::NavigateChanges { delta: 1 });
+        assert_eq!(
+            state
+                .diff
+                .target
+                .as_ref()
+                .map(|t| (t.path.as_path(), t.staged)),
+            Some((Path::new("b.txt"), false))
+        );
     }
 }
