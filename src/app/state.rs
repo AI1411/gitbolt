@@ -48,6 +48,8 @@ pub struct DiffState {
     pub content: Loadable<DiffContent>,
     /// Selected body-line indices for line-level stage (issue #28).
     pub selected_lines: Vec<usize>,
+    /// Focused hunk index for `[` / `]` navigation (issue #13).
+    pub focused_hunk: usize,
 }
 
 /// Commit history with lazy paging.

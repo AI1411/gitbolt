@@ -232,6 +232,7 @@ mod integration {
                 staged: false,
             },
             hunks: Arc::from([] as [DiffHunk; 0]),
+            notice: None,
         }
     }
 
@@ -272,12 +273,14 @@ mod integration {
         let head = Oid("h".into());
 
         let mut caches = RepoCaches::new();
-        caches
-            .diff
-            .insert(CacheKey::new(head.clone(), file.clone()), diff_for(&file));
-        caches
-            .diff
-            .insert(CacheKey::new(head.clone(), other.clone()), diff_for(&other));
+        caches.diff.insert(
+            CacheKey::new(head.clone(), file.clone(), false),
+            diff_for(&file),
+        );
+        caches.diff.insert(
+            CacheKey::new(head.clone(), other.clone(), false),
+            diff_for(&other),
+        );
         caches.history.set(head.clone(), vec![]);
 
         let (_watcher, rx) =
@@ -298,11 +301,11 @@ mod integration {
 
         assert!(caches
             .diff
-            .get(&CacheKey::new(head.clone(), file))
+            .get(&CacheKey::new(head.clone(), file, false))
             .is_none());
         assert!(caches
             .diff
-            .get(&CacheKey::new(head.clone(), other))
+            .get(&CacheKey::new(head.clone(), other, false))
             .is_some());
         // A working-tree change must not disturb HEAD-scoped caches.
         assert!(caches.history.get(&head).is_some());

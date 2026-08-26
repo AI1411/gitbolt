@@ -14,19 +14,21 @@ use std::sync::Arc;
 
 use crate::app::model::{BranchInfo, CommitSummary, DiffContent, Oid};
 
-/// Cache key: HEAD OID + repository-relative (or absolute) file path.
+/// Cache key: HEAD OID + path + staged flag.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct CacheKey {
     pub head: Oid,
     pub path: PathBuf,
+    pub staged: bool,
 }
 
 impl CacheKey {
     #[must_use]
-    pub fn new(head: Oid, path: impl Into<PathBuf>) -> Self {
+    pub fn new(head: Oid, path: impl Into<PathBuf>, staged: bool) -> Self {
         Self {
             head,
             path: path.into(),
+            staged,
         }
     }
 }
@@ -201,6 +203,7 @@ mod tests {
                 staged: false,
             },
             hunks: Arc::from([] as [crate::app::model::DiffHunk; 0]),
+            notice: None,
         }
     }
 
@@ -210,19 +213,22 @@ mod tests {
         let head = Oid("deadbeef".into());
         caches
             .diff
-            .insert(CacheKey::new(head.clone(), "a.rs"), diff_for("a.rs"));
+            .insert(CacheKey::new(head.clone(), "a.rs", false), diff_for("a.rs"));
         caches
             .diff
-            .insert(CacheKey::new(head.clone(), "b.rs"), diff_for("b.rs"));
+            .insert(CacheKey::new(head.clone(), "b.rs", false), diff_for("b.rs"));
         assert_eq!(caches.diff.len(), 2);
 
         caches.on_working_tree_change([PathBuf::from("a.rs")]);
 
         assert!(caches
             .diff
-            .get(&CacheKey::new(head.clone(), "a.rs"))
+            .get(&CacheKey::new(head.clone(), "a.rs", false))
             .is_none());
-        assert!(caches.diff.get(&CacheKey::new(head, "b.rs")).is_some());
+        assert!(caches
+            .diff
+            .get(&CacheKey::new(head, "b.rs", false))
+            .is_some());
         assert_eq!(caches.diff.len(), 1);
     }
 
@@ -232,7 +238,7 @@ mod tests {
         let head = Oid("h1".into());
         caches
             .diff
-            .insert(CacheKey::new(head.clone(), "a.rs"), diff_for("a.rs"));
+            .insert(CacheKey::new(head.clone(), "a.rs", false), diff_for("a.rs"));
         caches.history.set(head.clone(), vec![]);
         caches.branch_health.set(head.clone(), vec![]);
         caches.ahead_behind.set(head.clone(), vec![]);

@@ -3,11 +3,32 @@
 use crate::app::model::{CommitSummary, DiffContent, DiffHunk, DiffLine, DiffTarget, Oid};
 use crate::git::CommitInfo;
 
+/// Max unified-diff characters before we truncate the view (issue #13).
+pub const MAX_DIFF_CHARS: usize = 512_000;
+
 /// Parses a unified diff into app [`DiffContent`], tagging each line with its
 /// body index (compatible with [`crate::git::patch::build_partial_patch`]) and
 /// old-side line numbers for Change Origin.
 #[must_use]
 pub fn parse_diff_content(target: DiffTarget, text: &str) -> DiffContent {
+    if text.contains('\0') {
+        return DiffContent {
+            target,
+            hunks: std::sync::Arc::from([] as [DiffHunk; 0]),
+            notice: Some("Binary file (diff omitted)".into()),
+        };
+    }
+
+    let mut notice = None;
+    let text = if text.len() > MAX_DIFF_CHARS {
+        notice = Some(format!(
+            "Diff truncated to first {MAX_DIFF_CHARS} bytes (file too large)"
+        ));
+        &text[..MAX_DIFF_CHARS]
+    } else {
+        text
+    };
+
     let mut hunks: Vec<DiffHunk> = Vec::new();
     let mut current: Option<DiffHunk> = None;
     let mut past_headers = false;
@@ -64,13 +85,18 @@ pub fn parse_diff_content(target: DiffTarget, text: &str) -> DiffContent {
         hunks.push(h);
     }
 
+    if hunks.is_empty() && notice.is_none() {
+        notice = Some("No textual diff".into());
+    }
+
     DiffContent {
         target,
         hunks: hunks.into(),
+        notice,
     }
 }
 
-/// Attaches HEAD blame commits onto lines that have an old-side number.
+/// Attaches HEAD blame commits onto lines that have an old-side line number.
 #[must_use]
 pub fn attach_change_origins(
     mut content: DiffContent,
@@ -142,11 +168,24 @@ diff --git a/a.txt b/a.txt
             },
             text,
         );
-        assert_eq!(content.hunks[0].lines[0].body_index, 1); // after @@ at 0
+        assert_eq!(content.hunks[0].lines[0].body_index, 1);
         assert_eq!(content.hunks[0].lines[0].old_line, Some(1));
         assert_eq!(content.hunks[0].lines[1].body_index, 2);
         assert_eq!(content.hunks[0].lines[1].origin, '+');
         assert_eq!(content.hunks[0].lines[1].old_line, None);
+    }
+
+    #[test]
+    fn binary_diff_sets_notice() {
+        let content = parse_diff_content(
+            DiffTarget {
+                path: PathBuf::from("x.bin"),
+                staged: false,
+            },
+            "binary\0data",
+        );
+        assert!(content.hunks.is_empty());
+        assert!(content.notice.as_deref().unwrap().contains("Binary"));
     }
 
     #[test]
