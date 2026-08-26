@@ -135,7 +135,8 @@ fn FileSection(
         div {
             h3 {
                 style: "margin:0 0 0.35rem;font-size:0.75rem;letter-spacing:0.06em;\
-                        text-transform:uppercase;opacity:0.6;",
+                        text-transform:uppercase;opacity:0.6;position:sticky;top:0;z-index:1;\
+                        background:var(--gb-surface);padding:0.35rem 0;",
                 "{title} ({files.len()})"
             }
             if files.is_empty() {
