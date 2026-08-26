@@ -40,6 +40,8 @@ pub enum UiEvent {
 
     /// Change the diff presentation.
     SetDiffView(DiffView),
+    /// Toggle blame heatmap gutter (issue #33).
+    ToggleHeatmap,
     /// Move focused hunk by `delta` (−1 / +1) for `[` / `]`.
     NavigateHunk { delta: i32 },
 

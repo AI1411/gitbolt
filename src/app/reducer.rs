@@ -158,6 +158,10 @@ pub fn reduce(state: &mut AppState, event: UiEvent) -> Vec<Command> {
             state.diff.view = view;
             Vec::new()
         }
+        UiEvent::ToggleHeatmap => {
+            state.diff.heatmap_enabled = !state.diff.heatmap_enabled;
+            Vec::new()
+        }
         UiEvent::NavigateHunk { delta } => {
             let n = state.diff.content.ready().map_or(0, |c| c.hunks.len());
             if n == 0 {
@@ -1972,5 +1976,15 @@ mod tests {
             RepositoryStatus::Error(_)
         ));
         assert!(state.ui.error_banner.is_some());
+    }
+
+    #[test]
+    fn toggle_heatmap_flips_flag() {
+        let mut state = AppState::new();
+        assert!(!state.diff.heatmap_enabled);
+        let _ = reduce(&mut state, UiEvent::ToggleHeatmap);
+        assert!(state.diff.heatmap_enabled);
+        let _ = reduce(&mut state, UiEvent::ToggleHeatmap);
+        assert!(!state.diff.heatmap_enabled);
     }
 }

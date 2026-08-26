@@ -6,6 +6,7 @@ use dioxus::prelude::*;
 
 use crate::app::blame_format::{format_hover, format_minimal};
 use crate::app::event::UiEvent;
+use crate::app::heatmap::{color_for, intensities_for_diff};
 use crate::app::model::{DiffLine, DiffView as DiffMode, Loadable, Oid};
 use crate::app::state::AppState;
 
@@ -23,6 +24,18 @@ pub fn DiffPane(props: DiffViewProps) -> Element {
     let staged = props.state.diff.target.as_ref().is_some_and(|t| t.staged);
     let mode = props.state.diff.view;
     let focused = props.state.diff.focused_hunk;
+    let heatmap_on = props.state.diff.heatmap_enabled;
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| i64::try_from(d.as_secs()).unwrap_or(i64::MAX));
+    let heat = props
+        .state
+        .diff
+        .content
+        .ready()
+        .filter(|_| heatmap_on)
+        .map(|c| intensities_for_diff(c, now))
+        .unwrap_or_default();
 
     rsx! {
         div {
@@ -39,6 +52,12 @@ pub fn DiffPane(props: DiffViewProps) -> Element {
                     style: mode_style(mode == DiffMode::Split),
                     onclick: move |_| props.on_event.call(UiEvent::SetDiffView(DiffMode::Split)),
                     "Split"
+                }
+                button {
+                    style: mode_style(heatmap_on),
+                    title: "Blame heatmap (recency + frequency)",
+                    onclick: move |_| props.on_event.call(UiEvent::ToggleHeatmap),
+                    "Heatmap"
                 }
                 if let Some(target) = props.state.diff.target.as_ref() {
                     button {
@@ -112,6 +131,7 @@ pub fn DiffPane(props: DiffViewProps) -> Element {
                                                 lines: hunk.lines.clone(),
                                                 selected: selected.clone(),
                                                 file_path: content.target.path.clone(),
+                                                heat: heat.clone(),
                                                 on_event: props.on_event,
                                             }
                                         } else {
@@ -120,6 +140,7 @@ pub fn DiffPane(props: DiffViewProps) -> Element {
                                                     line: line.clone(),
                                                     file_path: content.target.path.clone(),
                                                     selected: selected.contains(&line.body_index),
+                                                    heat_color: heat.get(&line.body_index).copied().map(color_for),
                                                     on_event: props.on_event,
                                                 }
                                             }
@@ -162,6 +183,7 @@ fn UnifiedLine(
     line: DiffLine,
     file_path: PathBuf,
     selected: bool,
+    heat_color: Option<&'static str>,
     on_event: EventHandler<UiEvent>,
 ) -> Element {
     let idx = line.body_index;
@@ -182,11 +204,12 @@ fn UnifiedLine(
     };
     let tinted = tint_line(&line.content);
     let origin = line.change_origin.clone();
+    let gutter = heat_color.unwrap_or("transparent");
 
     rsx! {
         div {
             style: format!(
-                "display:flex;align-items:baseline;gap:0.65rem;padding:0.05rem 0.65rem;\
+                "display:flex;align-items:stretch;gap:0.5rem;padding:0.05rem 0.65rem 0.05rem 0;\
                  white-space:pre;cursor:{};background:{};color:{};",
                 if stageable { "pointer" } else { "default" },
                 bg,
@@ -197,9 +220,19 @@ fn UnifiedLine(
                     on_event.call(UiEvent::ToggleDiffLine(idx));
                 }
             },
-            span { style: "flex:0 0 1ch;opacity:0.7;", "{line.origin}" }
             span {
-                style: "flex:1;min-width:0;",
+                style: format!(
+                    "flex:0 0 4px;align-self:stretch;background:{gutter};border-radius:1px;"
+                ),
+                title: if heat_color.is_some() {
+                    "Blame heatmap"
+                } else {
+                    ""
+                },
+            }
+            span { style: "flex:0 0 1ch;opacity:0.7;align-self:baseline;", "{line.origin}" }
+            span {
+                style: "flex:1;min-width:0;align-self:baseline;",
                 dangerous_inner_html: "{tinted}",
             }
             if let Some(origin) = origin {
@@ -216,7 +249,8 @@ fn UnifiedLine(
                         button {
                             style: "flex:0 0 auto;max-width:12rem;overflow:hidden;text-overflow:ellipsis;\
                                     border:0;background:transparent;color:#7dd3fc;cursor:pointer;\
-                                    font-size:0.7rem;font-family:ui-monospace,monospace;padding:0;",
+                                    font-size:0.7rem;font-family:ui-monospace,monospace;padding:0;\
+                                    align-self:baseline;",
                             title: "{hover} · Shift+click for line history",
                             onclick: move |evt| {
                                 evt.stop_propagation();
@@ -246,6 +280,7 @@ fn SplitHunk(
     lines: Vec<DiffLine>,
     file_path: PathBuf,
     selected: Vec<usize>,
+    heat: std::collections::HashMap<usize, f32>,
     on_event: EventHandler<UiEvent>,
 ) -> Element {
     rsx! {
@@ -258,6 +293,7 @@ fn SplitHunk(
                         line: line.clone(),
                         file_path: file_path.clone(),
                         selected: selected.contains(&line.body_index),
+                        heat_color: heat.get(&line.body_index).copied().map(color_for),
                         on_event: on_event,
                     }
                 }
@@ -268,6 +304,7 @@ fn SplitHunk(
                         line: line.clone(),
                         file_path: file_path.clone(),
                         selected: selected.contains(&line.body_index),
+                        heat_color: heat.get(&line.body_index).copied().map(color_for),
                         on_event: on_event,
                     }
                 }

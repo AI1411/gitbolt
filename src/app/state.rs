@@ -50,6 +50,8 @@ pub struct DiffState {
     pub selected_lines: Vec<usize>,
     /// Focused hunk index for `[` / `]` navigation (issue #13).
     pub focused_hunk: usize,
+    /// Show blame heatmap gutter (issue #33).
+    pub heatmap_enabled: bool,
 }
 
 /// Commit history with lazy paging.
