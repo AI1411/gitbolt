@@ -31,7 +31,8 @@ pub fn OpenScreen(props: OpenScreenProps) -> Element {
             class: "open-screen",
             style: "display:flex;flex-direction:column;align-items:center;justify-content:center;\
                     width:100%;height:100%;gap:1.25rem;font-family:var(--gb-font);\
-                    background:linear-gradient(160deg,var(--gb-bg) 0%,var(--gb-surface-mid) 55%,var(--gb-border) 100%);color:var(--gb-text);",
+                    background:var(--gb-bg);color:var(--gb-text);\
+                    background-image:linear-gradient(180deg,var(--gb-surface) 0%,var(--gb-bg) 8rem);",
             ondragover: move |evt| {
                 evt.prevent_default();
                 drop_hover.set(true);
@@ -71,7 +72,8 @@ pub fn OpenScreen(props: OpenScreenProps) -> Element {
                 style: format!(
                     "min-width:min(28rem,90vw);min-height:7rem;border:2px dashed {};\
                      border-radius:var(--gb-radius-xl);display:flex;align-items:center;justify-content:center;\
-                     padding:1rem;opacity:0.9;transition:border-color 120ms ease;",
+                     padding:1rem;opacity:0.9;transition:border-color 120ms ease;\
+                     background:var(--gb-surface);",
                     if drop_hover() { "var(--gb-accent)" } else { "var(--gb-drop-idle)" }
                 ),
                 "Drop a repository folder here"
