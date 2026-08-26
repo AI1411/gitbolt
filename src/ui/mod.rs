@@ -14,6 +14,7 @@ pub mod nav;
 pub mod open;
 pub mod pulse;
 pub mod shell;
+pub mod stashes;
 pub mod worktrees;
 
 use std::path::PathBuf;

@@ -11,6 +11,7 @@ use super::message::{
 };
 use super::model::{
     BranchHealth, BranchInfo, ChangeKind, CommitSummary, DiffTarget, FileChange, HeadInfo, Oid,
+    StashInfo,
 };
 use super::state::HistoryFilter;
 use crate::git::{ChangeStatus, GitError, GitService, GixService, RepoStatus};
@@ -93,6 +94,46 @@ pub fn execute(cmd: &Command, repo_path: Option<&Path>) -> AppMessage {
         Command::CreateWorktree { .. } | Command::RemoveWorktree { .. } => {
             execute_worktree_mutation(cmd, repo_path)
         }
+        Command::LoadStashes { .. }
+        | Command::LoadStashDiff { .. }
+        | Command::StashSave { .. }
+        | Command::StashApply { .. }
+        | Command::StashPop { .. }
+        | Command::StashDrop { .. } => execute_stash(cmd, repo_path),
+    }
+}
+
+fn execute_stash(cmd: &Command, repo_path: Option<&Path>) -> AppMessage {
+    match cmd {
+        Command::LoadStashes { generation } => AppMessage::StashesLoaded {
+            generation: *generation,
+            result: load_stashes(repo_path),
+        },
+        Command::LoadStashDiff { index, generation } => AppMessage::StashDiffLoaded {
+            generation: *generation,
+            index: *index,
+            result: load_stash_diff(repo_path, *index),
+        },
+        Command::StashSave {
+            message,
+            generation,
+        } => AppMessage::StashSaved {
+            generation: *generation,
+            result: with_service(repo_path, |svc| svc.stash_save(message.as_deref())),
+        },
+        Command::StashApply { index, generation } => AppMessage::StashApplied {
+            generation: *generation,
+            result: with_service(repo_path, |svc| svc.stash_apply(*index)),
+        },
+        Command::StashPop { index, generation } => AppMessage::StashPopped {
+            generation: *generation,
+            result: with_service(repo_path, |svc| svc.stash_pop(*index)),
+        },
+        Command::StashDrop { index, generation } => AppMessage::StashDropped {
+            generation: *generation,
+            result: with_service(repo_path, |svc| svc.stash_drop(*index)),
+        },
+        _ => unreachable!("stash command only"),
     }
 }
 
@@ -223,6 +264,35 @@ fn execute_branch_mutation(cmd: &Command, repo_path: Option<&Path>) -> AppMessag
         },
         _ => unreachable!("branch mutation only"),
     }
+}
+
+fn load_stashes(repo_path: Option<&Path>) -> Result<Vec<StashInfo>, String> {
+    let path = repo_path.ok_or_else(|| "リポジトリが開かれていません".to_string())?;
+    let service = GixService::open(path).map_err(|e| e.user_message())?;
+    let entries = service.stash_list().map_err(|e| e.user_message())?;
+    Ok(entries
+        .into_iter()
+        .map(|e| StashInfo {
+            index: e.index,
+            message: e.message,
+        })
+        .collect())
+}
+
+fn load_stash_diff(
+    repo_path: Option<&Path>,
+    index: usize,
+) -> Result<crate::app::model::DiffContent, String> {
+    let path = repo_path.ok_or_else(|| "リポジトリが開かれていません".to_string())?;
+    let service = GixService::open(path).map_err(|e| e.user_message())?;
+    let stash_patch = service.stash_show(index).map_err(|e| e.user_message())?;
+    Ok(parse_diff_content(
+        DiffTarget {
+            path: format!("stash@{{{index}}}").into(),
+            staged: false,
+        },
+        &stash_patch,
+    ))
 }
 
 fn load_history(

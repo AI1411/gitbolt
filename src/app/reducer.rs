@@ -349,6 +349,58 @@ pub fn reduce(state: &mut AppState, event: UiEvent) -> Vec<Command> {
             state.ui.confirm_remove_worktree = None;
             Vec::new()
         }
+        UiEvent::StashSave { message } => issue(
+            state,
+            vec![Command::StashSave {
+                message,
+                generation: gen,
+            }],
+        ),
+        UiEvent::SelectStash(index) => {
+            state.stash.selected = Some(index);
+            state.stash.diff = Loadable::Loading;
+            issue(
+                state,
+                vec![Command::LoadStashDiff {
+                    index,
+                    generation: gen,
+                }],
+            )
+        }
+        UiEvent::StashApply(index) => issue(
+            state,
+            vec![Command::StashApply {
+                index,
+                generation: gen,
+            }],
+        ),
+        UiEvent::StashPop(index) => issue(
+            state,
+            vec![Command::StashPop {
+                index,
+                generation: gen,
+            }],
+        ),
+        UiEvent::RequestDropStash(index) => {
+            state.ui.confirm_drop_stash = Some(index);
+            Vec::new()
+        }
+        UiEvent::ConfirmDropStash => {
+            let Some(index) = state.ui.confirm_drop_stash.take() else {
+                return Vec::new();
+            };
+            issue(
+                state,
+                vec![Command::StashDrop {
+                    index,
+                    generation: gen,
+                }],
+            )
+        }
+        UiEvent::CancelDropStash => {
+            state.ui.confirm_drop_stash = None;
+            Vec::new()
+        }
         UiEvent::LoadMoreHistory => {
             if state.history.loading || !state.history.has_more {
                 return Vec::new();
@@ -725,6 +777,56 @@ pub fn apply(state: &mut AppState, message: AppMessage) -> Vec<Command> {
                 Vec::new()
             }
         },
+        AppMessage::StashesLoaded { result, .. } => {
+            match result {
+                Ok(entries) => {
+                    state.stash.entries = entries.into();
+                    state.stash.loaded = true;
+                    if let Some(selected) = state.stash.selected {
+                        if !state.stash.entries.iter().any(|e| e.index == selected) {
+                            state.stash.selected = None;
+                            state.stash.diff = Loadable::Idle;
+                        }
+                    }
+                }
+                Err(err) => set_error(state, err),
+            }
+            Vec::new()
+        }
+        AppMessage::StashDiffLoaded { index, result, .. } => {
+            if state.stash.selected == Some(index) {
+                match result {
+                    Ok(content) => state.stash.diff = Loadable::Ready(content),
+                    Err(err) => state.stash.diff = Loadable::Failed(err),
+                }
+            }
+            Vec::new()
+        }
+        AppMessage::StashSaved { result, .. }
+        | AppMessage::StashApplied { result, .. }
+        | AppMessage::StashPopped { result, .. } => match result {
+            Ok(()) => {
+                state.stash.selected = None;
+                state.stash.diff = Loadable::Idle;
+                reload_after_stash_mutation(state, gen)
+            }
+            Err(err) => {
+                set_error(state, err);
+                Vec::new()
+            }
+        },
+        AppMessage::StashDropped { result, .. } => match result {
+            Ok(()) => {
+                state.ui.confirm_drop_stash = None;
+                state.stash.selected = None;
+                state.stash.diff = Loadable::Idle;
+                reload_after_stash_mutation(state, gen)
+            }
+            Err(err) => {
+                set_error(state, err);
+                Vec::new()
+            }
+        },
         AppMessage::RemoteCompleted { op, result, .. } => {
             state.background.remote_label = None;
             match result {
@@ -974,8 +1076,21 @@ fn lazy_load_view(state: &mut AppState, view: View) -> Vec<Command> {
         View::Worktrees if !state.worktree.loaded => {
             issue(state, vec![Command::LoadWorktrees { generation: gen }])
         }
+        View::Stashes if !state.stash.loaded => {
+            issue(state, vec![Command::LoadStashes { generation: gen }])
+        }
         _ => Vec::new(),
     }
+}
+
+fn reload_after_stash_mutation(state: &mut AppState, gen: Generation) -> Vec<Command> {
+    issue(
+        state,
+        vec![
+            Command::LoadStatus { generation: gen },
+            Command::LoadStashes { generation: gen },
+        ],
+    )
 }
 
 fn stage_one(state: &mut AppState, path: &Path) {
@@ -1475,6 +1590,18 @@ mod tests {
                 offset: 0,
                 ..
             }]
+        ));
+    }
+
+    #[test]
+    fn select_stash_loads_diff() {
+        let mut state = AppState::new();
+        let cmds = reduce(&mut state, UiEvent::SelectStash(0));
+        assert_eq!(state.stash.selected, Some(0));
+        assert!(state.stash.diff.is_loading());
+        assert!(matches!(
+            cmds.as_slice(),
+            [Command::LoadStashDiff { index: 0, .. }]
         ));
     }
 }

@@ -14,6 +14,7 @@ use crate::ui::layout_model::content_heading;
 use crate::ui::layout_model::history_title;
 use crate::ui::nav::NavPane;
 use crate::ui::pulse::PulseHeader;
+use crate::ui::stashes::StashesView;
 use crate::ui::worktrees::WorktreesView;
 
 const NAV_MIN: f64 = 140.0;
@@ -283,9 +284,9 @@ fn ContentBody(state: AppState, on_event: EventHandler<UiEvent>) -> Element {
             }
         },
         View::Stashes => rsx! {
-            div {
-                style: "opacity:0.7;font-size:0.9rem;",
-                "Stashes — list/apply arrives with the Stash MVP issue."
+            StashesView {
+                state: state,
+                on_event: on_event,
             }
         },
     }

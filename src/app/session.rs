@@ -357,13 +357,19 @@ fn command_priority(cmd: &Command) -> Priority {
         | Command::LoadBranches { .. }
         | Command::LoadDivergence { .. }
         | Command::LoadWorktrees { .. }
+        | Command::LoadStashes { .. }
+        | Command::LoadStashDiff { .. }
         | Command::SetUpstream { .. } => Priority::P2,
         Command::EnrichBranchHealth { .. }
         | Command::CreateBranch { .. }
         | Command::DeleteBranch { .. }
         | Command::AutoFetch { .. }
         | Command::CreateWorktree { .. }
-        | Command::RemoveWorktree { .. } => Priority::P3,
+        | Command::RemoveWorktree { .. }
+        | Command::StashSave { .. }
+        | Command::StashApply { .. }
+        | Command::StashPop { .. }
+        | Command::StashDrop { .. } => Priority::P3,
     }
 }
 

@@ -112,6 +112,21 @@ pub enum UiEvent {
     /// Return to the full repository history list.
     ClearHistoryFilter,
 
+    /// Save current changes to the stash (optional message).
+    StashSave { message: Option<String> },
+    /// Select a stash entry to view its diff.
+    SelectStash(usize),
+    /// Apply a stash without removing it.
+    StashApply(usize),
+    /// Pop a stash (apply + drop).
+    StashPop(usize),
+    /// Request confirmation before dropping a stash.
+    RequestDropStash(usize),
+    /// Confirm pending stash drop.
+    ConfirmDropStash,
+    /// Cancel pending stash drop.
+    CancelDropStash,
+
     /// Update the search query.
     Search(String),
     /// Dismiss the current error banner.

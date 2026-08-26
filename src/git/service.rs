@@ -445,4 +445,28 @@ pub trait GitService: Sized {
     fn stash_apply(&self, _index: usize) -> Result<(), GitError> {
         Err(GitError::unsupported("stash_apply"))
     }
+
+    /// Pop a stash (apply + drop).
+    ///
+    /// # Errors
+    /// Returns [`GitError::Unsupported`] until implemented.
+    fn stash_pop(&self, _index: usize) -> Result<(), GitError> {
+        Err(GitError::unsupported("stash_pop"))
+    }
+
+    /// Drop a stash without applying.
+    ///
+    /// # Errors
+    /// Returns [`GitError::Unsupported`] until implemented.
+    fn stash_drop(&self, _index: usize) -> Result<(), GitError> {
+        Err(GitError::unsupported("stash_drop"))
+    }
+
+    /// Unified patch for a stash entry.
+    ///
+    /// # Errors
+    /// Returns [`GitError::Unsupported`] until implemented.
+    fn stash_show(&self, _index: usize) -> Result<String, GitError> {
+        Err(GitError::unsupported("stash_show"))
+    }
 }

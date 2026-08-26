@@ -14,6 +14,7 @@ pub mod remote;
 pub mod repository;
 pub mod service;
 pub mod stage;
+pub mod stash;
 pub mod status;
 pub mod worktree;
 

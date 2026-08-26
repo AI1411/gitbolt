@@ -180,6 +180,13 @@ pub struct WorktreeInfo {
     pub is_primary: bool,
 }
 
+/// A stash entry in the UI.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StashInfo {
+    pub index: usize,
+    pub message: String,
+}
+
 /// Current HEAD summary.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct HeadInfo {
