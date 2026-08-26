@@ -11,6 +11,7 @@ pub mod divergence;
 pub mod error_banner;
 pub mod history;
 pub mod layout_model;
+pub mod list_search;
 pub mod nav;
 pub mod open;
 pub mod overlay;

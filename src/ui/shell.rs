@@ -163,7 +163,7 @@ pub fn Shell(props: ShellProps) -> Element {
                     }
                     Key::Character(ch) if ch == "/" => {
                         evt.prevent_default();
-                        props.on_event.call(UiEvent::OpenQuickOpen);
+                        props.on_event.call(UiEvent::BeginListSearch);
                     }
                     Key::Character(ch) if ch.eq_ignore_ascii_case("b") => {
                         evt.prevent_default();

@@ -5,8 +5,7 @@ use dioxus::prelude::*;
 use crate::app::event::UiEvent;
 use crate::app::model::{ChangeKind, FileChange};
 use crate::app::state::AppState;
-
-/// Props for the changes list.
+use crate::ui::list_search::{matches_query, ListSearchBar};
 #[derive(Props, Clone, PartialEq)]
 pub struct ChangesViewProps {
     pub state: AppState,
@@ -28,10 +27,30 @@ pub fn ChangesView(props: ChangesViewProps) -> Element {
     let conflicted = props.state.changes.conflicted.clone();
     let loaded = props.state.changes.loaded;
     let selected = props.state.diff.target.clone();
+    let q = props.state.ui.search_query.clone();
+    let staged: Vec<FileChange> = staged
+        .iter()
+        .filter(|f| matches_query(&f.path.display().to_string(), &q))
+        .cloned()
+        .collect();
+    let unstaged: Vec<FileChange> = unstaged
+        .into_iter()
+        .filter(|f| matches_query(&f.path.display().to_string(), &q))
+        .collect();
+    let conflicted: Vec<FileChange> = conflicted
+        .iter()
+        .filter(|f| matches_query(&f.path.display().to_string(), &q))
+        .cloned()
+        .collect();
 
     rsx! {
         div {
             style: "display:flex;flex-direction:column;gap:0.75rem;font-size:0.9rem;",
+            ListSearchBar {
+                state: props.state.clone(),
+                on_event: props.on_event,
+                placeholder: "Filter files…".to_string(),
+            }
             if !loaded {
                 p { style: "margin:0;opacity:0.6;", "Loading status…" }
             }
@@ -56,21 +75,21 @@ pub fn ChangesView(props: ChangesViewProps) -> Element {
             }
             FileSection {
                 title: "STAGED",
-                files: staged.to_vec(),
+                files: staged.clone(),
                 staged_area: true,
                 selected: selected.clone(),
                 on_event: props.on_event,
             }
             FileSection {
                 title: "CONFLICTED",
-                files: conflicted.to_vec(),
+                files: conflicted.clone(),
                 staged_area: false,
                 selected: selected.clone(),
                 on_event: props.on_event,
             }
             FileSection {
                 title: "UNSTAGED",
-                files: unstaged,
+                files: unstaged.clone(),
                 staged_area: false,
                 selected: selected,
                 on_event: props.on_event,

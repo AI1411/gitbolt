@@ -7,6 +7,7 @@ use crate::app::model::{DiffHunk, Loadable};
 use crate::app::state::AppState;
 use crate::ui::diff::tint_line;
 use crate::ui::error_banner::ConfirmPanel;
+use crate::ui::list_search::{matches_query, ListSearchBar};
 
 /// Props for the stashes pane.
 #[derive(Props, Clone, PartialEq)]
@@ -19,7 +20,14 @@ pub struct StashesViewProps {
 #[component]
 pub fn StashesView(props: StashesViewProps) -> Element {
     let mut message_draft = use_signal(String::new);
-    let entries = props.state.stash.entries.clone();
+    let entries: Vec<_> = props
+        .state
+        .stash
+        .entries
+        .iter()
+        .filter(|e| matches_query(&e.message, &props.state.ui.search_query))
+        .cloned()
+        .collect();
     let loaded = props.state.stash.loaded;
     let selected = props.state.stash.selected;
     let pending_drop = props.state.ui.confirm_drop_stash;
@@ -28,6 +36,11 @@ pub fn StashesView(props: StashesViewProps) -> Element {
     rsx! {
         div {
             style: "display:flex;flex-direction:column;gap:0.75rem;font-size:0.9rem;",
+            ListSearchBar {
+                state: props.state.clone(),
+                on_event: props.on_event,
+                placeholder: "Filter stashes…".to_string(),
+            }
 
             div {
                 style: "display:flex;flex-direction:column;gap:0.35rem;",
