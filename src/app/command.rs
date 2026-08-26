@@ -35,6 +35,11 @@ pub enum Command {
         right: String,
         generation: Generation,
     },
+    SetUpstream {
+        branch: String,
+        upstream: String,
+        generation: Generation,
+    },
     LoadWorktrees {
         generation: Generation,
     },
@@ -102,6 +107,7 @@ impl Command {
             | Self::LoadHistoryPage { generation, .. }
             | Self::LoadBranches { generation }
             | Self::LoadDivergence { generation, .. }
+            | Self::SetUpstream { generation, .. }
             | Self::LoadWorktrees { generation }
             | Self::Stage { generation, .. }
             | Self::Unstage { generation, .. }

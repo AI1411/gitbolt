@@ -64,6 +64,10 @@ pub struct BranchState {
     pub branches: Arc<[BranchInfo]>,
     pub current: Option<String>,
     pub loaded: bool,
+    /// Reflog-ordered recent branch names (issue #30).
+    pub recent: Vec<String>,
+    /// Quick Open filter for branch names.
+    pub filter: String,
 }
 
 /// Divergence between two tips (issue #29).

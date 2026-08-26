@@ -248,6 +248,30 @@ pub trait GitService: Sized {
         Err(GitError::unsupported("ahead_behind"))
     }
 
+    /// Recent branch names from reflog.
+    ///
+    /// # Errors
+    /// Returns [`GitError::Unsupported`] until implemented.
+    fn recent_branches(&self, _limit: usize) -> Result<Vec<String>, GitError> {
+        Err(GitError::unsupported("recent_branches"))
+    }
+
+    /// Last commit on a branch tip.
+    ///
+    /// # Errors
+    /// Returns [`GitError::Unsupported`] until implemented.
+    fn branch_last_commit(&self, _branch: &str) -> Result<Option<CommitInfo>, GitError> {
+        Err(GitError::unsupported("branch_last_commit"))
+    }
+
+    /// Set upstream tracking for a branch.
+    ///
+    /// # Errors
+    /// Returns [`GitError::Unsupported`] until implemented.
+    fn set_upstream(&self, _branch: &str, _upstream: &str) -> Result<(), GitError> {
+        Err(GitError::unsupported("set_upstream"))
+    }
+
     /// Create a branch.
     ///
     /// # Errors

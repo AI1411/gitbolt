@@ -83,6 +83,18 @@ pub fn reduce(state: &mut AppState, event: UiEvent) -> Vec<Command> {
             state.selection.branch = Some(name);
             Vec::new()
         }
+        UiEvent::SetBranchFilter(filter) => {
+            state.branch.filter = filter;
+            Vec::new()
+        }
+        UiEvent::SetUpstream { branch, upstream } => issue(
+            state,
+            vec![Command::SetUpstream {
+                branch,
+                upstream,
+                generation: gen,
+            }],
+        ),
         UiEvent::ShowDivergence { other } => {
             let left = state
                 .repository
@@ -303,9 +315,10 @@ pub fn apply(state: &mut AppState, message: AppMessage) -> Vec<Command> {
         }
         AppMessage::BranchesLoaded { result, .. } => {
             match result {
-                Ok((branches, current)) => {
-                    state.branch.branches = branches.into();
-                    state.branch.current = current;
+                Ok(data) => {
+                    state.branch.branches = data.branches.into();
+                    state.branch.current = data.current;
+                    state.branch.recent = data.recent;
                     state.branch.loaded = true;
                 }
                 Err(err) => set_error(state, err),
@@ -410,15 +423,15 @@ pub fn apply(state: &mut AppState, message: AppMessage) -> Vec<Command> {
                 Vec::new()
             }
         },
-        AppMessage::BranchCreated { result, .. } | AppMessage::BranchDeleted { result, .. } => {
-            match result {
-                Ok(()) => issue(state, vec![Command::LoadBranches { generation: gen }]),
-                Err(err) => {
-                    set_error(state, err);
-                    Vec::new()
-                }
+        AppMessage::BranchCreated { result, .. }
+        | AppMessage::BranchDeleted { result, .. }
+        | AppMessage::UpstreamSet { result, .. } => match result {
+            Ok(()) => issue(state, vec![Command::LoadBranches { generation: gen }]),
+            Err(err) => {
+                set_error(state, err);
+                Vec::new()
             }
-        }
+        },
         AppMessage::WorktreeCreated { result, .. } => match result {
             Ok(_) => issue(state, vec![Command::LoadWorktrees { generation: gen }]),
             Err(err) => {

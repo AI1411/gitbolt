@@ -27,6 +27,10 @@ pub enum UiEvent {
     SelectCommit(Oid),
     /// Select a branch.
     SelectBranch(String),
+    /// Filter the branch list (Quick Open for branches).
+    SetBranchFilter(String),
+    /// Set or change the upstream tracking ref for a branch.
+    SetUpstream { branch: String, upstream: String },
     /// Open divergence view comparing `other` against the current HEAD branch.
     ShowDivergence { other: String },
     /// Clear the divergence panel.

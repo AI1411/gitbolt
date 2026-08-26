@@ -4,7 +4,9 @@ use std::path::Path;
 
 use super::command::Command;
 use super::diff_parse::parse_diff_content;
-use super::message::{AppMessage, DivergenceData, RemoteOp, RepositoryData, StatusData};
+use super::message::{
+    AppMessage, BranchesData, DivergenceData, RemoteOp, RepositoryData, StatusData,
+};
 use super::model::{
     BranchHealth, BranchInfo, ChangeKind, CommitSummary, DiffTarget, FileChange, HeadInfo, Oid,
 };
@@ -65,6 +67,14 @@ pub fn execute(cmd: &Command, repo_path: Option<&Path>) -> AppMessage {
             right: right.clone(),
             result: load_divergence(repo_path, left, right),
         },
+        Command::SetUpstream {
+            branch,
+            upstream,
+            generation,
+        } => AppMessage::UpstreamSet {
+            generation: *generation,
+            result: with_service(repo_path, |svc| svc.set_upstream(branch, upstream)),
+        },
         Command::LoadWorktrees { generation } => AppMessage::WorktreesLoaded {
             generation: *generation,
             result: Ok(Vec::new()),
@@ -104,11 +114,12 @@ fn load_diff(
     Ok(parse_diff_content(target.clone(), &diff.text))
 }
 
-fn load_branches(repo_path: Option<&Path>) -> Result<(Vec<BranchInfo>, Option<String>), String> {
+fn load_branches(repo_path: Option<&Path>) -> Result<BranchesData, String> {
     let path = repo_path.ok_or_else(|| "リポジトリが開かれていません".to_string())?;
     let service = GixService::open(path).map_err(|e| e.user_message())?;
     let refs = service.branches().map_err(|e| e.user_message())?;
     let current = refs.iter().find(|b| b.is_head).map(|b| b.name.clone());
+    let recent = service.recent_branches(10).map_err(|e| e.user_message())?;
     let mut infos = Vec::new();
     for b in refs {
         let (ahead, behind, health) = if let Some(up) = b.upstream.as_deref() {
@@ -127,16 +138,25 @@ fn load_branches(repo_path: Option<&Path>) -> Result<(Vec<BranchInfo>, Option<St
         } else {
             (0, 0, BranchHealth::Local)
         };
+        let last_commit = service
+            .branch_last_commit(&b.name)
+            .ok()
+            .flatten()
+            .map(to_summary);
         infos.push(BranchInfo {
             name: b.name,
             upstream: b.upstream,
             health,
             ahead,
             behind,
-            last_commit: None,
+            last_commit,
         });
     }
-    Ok((infos, current))
+    Ok(BranchesData {
+        branches: infos,
+        current,
+        recent,
+    })
 }
 
 fn load_divergence(
@@ -228,6 +248,7 @@ fn unsupported(cmd: &Command) -> AppMessage {
         | Command::LoadHistoryPage { .. }
         | Command::LoadBranches { .. }
         | Command::LoadDivergence { .. }
+        | Command::SetUpstream { .. }
         | Command::LoadWorktrees { .. } => unreachable!("handled in execute"),
         Command::StageAll { .. } => AppMessage::StageCompleted {
             generation,
@@ -285,6 +306,7 @@ fn command_name(cmd: &Command) -> &'static str {
         Command::LoadHistoryPage { .. } => "log",
         Command::LoadBranches { .. } => "branches",
         Command::LoadDivergence { .. } => "divergence",
+        Command::SetUpstream { .. } => "set_upstream",
         Command::LoadWorktrees { .. } => "worktrees",
         Command::Stage { .. } | Command::StageAll { .. } | Command::StageLines { .. } => "stage",
         Command::Unstage { .. } | Command::UnstageAll { .. } => "unstage",

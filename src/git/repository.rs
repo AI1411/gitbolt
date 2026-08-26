@@ -161,6 +161,18 @@ impl GitService for GixService {
     fn ahead_behind(&self, tip: &str, other: &str) -> Result<(u32, u32), GitError> {
         branch::ahead_behind(self.workdir()?, tip, other)
     }
+
+    fn recent_branches(&self, limit: usize) -> Result<Vec<String>, GitError> {
+        branch::recent_branches(self.workdir()?, limit)
+    }
+
+    fn branch_last_commit(&self, name: &str) -> Result<Option<CommitInfo>, GitError> {
+        branch::branch_last_commit(self.workdir()?, name)
+    }
+
+    fn set_upstream(&self, name: &str, upstream: &str) -> Result<(), GitError> {
+        branch::set_upstream(self.workdir()?, name, upstream)
+    }
 }
 
 impl GixService {
