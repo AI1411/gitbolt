@@ -392,6 +392,7 @@ fn command_priority(cmd: &Command) -> Priority {
         | Command::LoadStashes { .. }
         | Command::LoadStashDiff { .. }
         | Command::LoadCommitDetail { .. }
+        | Command::LoadCommitFileDiff { .. }
         | Command::SetUpstream { .. } => Priority::P2,
         Command::EnrichBranchHealth { .. }
         | Command::CreateBranch { .. }
