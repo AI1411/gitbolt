@@ -110,7 +110,11 @@ pub fn checkout_preflight(repo: &Path, target: &str) -> Result<(), GitError> {
     )))
 }
 
-/// Switches to `name` (`git switch`). Remote-tracking names use `--track`.
+/// Switches to `name` (`git switch`).
+///
+/// Local branch names (including those with `/`, e.g. `cursor/foo`) are
+/// switched as-is. Remote-tracking names (`origin/feature/x`) create or
+/// reuse a local branch with the remote prefix stripped.
 ///
 /// # Errors
 /// Propagates CLI failures after preflight.
@@ -121,22 +125,39 @@ pub fn checkout(repo: &Path, name: &str) -> Result<Head, GitError> {
     }
     checkout_preflight(repo, name)?;
     let cli = GitCli::new(repo)?;
-    if name.contains('/') {
-        // Remote-tracking ref: create/update local branch with tracking.
-        // `git switch -c <short> --track <remote>` when short does not exist,
-        // else `git switch <short>`.
-        let short = name.rsplit('/').next().unwrap_or(name);
-        let locals = list_branches(repo)?;
-        let has_local = locals.iter().any(|b| !b.is_remote && b.name == short);
-        if has_local {
-            cli.run(&["switch", short])?;
-        } else {
-            cli.run(&["switch", "-c", short, "--track", name])?;
-        }
-    } else {
-        cli.run(&["switch", name])?;
+    let branches = list_branches(repo)?;
+
+    if branches.iter().any(|b| !b.is_remote && b.name == name) {
+        cli.run(&["switch", "--", name])?;
+        return read_head(repo);
     }
+
+    if branches.iter().any(|b| b.is_remote && b.name == name) {
+        let short = local_name_for_remote(name);
+        if short.is_empty() {
+            return Err(GitError::Backend(format!(
+                "cannot derive a local name from remote ref {name}"
+            )));
+        }
+        if branches.iter().any(|b| !b.is_remote && b.name == short) {
+            cli.run(&["switch", "--", &short])?;
+        } else {
+            cli.run(&["switch", "-c", &short, "--track", name])?;
+        }
+        return read_head(repo);
+    }
+
+    cli.run(&["switch", "--", name])?;
     read_head(repo)
+}
+
+/// `origin/feature/nested` → `feature/nested`.
+fn local_name_for_remote(remote_short: &str) -> String {
+    remote_short
+        .split_once('/')
+        .map(|(_, rest)| rest.to_string())
+        .filter(|rest| !rest.is_empty())
+        .unwrap_or_else(|| remote_short.to_string())
 }
 
 /// Lists local branch names already merged into `base` (`git branch --merged`).
@@ -500,6 +521,62 @@ mod tests {
             .map(|b| b.name)
             .collect();
         assert!(!names.iter().any(|n| n == "topic"));
+    }
+
+    #[test]
+    fn checkout_keeps_local_branch_with_slash_in_name() {
+        let repo = TempRepo::init();
+        repo.write("f.txt", "one\n");
+        repo.stage("f.txt");
+        repo.commit("first");
+
+        repo.run(&["switch", "-c", "cursor/feature-auth"]);
+        repo.write("f.txt", "two\n");
+        repo.stage("f.txt");
+        repo.commit("on slash branch");
+        repo.run(&["switch", "main"]);
+
+        let head = checkout(repo.path(), "cursor/feature-auth").expect("checkout");
+        assert_eq!(
+            head.branch.as_deref(),
+            Some("cursor/feature-auth"),
+            "must switch to the existing local branch, not invent a last-segment name"
+        );
+        let names: Vec<_> = list_branches(repo.path())
+            .expect("list")
+            .into_iter()
+            .filter(|b| !b.is_remote)
+            .map(|b| b.name)
+            .collect();
+        assert!(
+            !names.iter().any(|n| n == "feature-auth"),
+            "must not create a shadow branch from the last path segment: {names:?}"
+        );
+    }
+
+    #[test]
+    fn checkout_remote_tracking_strips_only_the_remote_prefix() {
+        let remote = TempRepo::init();
+        remote.write("f.txt", "one\n");
+        remote.stage("f.txt");
+        remote.commit("first");
+        remote.run(&["switch", "-c", "feature/nested"]);
+        remote.write("f.txt", "two\n");
+        remote.stage("f.txt");
+        remote.commit("nested");
+        remote.run(&["switch", "main"]);
+
+        let local = TempRepo::init();
+        local.run(&[
+            "remote",
+            "add",
+            "origin",
+            remote.path().to_str().expect("utf8 path"),
+        ]);
+        local.run(&["fetch", "origin"]);
+
+        let head = checkout(local.path(), "origin/feature/nested").expect("track");
+        assert_eq!(head.branch.as_deref(), Some("feature/nested"));
     }
 
     #[test]
