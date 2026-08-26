@@ -425,15 +425,19 @@ fn ContentBody(state: AppState, on_event: EventHandler<UiEvent>) -> Element {
                 style: "display:flex;flex-direction:row;align-items:stretch;gap:0;\
                         flex:1;min-height:0;height:100%;overflow:hidden;",
                 div {
+                    class: "changes-files-pane",
                     style: "flex:0 0 38%;min-width:12rem;max-width:24rem;overflow:auto;\
-                            border-right:1px solid var(--gb-border);padding-right:0.65rem;box-sizing:border-box;",
+                            border-right:1px solid var(--gb-border);padding:var(--gb-space-3);\
+                            box-sizing:border-box;background:var(--gb-surface);min-height:0;",
                     ChangesView {
                         state: state.clone(),
                         on_event: on_event,
                     }
                 }
                 div {
-                    style: "flex:1;min-width:0;overflow:auto;padding-left:0.65rem;box-sizing:border-box;",
+                    class: "changes-diff-pane",
+                    style: "flex:1;min-width:0;overflow:auto;padding:var(--gb-space-3);\
+                            box-sizing:border-box;background:var(--gb-bg);min-height:0;",
                     DiffView {
                         state: state,
                         on_event: on_event,
