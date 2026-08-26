@@ -1,7 +1,8 @@
-//! Right context panel chrome (issue #10). Detail content arrives in #25.
+//! Right context panel — commit box + selection summary (issues #10 / #15 / #25).
 
 use dioxus::prelude::*;
 
+use crate::app::event::UiEvent;
 use crate::app::model::View;
 use crate::app::state::AppState;
 use crate::ui::layout_model::context_heading;
@@ -10,13 +11,16 @@ use crate::ui::layout_model::context_heading;
 #[derive(Props, Clone, PartialEq)]
 pub struct ContextPaneProps {
     pub state: AppState,
+    pub on_event: EventHandler<UiEvent>,
 }
 
-/// Renders the Context column. Keeps prior framing while detail loads later.
+/// Renders the Context column with commit input on Changes.
 #[component]
 pub fn ContextPane(props: ContextPaneProps) -> Element {
     let heading = context_heading(props.state.navigation.active_view);
     let selection = selection_summary(&props.state);
+    let staged_n = props.state.changes.staged.len();
+    let autofocus_key = props.state.ui.commit_focus_token;
 
     rsx! {
         aside {
@@ -32,16 +36,65 @@ pub fn ContextPane(props: ContextPaneProps) -> Element {
                 style: "margin:0;font-size:0.9rem;line-height:1.45;opacity:0.85;",
                 "{selection}"
             }
+
+            div {
+                style: "display:flex;flex-direction:column;gap:0.4rem;",
+                label {
+                    style: "font-size:0.75rem;opacity:0.6;letter-spacing:0.04em;text-transform:uppercase;",
+                    "Commit message"
+                }
+                textarea {
+                    key: "{autofocus_key}",
+                    autofocus: autofocus_key > 0,
+                    style: "width:100%;min-height:5.5rem;box-sizing:border-box;resize:vertical;\
+                            padding:0.45rem 0.55rem;border-radius:4px;border:1px solid #334155;\
+                            background:#0f1419;color:#e8eef7;font-size:0.85rem;font-family:inherit;",
+                    placeholder: "Commit message… (C to focus, ⌘Enter to commit)",
+                    value: "{props.state.ui.commit_message}",
+                    oninput: move |evt| {
+                        props.on_event.call(UiEvent::SetCommitMessage(evt.value()));
+                    },
+                    onkeydown: move |evt| {
+                        let mods = evt.data().modifiers();
+                        let shortcut =
+                            mods.contains(Modifiers::META) || mods.contains(Modifiers::CONTROL);
+                        if shortcut && matches!(evt.data().key(), Key::Enter) {
+                            evt.prevent_default();
+                            props.on_event.call(UiEvent::Commit);
+                        }
+                    },
+                }
+                div {
+                    style: "display:flex;align-items:center;gap:0.5rem;",
+                    button {
+                        style: "border:0;background:#3d8bfd;color:white;border-radius:4px;\
+                                padding:0.35rem 0.75rem;cursor:pointer;font-size:0.8rem;font-weight:600;",
+                        disabled: staged_n == 0,
+                        onclick: move |_| props.on_event.call(UiEvent::Commit),
+                        "Commit"
+                    }
+                    span {
+                        style: "font-size:0.75rem;opacity:0.55;",
+                        "{staged_n} staged"
+                    }
+                }
+                if let Some(err) = props.state.ui.error_banner.as_ref() {
+                    p {
+                        style: "margin:0;color:#fca5a5;font-size:0.8rem;",
+                        "{err}"
+                    }
+                }
+            }
+
             p {
                 style: "margin:0;font-size:0.8rem;opacity:0.5;",
-                "⌘I to hide · Detail views land in later MVP issues."
+                "⌘I to hide · C focus · ⌘Enter commit"
             }
         }
     }
 }
 
 fn selection_summary(state: &AppState) -> String {
-    // Change Origin / commit selection takes precedence when set.
     if let Some(oid) = state.selection.commit.as_ref() {
         let short = if oid.0.len() > 7 { &oid.0[..7] } else { &oid.0 };
         let detail = state

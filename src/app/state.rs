@@ -137,6 +137,8 @@ pub struct UiState {
     pub error_banner: Option<String>,
     pub search_query: String,
     pub searching: bool,
+    /// Bumped to request focus on the commit message field (issue #15).
+    pub commit_focus_token: u64,
 }
 
 /// The whole application state.

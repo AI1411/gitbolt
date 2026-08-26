@@ -245,6 +245,11 @@ pub fn reduce(state: &mut AppState, event: UiEvent) -> Vec<Command> {
             state.ui.commit_message = message;
             Vec::new()
         }
+        UiEvent::FocusCommitInput => {
+            state.navigation.context_panel_open = true;
+            state.ui.commit_focus_token = state.ui.commit_focus_token.wrapping_add(1);
+            Vec::new()
+        }
         UiEvent::Commit => reduce_commit(state, gen),
         UiEvent::CreateBranch(name) => issue(
             state,
@@ -448,8 +453,9 @@ pub fn apply(state: &mut AppState, message: AppMessage) -> Vec<Command> {
             issue(state, cmds)
         }
         AppMessage::CommitCompleted { result, .. } => match result {
-            Ok(_) => {
+            Ok(oid) => {
                 state.ui.commit_message.clear();
+                state.repository.head.oid = Some(oid);
                 bump_after_head_change(state);
                 let gen = state.generation;
                 issue(

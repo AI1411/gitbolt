@@ -89,6 +89,13 @@ pub fn execute(cmd: &Command, repo_path: Option<&Path>) -> AppMessage {
             path: Path::new(".").to_path_buf(),
             result: with_service(repo_path, GitService::unstage_all),
         },
+        Command::Commit {
+            message,
+            generation,
+        } => AppMessage::CommitCompleted {
+            generation: *generation,
+            result: with_service(repo_path, |svc| svc.commit(message).map(Oid)),
+        },
         other => unsupported(other),
     }
 }
@@ -279,11 +286,8 @@ fn unsupported(cmd: &Command) -> AppMessage {
         | Command::SetUpstream { .. }
         | Command::LoadWorktrees { .. }
         | Command::StageAll { .. }
-        | Command::UnstageAll { .. } => unreachable!("handled in execute"),
-        Command::Commit { .. } => AppMessage::CommitCompleted {
-            generation,
-            result: Err(err),
-        },
+        | Command::UnstageAll { .. }
+        | Command::Commit { .. } => unreachable!("handled in execute"),
         Command::CreateBranch { .. } => AppMessage::BranchCreated {
             generation,
             result: Err(err),

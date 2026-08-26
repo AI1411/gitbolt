@@ -67,6 +67,8 @@ pub enum UiEvent {
 
     /// Edit the in-progress commit message.
     SetCommitMessage(String),
+    /// Focus the commit message input (opens context panel).
+    FocusCommitInput,
     /// Commit the staged changes with the current message.
     Commit,
 
