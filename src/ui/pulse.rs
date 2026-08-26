@@ -1,4 +1,4 @@
-//! Repository Pulse header (issue #11).
+//! Repository Pulse header (issue #11 / #112).
 
 use dioxus::prelude::*;
 
@@ -22,31 +22,41 @@ pub fn PulseHeader(props: PulseHeaderProps) -> Element {
     let staged_label = format!("{} staged", pulse.staged);
     let worktrees_label = format!("{} worktrees", pulse.worktrees);
     let ahead = pulse.ahead.unwrap_or(0);
+    let behind = pulse.behind.unwrap_or(0);
 
-    let btn = "border:0;background:transparent;color:inherit;cursor:pointer;padding:0;\
-               font:inherit;font-weight:600;";
-    let muted = "border:0;background:transparent;color:inherit;cursor:pointer;padding:0;\
-                 font:inherit;font-weight:500;opacity:0.75;";
+    let brand =
+        "border:0;background:transparent;color:var(--gb-text-muted);cursor:pointer;padding:0;\
+                 font:inherit;font-weight:var(--gb-weight-regular);";
+    let branch = "border:0;background:transparent;color:var(--gb-text);cursor:pointer;padding:0;\
+                  font:inherit;font-weight:var(--gb-weight-semibold);font-size:0.95em;";
+    let meta =
+        "border:0;background:transparent;color:var(--gb-text-muted);cursor:pointer;padding:0;\
+                font:inherit;font-weight:var(--gb-weight-regular);opacity:0.9;";
+    let action = "border:1px solid var(--gb-border-strong);background:transparent;color:var(--gb-text-muted);\
+                  cursor:pointer;padding:0.15rem 0.5rem;font:inherit;font-size:var(--gb-size-hint);\
+                  font-weight:var(--gb-weight-semibold);border-radius:var(--gb-radius);";
     let push_style = if ahead > 0 {
-        "border:0;background:var(--gb-accent);color:white;cursor:pointer;padding:0.15rem 0.45rem;\
-         font:inherit;font-weight:600;border-radius:var(--gb-radius);"
+        "border:0;background:var(--gb-accent);color:white;cursor:pointer;padding:0.15rem 0.5rem;\
+         font:inherit;font-size:var(--gb-size-hint);font-weight:var(--gb-weight-semibold);\
+         border-radius:var(--gb-radius);"
     } else {
-        muted
+        action
     };
 
     rsx! {
         header {
-            style: "flex:0 0 auto;padding:0.55rem 0.85rem;border-bottom:1px solid var(--gb-border);\
-                    font-weight:var(--gb-weight-semibold);font-size:var(--gb-size-pulse);display:flex;flex-wrap:wrap;gap:0.35rem 0.55rem;\
-                    align-items:center;letter-spacing:-0.01em;",
+            style: "flex:0 0 auto;padding:0.45rem 0.85rem;border-bottom:1px solid var(--gb-border);\
+                    background:var(--gb-surface);font-size:var(--gb-size-pulse);display:flex;flex-wrap:wrap;\
+                    gap:0.4rem 0.65rem;align-items:center;letter-spacing:-0.01em;",
             span {
-                style: "opacity:0.9;cursor:pointer;",
+                style: "opacity:0.7;cursor:pointer;font-weight:var(--gb-weight-regular);",
                 title: "Switch repository",
                 onclick: move |_| props.on_event.call(UiEvent::CloseRepository),
-                "GitBolt /"
+                "GitBolt"
             }
+            span { style: "opacity:0.35;", "/" }
             button {
-                style: "{btn}",
+                style: "{branch}",
                 title: "Branches",
                 onclick: move |_| {
                     props
@@ -55,9 +65,37 @@ pub fn PulseHeader(props: PulseHeaderProps) -> Element {
                 },
                 "{pulse.branch_label}"
             }
-            if !divergence.is_empty() {
+            if ahead > 0 || behind > 0 {
                 button {
-                    style: "{muted}",
+                    style: "border:0;background:transparent;cursor:pointer;padding:0;display:flex;gap:0.25rem;",
+                    title: "Branch health",
+                    onclick: move |_| {
+                        props.on_event.call(UiEvent::SelectView(segment_view(
+                            PulseSegment::Divergence,
+                        )));
+                    },
+                    if ahead > 0 {
+                        span {
+                            style: "padding:0.05rem 0.4rem;border-radius:var(--gb-radius-pill);\
+                                    background:var(--gb-add-bg);color:var(--gb-add);font-size:var(--gb-size-label);\
+                                    font-weight:var(--gb-weight-semibold);",
+                            "↑{ahead}"
+                        }
+                    }
+                    if behind > 0 {
+                        span {
+                            style: "padding:0.05rem 0.4rem;border-radius:var(--gb-radius-pill);\
+                                    background:var(--gb-del-bg);color:var(--gb-del);font-size:var(--gb-size-label);\
+                                    font-weight:var(--gb-weight-semibold);",
+                            "↓{behind}"
+                        }
+                    }
+                }
+            } else if !divergence.is_empty() {
+                button {
+                    style: "border:0;background:var(--gb-chip);color:var(--gb-chip-text);cursor:pointer;\
+                            padding:0.05rem 0.45rem;border-radius:var(--gb-radius-pill);\
+                            font-size:var(--gb-size-label);font-weight:var(--gb-weight-semibold);",
                     title: "Branch health",
                     onclick: move |_| {
                         props.on_event.call(UiEvent::SelectView(segment_view(
@@ -67,57 +105,56 @@ pub fn PulseHeader(props: PulseHeaderProps) -> Element {
                     "{divergence}"
                 }
             }
-            span { style: "opacity:0.35;", "·" }
-            button {
-                style: "{muted}",
-                title: "Changes",
-                onclick: move |_| {
-                    props
-                        .on_event
-                        .call(UiEvent::SelectView(segment_view(PulseSegment::Changes)));
-                },
-                "{changes_label}"
-            }
-            span { style: "opacity:0.35;", "·" }
-            button {
-                style: "{muted}",
-                title: "Staged",
-                onclick: move |_| {
-                    props
-                        .on_event
-                        .call(UiEvent::SelectView(segment_view(PulseSegment::Staged)));
-                },
-                "{staged_label}"
-            }
-            span { style: "opacity:0.35;", "·" }
-            button {
-                style: "{muted}",
-                title: "Worktrees",
-                onclick: move |_| {
-                    props.on_event.call(UiEvent::SelectView(segment_view(
-                        PulseSegment::Worktrees,
-                    )));
-                },
-                "{worktrees_label}"
-            }
             span {
-                style: "opacity:0.45;font-weight:500;font-size:0.8rem;margin-left:auto;\
-                        display:flex;gap:0.45rem;align-items:center;",
-                if let Some(label) = props.state.background.remote_label.clone() {
-                    span { style: "opacity:0.8;", "{label}" }
-                } else if let Some(status) = props.state.ui.remote_status.clone() {
-                    span { style: "opacity:0.85;color:var(--gb-add);", "{status}" }
-                } else if props.state.background.inflight > 0 {
-                    span { style: "opacity:0.7;", "working…" }
+                style: "display:flex;gap:0.55rem;align-items:center;opacity:0.85;",
+                button {
+                    style: "{meta}",
+                    title: "Changes",
+                    onclick: move |_| {
+                        props
+                            .on_event
+                            .call(UiEvent::SelectView(segment_view(PulseSegment::Changes)));
+                    },
+                    "{changes_label}"
                 }
                 button {
-                    style: "{muted}",
+                    style: "{meta}",
+                    title: "Staged",
+                    onclick: move |_| {
+                        props
+                            .on_event
+                            .call(UiEvent::SelectView(segment_view(PulseSegment::Staged)));
+                    },
+                    "{staged_label}"
+                }
+                button {
+                    style: "{meta}",
+                    title: "Worktrees",
+                    onclick: move |_| {
+                        props.on_event.call(UiEvent::SelectView(segment_view(
+                            PulseSegment::Worktrees,
+                        )));
+                    },
+                    "{worktrees_label}"
+                }
+            }
+            span {
+                style: "margin-left:auto;display:flex;gap:0.35rem;align-items:center;",
+                if let Some(label) = props.state.background.remote_label.clone() {
+                    span { style: "opacity:0.8;font-size:var(--gb-size-hint);", "{label}" }
+                } else if let Some(status) = props.state.ui.remote_status.clone() {
+                    span { style: "opacity:0.85;color:var(--gb-add);font-size:var(--gb-size-hint);", "{status}" }
+                } else if props.state.background.inflight > 0 {
+                    span { style: "opacity:0.7;font-size:var(--gb-size-hint);", "working…" }
+                }
+                button {
+                    style: "{action}",
                     title: "Fetch (F)",
                     onclick: move |_| props.on_event.call(UiEvent::Fetch),
                     "Fetch"
                 }
                 button {
-                    style: "{muted}",
+                    style: "{action}",
                     title: "Pull",
                     onclick: move |_| props.on_event.call(UiEvent::Pull),
                     "Pull"
@@ -133,12 +170,16 @@ pub fn PulseHeader(props: PulseHeaderProps) -> Element {
                     if ahead > 0 { "Push ↑{ahead}" } else { "Push" }
                 }
                 button {
-                    style: "{muted}",
+                    style: "{brand}",
                     title: "Switch repository",
                     onclick: move |_| props.on_event.call(UiEvent::CloseRepository),
                     "Repos…"
                 }
-                span { "{crate::platform::mod_key_label()}I context · ? help" }
+                span {
+                    style: "opacity:0.4;font-size:var(--gb-size-hint);font-weight:var(--gb-weight-regular);\
+                            margin-left:0.25rem;",
+                    "{crate::platform::mod_key_label()}I · ?"
+                }
             }
         }
     }
