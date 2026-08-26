@@ -4,7 +4,7 @@ use dioxus::prelude::*;
 
 use crate::app::event::UiEvent;
 use crate::app::model::Oid;
-use crate::app::state::AppState;
+use crate::app::state::{AppState, HistoryFilter};
 
 /// Props for the history view.
 #[derive(Props, Clone, PartialEq)]
@@ -19,6 +19,7 @@ pub fn HistoryView(props: HistoryViewProps) -> Element {
     let commits = &props.state.history.commits;
     let loading = props.state.history.loading;
     let has_more = props.state.history.has_more;
+    let filter = &props.state.history.filter;
     let selected = props.state.selection.commit.clone();
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -29,6 +30,22 @@ pub fn HistoryView(props: HistoryViewProps) -> Element {
     rsx! {
         div {
             style: "display:flex;flex-direction:column;gap:0.5rem;font-size:0.9rem;",
+            if !matches!(filter, HistoryFilter::All) {
+                div {
+                    style: "display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;\
+                            padding:0.35rem 0.55rem;border-radius:4px;background:#1e293b;",
+                    span {
+                        style: "font-size:0.8rem;opacity:0.85;",
+                        "{filter_label(filter)}"
+                    }
+                    button {
+                        style: "padding:0.2rem 0.55rem;border:1px solid #334155;border-radius:4px;\
+                                cursor:pointer;background:transparent;color:#9fb0c7;font-size:0.75rem;",
+                        onclick: move |_| props.on_event.call(UiEvent::ClearHistoryFilter),
+                        "All commits"
+                    }
+                }
+            }
             if commits.is_empty() && loading {
                 p { style: "margin:0;opacity:0.6;", "Loading history…" }
             } else if commits.is_empty() {
@@ -102,6 +119,16 @@ pub fn HistoryView(props: HistoryViewProps) -> Element {
                     if loading { "Loading…" } else { "Load more" }
                 }
             }
+        }
+    }
+}
+
+fn filter_label(filter: &HistoryFilter) -> String {
+    match filter {
+        HistoryFilter::All => "All commits".into(),
+        HistoryFilter::File { path } => format!("File history: {}", path.display()),
+        HistoryFilter::Line { path, line } => {
+            format!("Line {line} history: {}", path.display())
         }
     }
 }

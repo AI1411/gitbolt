@@ -54,10 +54,25 @@ pub struct DiffState {
 
 /// Commit history with lazy paging.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub enum HistoryFilter {
+    #[default]
+    All,
+    File {
+        path: PathBuf,
+    },
+    Line {
+        path: PathBuf,
+        line: u32,
+    },
+}
+
+/// Commit history with lazy paging.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct HistoryState {
     pub commits: Vec<CommitSummary>,
     pub has_more: bool,
     pub loading: bool,
+    pub filter: HistoryFilter,
 }
 
 /// Branch list and current branch.

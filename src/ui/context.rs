@@ -4,7 +4,7 @@ use dioxus::prelude::*;
 
 use crate::app::event::UiEvent;
 use crate::app::model::View;
-use crate::app::state::AppState;
+use crate::app::state::{AppState, HistoryFilter};
 use crate::ui::layout_model::context_heading;
 
 /// Props for the context panel.
@@ -119,9 +119,31 @@ fn selection_summary(state: &AppState) -> String {
     match state.navigation.active_view {
         View::Changes => state.selection.file.as_ref().map_or_else(
             || "No file selected".into(),
-            |p| format!("File: {}", p.display()),
+            |p| {
+                format!(
+                    "File: {}\nH → file history · Shift+click blame → line history",
+                    p.display()
+                )
+            },
         ),
         View::History => {
+            match &state.history.filter {
+                HistoryFilter::File { path } => {
+                    return format!(
+                        "File history\n{}\n{} commit(s)",
+                        path.display(),
+                        state.history.commits.len()
+                    );
+                }
+                HistoryFilter::Line { path, line } => {
+                    return format!(
+                        "Line {line} history\n{}\n{} commit(s)",
+                        path.display(),
+                        state.history.commits.len()
+                    );
+                }
+                HistoryFilter::All => {}
+            }
             if let Some(oid) = state.selection.commit.as_ref() {
                 if let Some(c) = state.history.commits.iter().find(|c| c.oid == *oid) {
                     return format!(

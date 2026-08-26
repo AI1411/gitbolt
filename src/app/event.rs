@@ -105,6 +105,12 @@ pub enum UiEvent {
 
     /// Load the next page of history.
     LoadMoreHistory,
+    /// Show commits touching a file (follows renames).
+    ShowFileHistory { path: PathBuf },
+    /// Show commits that changed a specific line.
+    ShowLineHistory { path: PathBuf, line: u32 },
+    /// Return to the full repository history list.
+    ClearHistoryFilter,
 
     /// Update the search query.
     Search(String),

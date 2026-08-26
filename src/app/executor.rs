@@ -12,6 +12,7 @@ use super::message::{
 use super::model::{
     BranchHealth, BranchInfo, ChangeKind, CommitSummary, DiffTarget, FileChange, HeadInfo, Oid,
 };
+use super::state::HistoryFilter;
 use crate::git::{ChangeStatus, GitError, GitService, GixService, RepoStatus};
 
 /// Runs a single command and returns the corresponding worker message.
@@ -36,10 +37,15 @@ pub fn execute(cmd: &Command, repo_path: Option<&Path>) -> AppMessage {
             remaining,
             generation,
         } => enrich_blame_message(repo_path, target, lines, remaining, *generation),
-        Command::LoadHistoryPage { offset, generation } => AppMessage::HistoryPageLoaded {
+        Command::LoadHistoryPage {
+            filter,
+            offset,
+            generation,
+        } => AppMessage::HistoryPageLoaded {
             generation: *generation,
+            filter: filter.clone(),
             offset: *offset,
-            result: load_history(repo_path, *offset),
+            result: load_history(repo_path, filter, *offset),
         },
         Command::LoadBranches { generation } => AppMessage::BranchesLoaded {
             generation: *generation,
@@ -221,13 +227,20 @@ fn execute_branch_mutation(cmd: &Command, repo_path: Option<&Path>) -> AppMessag
 
 fn load_history(
     repo_path: Option<&Path>,
+    filter: &HistoryFilter,
     offset: usize,
 ) -> Result<Vec<crate::app::model::CommitSummary>, String> {
     let path = repo_path.ok_or_else(|| "リポジトリが開かれていません".to_string())?;
     let service = GixService::open(path).map_err(|e| e.user_message())?;
-    let page = service
-        .log_page(offset, crate::app::reducer::HISTORY_PAGE)
-        .map_err(|e| e.user_message())?;
+    let limit = crate::app::reducer::HISTORY_PAGE;
+    let page = match filter {
+        HistoryFilter::All => service.log_page(offset, limit),
+        HistoryFilter::File { path: file } => service.file_log_page(file, offset, limit),
+        HistoryFilter::Line { path: file, line } => {
+            service.line_log_page(file, *line, offset, limit)
+        }
+    }
+    .map_err(|e| e.user_message())?;
     Ok(page.into_iter().map(to_summary).collect())
 }
 

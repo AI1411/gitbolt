@@ -1,5 +1,7 @@
 //! Diff view with Unified/Split, hunk nav, and light syntax tint (issue #13).
 
+use std::path::PathBuf;
+
 use dioxus::prelude::*;
 
 use crate::app::blame_format::{format_hover, format_minimal};
@@ -38,7 +40,18 @@ pub fn DiffPane(props: DiffViewProps) -> Element {
                     onclick: move |_| props.on_event.call(UiEvent::SetDiffView(DiffMode::Split)),
                     "Split"
                 }
-                span { style: "opacity:0.45;font-size:0.75rem;", "[ / ] hunks · s hunk stage" }
+                if let Some(target) = props.state.diff.target.as_ref() {
+                    button {
+                        style: "padding:0.35rem 0.75rem;border:1px solid #334155;border-radius:4px;\
+                                cursor:pointer;background:transparent;color:#9fb0c7;font-size:0.8rem;",
+                        onclick: {
+                            let path = target.path.clone();
+                            move |_| props.on_event.call(UiEvent::ShowFileHistory { path: path.clone() })
+                        },
+                        "File History"
+                    }
+                }
+                span { style: "opacity:0.45;font-size:0.75rem;", "[ / ] hunks · H file history · Shift+click blame → line history" }
                 if !selected.is_empty() {
                     button {
                         style: "padding:0.35rem 0.75rem;border:0;border-radius:4px;cursor:pointer;\
@@ -65,7 +78,7 @@ pub fn DiffPane(props: DiffViewProps) -> Element {
                 } else {
                     span {
                         style: "opacity:0.55;font-size:0.8rem;",
-                        "Click + / − lines to select · Smart Blame: Author · age (hover for detail)"
+                        "Click + / − lines to select · Smart Blame · H file history"
                     }
                 }
             }
@@ -98,12 +111,14 @@ pub fn DiffPane(props: DiffViewProps) -> Element {
                                             SplitHunk {
                                                 lines: hunk.lines.clone(),
                                                 selected: selected.clone(),
+                                                file_path: content.target.path.clone(),
                                                 on_event: props.on_event,
                                             }
                                         } else {
                                             for line in hunk.lines.iter() {
                                                 UnifiedLine {
                                                     line: line.clone(),
+                                                    file_path: content.target.path.clone(),
                                                     selected: selected.contains(&line.body_index),
                                                     on_event: props.on_event,
                                                 }
@@ -143,7 +158,12 @@ pub fn DiffView(props: DiffViewProps) -> Element {
 }
 
 #[component]
-fn UnifiedLine(line: DiffLine, selected: bool, on_event: EventHandler<UiEvent>) -> Element {
+fn UnifiedLine(
+    line: DiffLine,
+    file_path: PathBuf,
+    selected: bool,
+    on_event: EventHandler<UiEvent>,
+) -> Element {
     let idx = line.body_index;
     let stageable = line.origin == '+' || line.origin == '-';
     let bg = if selected {
@@ -185,6 +205,8 @@ fn UnifiedLine(line: DiffLine, selected: bool, on_event: EventHandler<UiEvent>) 
             if let Some(origin) = origin {
                 {
                     let oid = Oid(origin.oid.0.clone());
+                    let blame_path = file_path.clone();
+                    let blame_line = line.old_line;
                     let now = std::time::SystemTime::now()
                         .duration_since(std::time::UNIX_EPOCH)
                         .map_or(0, |d| i64::try_from(d.as_secs()).unwrap_or(i64::MAX));
@@ -195,10 +217,20 @@ fn UnifiedLine(line: DiffLine, selected: bool, on_event: EventHandler<UiEvent>) 
                             style: "flex:0 0 auto;max-width:12rem;overflow:hidden;text-overflow:ellipsis;\
                                     border:0;background:transparent;color:#7dd3fc;cursor:pointer;\
                                     font-size:0.7rem;font-family:ui-monospace,monospace;padding:0;",
-                            title: "{hover}",
+                            title: "{hover} · Shift+click for line history",
                             onclick: move |evt| {
                                 evt.stop_propagation();
-                                on_event.call(UiEvent::SelectCommit(oid.clone()));
+                                let mods = evt.data().modifiers();
+                                if mods.contains(Modifiers::SHIFT) {
+                                    if let Some(line_no) = blame_line {
+                                        on_event.call(UiEvent::ShowLineHistory {
+                                            path: blame_path.clone(),
+                                            line: line_no,
+                                        });
+                                    }
+                                } else {
+                                    on_event.call(UiEvent::SelectCommit(oid.clone()));
+                                }
                             },
                             "{label}"
                         }
@@ -212,6 +244,7 @@ fn UnifiedLine(line: DiffLine, selected: bool, on_event: EventHandler<UiEvent>) 
 #[component]
 fn SplitHunk(
     lines: Vec<DiffLine>,
+    file_path: PathBuf,
     selected: Vec<usize>,
     on_event: EventHandler<UiEvent>,
 ) -> Element {
@@ -223,6 +256,7 @@ fn SplitHunk(
                 for line in lines.iter().filter(|l| l.origin != '+') {
                     UnifiedLine {
                         line: line.clone(),
+                        file_path: file_path.clone(),
                         selected: selected.contains(&line.body_index),
                         on_event: on_event,
                     }
@@ -232,6 +266,7 @@ fn SplitHunk(
                 for line in lines.iter().filter(|l| l.origin != '-') {
                     UnifiedLine {
                         line: line.clone(),
+                        file_path: file_path.clone(),
                         selected: selected.contains(&line.body_index),
                         on_event: on_event,
                     }

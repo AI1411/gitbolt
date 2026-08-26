@@ -11,6 +11,7 @@ use crate::ui::context::ContextPane;
 use crate::ui::diff::DiffView;
 use crate::ui::history::HistoryView;
 use crate::ui::layout_model::content_heading;
+use crate::ui::layout_model::history_title;
 use crate::ui::nav::NavPane;
 use crate::ui::pulse::PulseHeader;
 use crate::ui::worktrees::WorktreesView;
@@ -49,7 +50,11 @@ pub fn Shell(props: ShellProps) -> Element {
 
     let context_open = props.state.navigation.context_panel_open;
     let active = props.state.navigation.active_view;
-    let heading = content_heading(active);
+    let heading = if active == View::History {
+        history_title(&props.state.history.filter)
+    } else {
+        content_heading(active).to_string()
+    };
 
     rsx! {
         div {
@@ -88,6 +93,20 @@ pub fn Shell(props: ShellProps) -> Element {
                             }
                         } else {
                             props.on_event.call(UiEvent::SelectView(View::Worktrees));
+                        }
+                    } else if ch.eq_ignore_ascii_case("h")
+                        && props.state.navigation.active_view == View::Changes
+                    {
+                        if let Some(path) = props
+                            .state
+                            .diff
+                            .target
+                            .as_ref()
+                            .map(|t| t.path.clone())
+                            .or_else(|| props.state.selection.file.clone())
+                        {
+                            evt.prevent_default();
+                            props.on_event.call(UiEvent::ShowFileHistory { path });
                         }
                     } else if ch.eq_ignore_ascii_case("c")
                         && props.state.navigation.active_view == View::Changes

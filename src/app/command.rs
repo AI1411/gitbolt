@@ -8,6 +8,7 @@
 use std::path::PathBuf;
 
 use super::model::{DiffTarget, Generation};
+use super::state::HistoryFilter;
 
 /// A unit of work to be executed off the UI thread.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -31,6 +32,7 @@ pub enum Command {
         generation: Generation,
     },
     LoadHistoryPage {
+        filter: HistoryFilter,
         offset: usize,
         generation: Generation,
     },

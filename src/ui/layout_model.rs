@@ -26,6 +26,19 @@ pub fn content_heading(view: View) -> &'static str {
     }
 }
 
+/// History pane title reflecting the active filter (issue #23).
+#[must_use]
+pub fn history_title(filter: &crate::app::state::HistoryFilter) -> String {
+    use crate::app::state::HistoryFilter;
+    match filter {
+        HistoryFilter::All => "History".into(),
+        HistoryFilter::File { path } => format!("File History — {}", path.display()),
+        HistoryFilter::Line { path, line } => {
+            format!("Line {line} History — {}", path.display())
+        }
+    }
+}
+
 /// Short context-panel title for `view`.
 #[must_use]
 pub fn context_heading(view: View) -> &'static str {
