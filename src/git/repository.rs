@@ -11,6 +11,7 @@ use gix::bstr::BString;
 
 use super::blame;
 use super::branch;
+use super::commit;
 use super::diff::{self as diff_mod};
 use super::error::GitError;
 use super::service::{
@@ -149,6 +150,10 @@ impl GitService for GixService {
 
     fn unstage_all(&self) -> Result<(), GitError> {
         stage::unstage_all(self.workdir()?)
+    }
+
+    fn commit(&self, message: &str) -> Result<String, GitError> {
+        commit::commit(self.workdir()?, message)
     }
 
     fn branches(&self) -> Result<Vec<BranchRef>, GitError> {

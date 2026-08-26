@@ -63,13 +63,28 @@ pub fn Shell(props: ShellProps) -> Element {
                 let mods = evt.data().modifiers();
                 let shortcut = mods.contains(Modifiers::META) || mods.contains(Modifiers::CONTROL);
                 if shortcut {
-                    if let Key::Character(ch) = evt.data().key() {
-                        if ch.eq_ignore_ascii_case("i") {
+                    match evt.data().key() {
+                        Key::Character(ch) if ch.eq_ignore_ascii_case("i") => {
                             evt.prevent_default();
                             props.on_event.call(UiEvent::ToggleContextPanel);
                         }
+                        Key::Enter => {
+                            evt.prevent_default();
+                            props.on_event.call(UiEvent::Commit);
+                        }
+                        _ => {}
                     }
-                } else if props.state.navigation.active_view == View::Changes {
+                } else if let Key::Character(ch) = evt.data().key() {
+                    if ch.eq_ignore_ascii_case("c")
+                        && props.state.navigation.active_view == View::Changes
+                    {
+                        // Don't steal typing from inputs — only when not in an editable.
+                        // Shell-level C focuses commit; inputs stop propagation themselves.
+                        evt.prevent_default();
+                        props.on_event.call(UiEvent::FocusCommitInput);
+                    }
+                }
+                if !shortcut && props.state.navigation.active_view == View::Changes {
                     match evt.data().key() {
                         Key::Character(ch) if ch == "j" || ch == "J" => {
                             evt.prevent_default();
@@ -192,7 +207,10 @@ pub fn Shell(props: ShellProps) -> Element {
                             CONTEXT_MIN,
                             CONTEXT_MAX
                         ),
-                        ContextPane { state: props.state.clone() }
+                        ContextPane {
+                            state: props.state.clone(),
+                            on_event: props.on_event,
+                        }
                     }
                 }
             }
