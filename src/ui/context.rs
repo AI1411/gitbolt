@@ -4,8 +4,9 @@ use dioxus::prelude::*;
 
 use crate::app::branch_health::format_badge;
 use crate::app::event::UiEvent;
-use crate::app::model::{BranchInfo, CommitDetail, Loadable, View};
+use crate::app::model::{BranchInfo, CommitDetail, DiffHunk, Loadable, View};
 use crate::app::state::{AppState, HistoryFilter};
+use crate::ui::diff::tint_line;
 use crate::ui::layout_model::context_heading;
 
 /// Props for the context panel.
@@ -106,6 +107,7 @@ fn CommitDetailPanel(state: AppState, on_event: EventHandler<UiEvent>) -> Elemen
     let can_back = !state.navigation.commit_back.is_empty();
     let can_forward = !state.navigation.commit_forward.is_empty();
     let selected_file = state.context.selected_file.clone();
+    let file_diff = state.context.file_diff.clone();
     match &state.context.commit {
         Loadable::Loading => rsx! {
             p { style: "margin:0;opacity:0.6;font-size:0.85rem;", "Loading commit…" }
@@ -128,6 +130,7 @@ fn CommitDetailPanel(state: AppState, on_event: EventHandler<UiEvent>) -> Elemen
                     can_back: can_back,
                     can_forward: can_forward,
                     selected_file: selected_file,
+                    file_diff: file_diff,
                     remote_commit_url: remote_commit_url,
                     origin_web: state.repository.origin_web.clone(),
                     on_event: on_event,
@@ -144,6 +147,7 @@ fn CommitDetailBody(
     can_back: bool,
     can_forward: bool,
     selected_file: Option<std::path::PathBuf>,
+    file_diff: Loadable<crate::app::model::DiffContent>,
     remote_commit_url: Option<String>,
     origin_web: Option<crate::git::remote_link::RemoteWeb>,
     on_event: EventHandler<UiEvent>,
@@ -239,7 +243,7 @@ fn CommitDetailBody(
                     }
                     p {
                         style: "margin:0.2rem 0 0;font-size:0.72rem;opacity:0.5;",
-                        "Click a file to view its diff"
+                        "Click a file to view its diff below"
                     }
                     ul {
                         style: "list-style:none;margin:0.25rem 0 0;padding:0;display:flex;flex-direction:column;gap:0.15rem;",
@@ -269,6 +273,117 @@ fn CommitDetailBody(
                                         }
                                     }
                                 }
+                            }
+                        }
+                    }
+                }
+            }
+            if selected_file.is_some() || !matches!(file_diff, Loadable::Idle) {
+                CommitFileDiffPreview {
+                    path: selected_file.clone(),
+                    diff: file_diff,
+                    on_event: on_event,
+                }
+            }
+        }
+    }
+}
+
+#[component]
+fn CommitFileDiffPreview(
+    path: Option<std::path::PathBuf>,
+    diff: Loadable<crate::app::model::DiffContent>,
+    on_event: EventHandler<UiEvent>,
+) -> Element {
+    let title = path
+        .as_ref()
+        .map_or_else(|| "Commit file".into(), |p| p.display().to_string());
+    rsx! {
+        div {
+            style: "display:flex;flex-direction:column;gap:0.35rem;margin-top:0.35rem;\
+                    padding-top:0.45rem;border-top:1px solid #243044;",
+            div {
+                style: "display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;",
+                h3 {
+                    style: "margin:0;font-size:0.72rem;letter-spacing:0.06em;text-transform:uppercase;opacity:0.6;",
+                    "File diff"
+                }
+                span {
+                    style: "font-family:ui-monospace,monospace;font-size:0.75rem;opacity:0.85;\
+                            overflow:hidden;text-overflow:ellipsis;min-width:0;",
+                    "{title}"
+                }
+                button {
+                    style: "margin-left:auto;padding:0.15rem 0.5rem;border:1px solid #334155;border-radius:4px;\
+                            cursor:pointer;background:transparent;color:#9fb0c7;font-size:0.72rem;",
+                    onclick: move |_| on_event.call(UiEvent::ClearCommitFileDiff),
+                    "Close"
+                }
+            }
+            match diff {
+                Loadable::Idle => rsx! {
+                    p { style: "margin:0;opacity:0.55;font-size:0.8rem;", "Select a changed file." }
+                },
+                Loadable::Loading => rsx! {
+                    p { style: "margin:0;opacity:0.6;font-size:0.8rem;", "Loading file diff…" }
+                },
+                Loadable::Failed(err) => rsx! {
+                    p { style: "margin:0;color:#fca5a5;font-size:0.8rem;", "Diff error: {err}" }
+                },
+                Loadable::Ready(content) => rsx! {
+                    if let Some(notice) = content.notice.as_ref() {
+                        div {
+                            style: "padding:0.35rem 0.55rem;border-radius:4px;background:#1e293b;\
+                                    color:#fde68a;font-size:0.78rem;",
+                            "{notice}"
+                        }
+                    }
+                    if content.hunks.is_empty() {
+                        p {
+                            style: "margin:0;opacity:0.6;font-size:0.8rem;",
+                            "No textual diff (rename, mode change, or binary)."
+                        }
+                    } else {
+                        div {
+                            style: "padding:0.35rem 0;border:1px solid #243044;border-radius:6px;\
+                                    background:#151b24;font-family:ui-monospace,monospace;font-size:0.75rem;\
+                                    overflow:auto;max-height:50vh;",
+                            for (hi, hunk) in content.hunks.iter().enumerate() {
+                                CommitHunkBlock { key: "{hi}", hunk: hunk.clone() }
+                            }
+                        }
+                    }
+                },
+            }
+        }
+    }
+}
+
+#[component]
+fn CommitHunkBlock(hunk: DiffHunk) -> Element {
+    rsx! {
+        div {
+            div {
+                style: "padding:0.2rem 0.5rem;opacity:0.55;background:#0f1419;",
+                "{hunk.header}"
+            }
+            for line in hunk.lines.iter() {
+                {
+                    let color = match line.origin {
+                        '+' => "#86efac",
+                        '-' => "#fca5a5",
+                        _ => "#cbd5e1",
+                    };
+                    let tinted = tint_line(&line.content);
+                    rsx! {
+                        div {
+                            style: format!(
+                                "display:flex;gap:0.5rem;padding:0.05rem 0.5rem;white-space:pre;color:{color};"
+                            ),
+                            span { style: "flex:0 0 1ch;opacity:0.7;", "{line.origin}" }
+                            span {
+                                style: "flex:1;min-width:0;",
+                                dangerous_inner_html: "{tinted}",
                             }
                         }
                     }
