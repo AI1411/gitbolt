@@ -60,15 +60,20 @@ pub fn create_worktree(repo: &Path, branch: &str, path: &Path) -> Result<Worktre
         .ok_or_else(|| GitError::Backend("worktree path is not valid UTF-8".into()))?;
     cli.run(&["worktree", "add", path_str, branch])?;
     let trees = list_worktrees(repo)?;
-    let canonical = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
     trees
         .into_iter()
-        .find(|w| {
-            w.path == path
-                || w.path.canonicalize().ok().as_ref() == Some(&canonical)
-                || w.branch.as_deref() == Some(branch)
-        })
+        .find(|w| paths_match(&w.path, path) || w.branch.as_deref() == Some(branch))
         .ok_or_else(|| GitError::Backend("worktree created but not listed".into()))
+}
+
+fn paths_match(left: &Path, right: &Path) -> bool {
+    if left == right {
+        return true;
+    }
+    match (left.canonicalize(), right.canonicalize()) {
+        (Ok(a), Ok(b)) => a == b,
+        _ => false,
+    }
 }
 
 /// Removes a linked worktree (not the primary).
@@ -79,7 +84,7 @@ pub fn remove_worktree(repo: &Path, path: &Path) -> Result<(), GitError> {
     let trees = list_worktrees(repo)?;
     let target = trees
         .iter()
-        .find(|w| w.path == path)
+        .find(|w| paths_match(&w.path, path))
         .ok_or_else(|| GitError::Backend(format!("worktree not found: {}", path.display())))?;
     if target.is_primary {
         return Err(GitError::Backend(
@@ -87,7 +92,8 @@ pub fn remove_worktree(repo: &Path, path: &Path) -> Result<(), GitError> {
         ));
     }
     let cli = GitCli::new(repo)?;
-    let path_str = path
+    let path_str = target
+        .path
         .to_str()
         .ok_or_else(|| GitError::Backend("worktree path is not valid UTF-8".into()))?;
     cli.run(&["worktree", "remove", "--force", path_str])?;
