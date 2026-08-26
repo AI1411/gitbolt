@@ -90,8 +90,12 @@ pub enum UiEvent {
     /// Push to the upstream.
     Push,
 
+    /// Toggle open-after-create for Instant Worktree.
+    SetOpenAfterInstantWorktree(bool),
     /// Create a worktree for a branch at a path.
     CreateWorktree { branch: String, path: PathBuf },
+    /// Instant worktree for a branch at the default path (issue #21).
+    InstantWorktree { branch: String },
     /// Request remove confirmation for a worktree path.
     RequestRemoveWorktree(PathBuf),
     /// Confirm pending worktree removal.
