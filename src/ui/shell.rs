@@ -78,6 +78,9 @@ pub fn Shell(props: ShellProps) -> Element {
                     if ch.eq_ignore_ascii_case("f") {
                         evt.prevent_default();
                         props.on_event.call(UiEvent::Fetch);
+                    } else if ch.eq_ignore_ascii_case("w") {
+                        evt.prevent_default();
+                        props.on_event.call(UiEvent::SelectView(View::Worktrees));
                     } else if ch.eq_ignore_ascii_case("c")
                         && props.state.navigation.active_view == View::Changes
                     {
@@ -246,7 +249,12 @@ fn ContentBody(state: AppState, on_event: EventHandler<UiEvent>) -> Element {
                 on_event: on_event,
             }
         },
-        View::Worktrees => rsx! { WorktreesView { state: state } },
+        View::Worktrees => rsx! {
+            WorktreesView {
+                state: state.clone(),
+                on_event: on_event,
+            }
+        },
         View::Stashes => rsx! {
             div {
                 style: "opacity:0.7;font-size:0.9rem;",

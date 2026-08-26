@@ -109,7 +109,34 @@ pub fn execute(cmd: &Command, repo_path: Option<&Path>) -> AppMessage {
         | Command::AutoFetch { .. }
         | Command::Pull { .. }
         | Command::Push { .. } => execute_remote(cmd, repo_path),
-        other @ Command::CreateWorktree { .. } => unsupported(other),
+        Command::CreateWorktree { .. } | Command::RemoveWorktree { .. } => {
+            execute_worktree_mutation(cmd, repo_path)
+        }
+    }
+}
+
+fn execute_worktree_mutation(cmd: &Command, repo_path: Option<&Path>) -> AppMessage {
+    match cmd {
+        Command::CreateWorktree {
+            branch,
+            path,
+            generation,
+        } => AppMessage::WorktreeCreated {
+            generation: *generation,
+            result: with_service(repo_path, |svc| {
+                let w = svc.create_worktree(branch, path)?;
+                Ok(crate::app::model::WorktreeInfo {
+                    path: w.path,
+                    branch: w.branch,
+                    is_primary: w.is_primary,
+                })
+            }),
+        },
+        Command::RemoveWorktree { path, generation } => AppMessage::WorktreeRemoved {
+            generation: *generation,
+            result: with_service(repo_path, |svc| svc.remove_worktree(path)),
+        },
+        _ => unreachable!("worktree mutation only"),
     }
 }
 
@@ -431,63 +458,6 @@ fn map_kind(status: ChangeStatus) -> ChangeKind {
         ChangeStatus::TypeChange => ChangeKind::TypeChanged,
         ChangeStatus::Untracked => ChangeKind::Untracked,
         ChangeStatus::Conflicted => ChangeKind::Conflicted,
-    }
-}
-
-fn unsupported(cmd: &Command) -> AppMessage {
-    let generation = cmd.generation();
-    let err = GitError::unsupported(command_name(cmd)).user_message();
-    match cmd {
-        Command::OpenRepository { .. }
-        | Command::LoadStatus { .. }
-        | Command::LoadDiff { .. }
-        | Command::Stage { .. }
-        | Command::Unstage { .. }
-        | Command::StageLines { .. }
-        | Command::LoadHistoryPage { .. }
-        | Command::LoadBranches { .. }
-        | Command::EnrichBranchHealth { .. }
-        | Command::LoadDivergence { .. }
-        | Command::SetUpstream { .. }
-        | Command::LoadWorktrees { .. }
-        | Command::StageAll { .. }
-        | Command::UnstageAll { .. }
-        | Command::Commit { .. }
-        | Command::CreateBranch { .. }
-        | Command::Checkout { .. }
-        | Command::DeleteBranch { .. }
-        | Command::Fetch { .. }
-        | Command::AutoFetch { .. }
-        | Command::Pull { .. }
-        | Command::Push { .. } => unreachable!("handled in execute"),
-        Command::CreateWorktree { .. } => AppMessage::WorktreeCreated {
-            generation,
-            result: Err(err),
-        },
-    }
-}
-
-fn command_name(cmd: &Command) -> &'static str {
-    match cmd {
-        Command::OpenRepository { .. } => "open",
-        Command::LoadStatus { .. } => "status",
-        Command::LoadDiff { .. } => "diff",
-        Command::LoadHistoryPage { .. } => "log",
-        Command::LoadBranches { .. } => "branches",
-        Command::EnrichBranchHealth { .. } => "enrich_branch_health",
-        Command::LoadDivergence { .. } => "divergence",
-        Command::SetUpstream { .. } => "set_upstream",
-        Command::LoadWorktrees { .. } => "worktrees",
-        Command::Stage { .. } | Command::StageAll { .. } | Command::StageLines { .. } => "stage",
-        Command::Unstage { .. } | Command::UnstageAll { .. } => "unstage",
-        Command::Commit { .. } => "commit",
-        Command::CreateBranch { .. } => "create_branch",
-        Command::Checkout { .. } => "checkout",
-        Command::DeleteBranch { .. } => "delete_branch",
-        Command::Fetch { .. } | Command::AutoFetch { .. } => "fetch",
-        Command::Pull { .. } => "pull",
-        Command::Push { .. } => "push",
-        Command::CreateWorktree { .. } => "create_worktree",
     }
 }
 

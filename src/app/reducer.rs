@@ -308,14 +308,40 @@ pub fn reduce(state: &mut AppState, event: UiEvent) -> Vec<Command> {
             state.background.remote_label = Some("pushing…".into());
             issue(state, vec![Command::Push { generation: gen }])
         }
-        UiEvent::CreateWorktree { branch, path } => issue(
-            state,
-            vec![Command::CreateWorktree {
-                branch,
-                path,
-                generation: gen,
-            }],
-        ),
+        UiEvent::CreateWorktree { branch, path } => {
+            if branch.trim().is_empty() {
+                set_error(state, "ブランチ名を入力してください".into());
+                return Vec::new();
+            }
+            issue(
+                state,
+                vec![Command::CreateWorktree {
+                    branch,
+                    path,
+                    generation: gen,
+                }],
+            )
+        }
+        UiEvent::RequestRemoveWorktree(path) => {
+            state.ui.confirm_remove_worktree = Some(path);
+            Vec::new()
+        }
+        UiEvent::ConfirmRemoveWorktree => {
+            let Some(path) = state.ui.confirm_remove_worktree.take() else {
+                return Vec::new();
+            };
+            issue(
+                state,
+                vec![Command::RemoveWorktree {
+                    path,
+                    generation: gen,
+                }],
+            )
+        }
+        UiEvent::CancelRemoveWorktree => {
+            state.ui.confirm_remove_worktree = None;
+            Vec::new()
+        }
         UiEvent::LoadMoreHistory => {
             if state.history.loading || !state.history.has_more {
                 return Vec::new();
@@ -575,7 +601,20 @@ pub fn apply(state: &mut AppState, message: AppMessage) -> Vec<Command> {
             }
         },
         AppMessage::WorktreeCreated { result, .. } => match result {
-            Ok(_) => issue(state, vec![Command::LoadWorktrees { generation: gen }]),
+            Ok(_) => {
+                state.ui.confirm_remove_worktree = None;
+                issue(state, vec![Command::LoadWorktrees { generation: gen }])
+            }
+            Err(err) => {
+                set_error(state, err);
+                Vec::new()
+            }
+        },
+        AppMessage::WorktreeRemoved { result, .. } => match result {
+            Ok(()) => {
+                state.ui.confirm_remove_worktree = None;
+                issue(state, vec![Command::LoadWorktrees { generation: gen }])
+            }
             Err(err) => {
                 set_error(state, err);
                 Vec::new()
