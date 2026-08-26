@@ -295,6 +295,7 @@ pub fn Shell(props: ShellProps) -> Element {
                         &crate::app::layout_prefs::LayoutPrefs {
                             nav_width: nav_width(),
                             context_width: context_width(),
+                            color_scheme: props.state.ui.color_scheme,
                         },
                     );
                 }
@@ -306,6 +307,7 @@ pub fn Shell(props: ShellProps) -> Element {
                         &crate::app::layout_prefs::LayoutPrefs {
                             nav_width: nav_width(),
                             context_width: context_width(),
+                            color_scheme: props.state.ui.color_scheme,
                         },
                     );
                 }

@@ -237,6 +237,8 @@ pub struct UiState {
     pub remote_status: Option<String>,
     /// Pending confirmation for bulk stage/unstage/stash (issue #89).
     pub confirm_bulk: Option<BulkConfirm>,
+    /// Dark / light chrome (issue #118).
+    pub color_scheme: crate::app::layout_prefs::ColorScheme,
 }
 
 /// Bulk action awaiting confirmation (issue #89).
@@ -275,6 +277,7 @@ impl Default for UiState {
             search_focus_token: 0,
             remote_status: None,
             confirm_bulk: None,
+            color_scheme: crate::app::layout_prefs::ColorScheme::Dark,
         }
     }
 }
@@ -303,7 +306,9 @@ impl AppState {
     /// Creates a fresh, empty state.
     #[must_use]
     pub fn new() -> Self {
-        Self::default()
+        let mut state = Self::default();
+        state.ui.color_scheme = crate::app::layout_prefs::load_layout_prefs().color_scheme;
+        state
     }
 
     /// Returns true once a repository is open and ready.

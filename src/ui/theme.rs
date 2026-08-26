@@ -3,6 +3,7 @@
 //! Colors, radii, and type stacks live here as CSS custom properties so later
 //! issues (status color, typography, light theme) can retune the UI in one place.
 
+use crate::app::layout_prefs::ColorScheme;
 use crate::app::model::ChangeKind;
 
 /// Dark-theme custom properties applied on the application root.
@@ -57,6 +58,58 @@ pub const ROOT_VARS: &str = "\
 --gb-space-3:0.75rem;\
 --gb-space-4:0.85rem;";
 
+/// Light-theme custom properties (issue #118).
+pub const LIGHT_VARS: &str = "\
+--gb-bg:#f4f6fa;\
+--gb-surface:#ffffff;\
+--gb-surface-raised:#eef2f7;\
+--gb-surface-mid:#e2e8f0;\
+--gb-border:#d0d7e2;\
+--gb-border-strong:#94a3b8;\
+--gb-text:#1e293b;\
+--gb-text-muted:#475569;\
+--gb-text-faint:#64748b;\
+--gb-text-disabled:#94a3b8;\
+--gb-accent:#2563eb;\
+--gb-accent-muted:#1d4ed8;\
+--gb-selected:#dbeafe;\
+--gb-selected-row:#e0e7ff;\
+--gb-chip:#e2e8f0;\
+--gb-chip-text:#334155;\
+--gb-chip-strong:#1e293b;\
+--gb-danger:#b91c1c;\
+--gb-danger-fg:#7f1d1d;\
+--gb-danger-border:#fecaca;\
+--gb-danger-bg:#fef2f2;\
+--gb-danger-strong:#dc2626;\
+--gb-warning:#a16207;\
+--gb-string:#b45309;\
+--gb-link:#0369a1;\
+--gb-add:#166534;\
+--gb-add-bg:#dcfce7;\
+--gb-del:#991b1b;\
+--gb-del-bg:#fee2e2;\
+--gb-drop-idle:#94a3b8;\
+--gb-radius-sm:3px;\
+--gb-radius:4px;\
+--gb-radius-lg:6px;\
+--gb-radius-xl:8px;\
+--gb-radius-pill:999px;\
+--gb-font:system-ui,-apple-system,sans-serif;\
+--gb-mono:ui-monospace,Menlo,Consolas,monospace;\
+--gb-size-hero:2rem;\
+--gb-size-title:1.125rem;\
+--gb-size-body:0.875rem;\
+--gb-size-pulse:0.8125rem;\
+--gb-size-label:0.6875rem;\
+--gb-size-hint:0.75rem;\
+--gb-weight-regular:500;\
+--gb-weight-semibold:600;\
+--gb-space-1:0.25rem;\
+--gb-space-2:0.5rem;\
+--gb-space-3:0.75rem;\
+--gb-space-4:0.85rem;";
+
 /// Global stylesheet (focus rings and later chrome). Injected once on the app root.
 pub const GLOBAL_CSS: &str = r"
 .gb-selectable:focus-visible{outline:2px solid var(--gb-accent);outline-offset:-2px;}
@@ -69,9 +122,13 @@ pub const GLOBAL_CSS: &str = r"
 
 /// Inline style for the application root (`:root` equivalent for the window).
 #[must_use]
-pub fn root_style() -> String {
+pub fn root_style(scheme: ColorScheme) -> String {
+    let vars = match scheme {
+        ColorScheme::Dark => ROOT_VARS,
+        ColorScheme::Light => LIGHT_VARS,
+    };
     format!(
-        "{ROOT_VARS}width:100vw;height:100vh;margin:0;background:var(--gb-bg);\
+        "{vars}width:100vw;height:100vh;margin:0;background:var(--gb-bg);\
          color:var(--gb-text);font-family:var(--gb-font);"
     )
 }
@@ -114,7 +171,7 @@ mod tests {
 
     #[test]
     fn root_style_declares_core_tokens() {
-        let css = root_style();
+        let css = root_style(ColorScheme::Dark);
         for token in [
             "--gb-bg:",
             "--gb-surface:",
@@ -131,6 +188,9 @@ mod tests {
         }
         assert!(GLOBAL_CSS.contains(".nav-item.active"));
         assert!(GLOBAL_CSS.contains(".resize-handle:hover"));
+        let light = root_style(ColorScheme::Light);
+        assert!(light.contains("--gb-bg:#f4f6fa"));
+        assert_ne!(light, root_style(ColorScheme::Dark));
     }
 
     #[test]

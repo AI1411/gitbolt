@@ -90,7 +90,7 @@ pub fn App() -> Element {
     rsx! {
         div {
             class: "gb-root",
-            style: crate::ui::theme::root_style(),
+            style: crate::ui::theme::root_style(state.ui.color_scheme),
             style { dangerous_inner_html: crate::ui::theme::GLOBAL_CSS }
             match state.repository.status {
                 RepositoryStatus::Ready => {
@@ -108,6 +108,7 @@ pub fn App() -> Element {
                     let session_remove = open_session.clone();
                     let session_pin = open_session.clone();
                     let session_prune = open_session.clone();
+                    let session_theme = open_session.clone();
                     rsx! {
                         OpenScreen {
                             recent: state.repository.recent.clone(),
@@ -125,6 +126,10 @@ pub fn App() -> Element {
                             on_prune_recent: move |()| {
                                 dispatch(&session_prune, UiEvent::PruneRecent, &mut snapshot);
                             },
+                            color_scheme: state.ui.color_scheme,
+                            on_toggle_theme: move |()| {
+                                dispatch(&session_theme, UiEvent::ToggleColorScheme, &mut snapshot);
+                            },
                         }
                     }
                 }
@@ -137,6 +142,7 @@ pub fn App() -> Element {
                     let session_remove = open_session.clone();
                     let session_pin = open_session.clone();
                     let session_prune = open_session.clone();
+                    let session_theme = open_session.clone();
                     rsx! {
                         OpenScreen {
                             recent: state.repository.recent.clone(),
@@ -153,6 +159,10 @@ pub fn App() -> Element {
                             },
                             on_prune_recent: move |()| {
                                 dispatch(&session_prune, UiEvent::PruneRecent, &mut snapshot);
+                            },
+                            color_scheme: state.ui.color_scheme,
+                            on_toggle_theme: move |()| {
+                                dispatch(&session_theme, UiEvent::ToggleColorScheme, &mut snapshot);
                             },
                         }
                     }

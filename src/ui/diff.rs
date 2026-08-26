@@ -223,8 +223,7 @@ fn UnifiedLine(
 
     let ln = line
         .old_line
-        .map(|n| n.to_string())
-        .unwrap_or_else(|| String::from("·"));
+        .map_or_else(|| String::from("·"), |n| n.to_string());
     let gutter_w = if heat_color.is_some() { "6px" } else { "3px" };
 
     rsx! {

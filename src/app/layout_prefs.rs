@@ -4,11 +4,33 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
+/// Saved color scheme (issue #118).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ColorScheme {
+    #[default]
+    Dark,
+    Light,
+}
+
+impl ColorScheme {
+    /// Flips dark ↔ light.
+    #[must_use]
+    pub fn toggle(self) -> Self {
+        match self {
+            Self::Dark => Self::Light,
+            Self::Light => Self::Dark,
+        }
+    }
+}
+
 /// Saved shell layout widths.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct LayoutPrefs {
     pub nav_width: f64,
     pub context_width: f64,
+    #[serde(default)]
+    pub color_scheme: ColorScheme,
 }
 
 impl Default for LayoutPrefs {
@@ -16,6 +38,7 @@ impl Default for LayoutPrefs {
         Self {
             nav_width: 200.0,
             context_width: 280.0,
+            color_scheme: ColorScheme::Dark,
         }
     }
 }
@@ -72,5 +95,11 @@ mod tests {
         let (parent, name) = split_path_display(Path::new("src/ui/changes.rs"));
         assert_eq!(name, "changes.rs");
         assert_eq!(parent, "src/ui/");
+    }
+
+    #[test]
+    fn color_scheme_toggles() {
+        assert_eq!(ColorScheme::Dark.toggle(), ColorScheme::Light);
+        assert_eq!(ColorScheme::Light.toggle(), ColorScheme::Dark);
     }
 }
