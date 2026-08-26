@@ -47,6 +47,18 @@ pub fn BranchesView(props: BranchesViewProps) -> Element {
             style: "font-size:0.9rem;opacity:0.95;display:flex;flex-direction:column;gap:0.75rem;",
             p { style: "margin:0;opacity:0.75;", "Current: {current}" }
 
+            label {
+                style: "display:flex;align-items:center;gap:0.4rem;font-size:0.8rem;opacity:0.8;",
+                input {
+                    r#type: "checkbox",
+                    checked: props.state.ui.open_after_instant_worktree,
+                    onchange: move |evt| {
+                        props.on_event.call(UiEvent::SetOpenAfterInstantWorktree(evt.checked()));
+                    },
+                }
+                "Open Instant Worktree after create (W)"
+            }
+
             // Create branch
             div {
                 style: "display:flex;gap:0.4rem;align-items:center;flex-wrap:wrap;",
@@ -306,6 +318,17 @@ fn BranchRow(
                     }
                 }
                 if !is_remote {
+                    button {
+                        style: "border:1px solid #334155;background:transparent;color:#9fb0c7;\
+                                border-radius:4px;padding:0.15rem 0.45rem;cursor:pointer;font-size:0.72rem;",
+                        title: "Instant Worktree (W)",
+                        onclick: move |_| {
+                            on_event.call(UiEvent::InstantWorktree {
+                                branch: branch.name.clone(),
+                            });
+                        },
+                        "W"
+                    }
                     button {
                         style: "border:1px solid #334155;background:transparent;color:#9fb0c7;\
                                 border-radius:4px;padding:0.15rem 0.45rem;cursor:pointer;font-size:0.72rem;",

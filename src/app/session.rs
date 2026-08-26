@@ -121,6 +121,10 @@ impl AppSession {
             self.submit_commands(follow);
             changed = true;
         }
+        if let Some(path) = self.state.ui.pending_open_worktree.take() {
+            self.dispatch_event(UiEvent::OpenRepository(path));
+            changed = true;
+        }
         self.ensure_watcher();
         if self.poll_watch() {
             changed = true;

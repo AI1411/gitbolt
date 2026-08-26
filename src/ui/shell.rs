@@ -80,7 +80,15 @@ pub fn Shell(props: ShellProps) -> Element {
                         props.on_event.call(UiEvent::Fetch);
                     } else if ch.eq_ignore_ascii_case("w") {
                         evt.prevent_default();
-                        props.on_event.call(UiEvent::SelectView(View::Worktrees));
+                        if props.state.navigation.active_view == View::Branches {
+                            if let Some(branch) = props.state.selection.branch.clone() {
+                                props.on_event.call(UiEvent::InstantWorktree { branch });
+                            } else {
+                                props.on_event.call(UiEvent::SelectView(View::Worktrees));
+                            }
+                        } else {
+                            props.on_event.call(UiEvent::SelectView(View::Worktrees));
+                        }
                     } else if ch.eq_ignore_ascii_case("c")
                         && props.state.navigation.active_view == View::Changes
                     {

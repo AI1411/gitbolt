@@ -147,6 +147,10 @@ pub struct UiState {
     pub confirm_delete_branch: Option<String>,
     /// Pending worktree removal path (issue #20).
     pub confirm_remove_worktree: Option<PathBuf>,
+    /// When true, Instant Worktree opens the new worktree after create (#21).
+    pub open_after_instant_worktree: bool,
+    /// Path to open after a successful Instant Worktree create.
+    pub pending_open_worktree: Option<PathBuf>,
     /// Auto-fetch interval in seconds (issue #19). `0` disables.
     pub auto_fetch_secs: u64,
 }
@@ -162,6 +166,8 @@ impl Default for UiState {
             new_branch_name: String::new(),
             confirm_delete_branch: None,
             confirm_remove_worktree: None,
+            open_after_instant_worktree: false,
+            pending_open_worktree: None,
             auto_fetch_secs: 300,
         }
     }

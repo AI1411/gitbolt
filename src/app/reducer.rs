@@ -308,6 +308,10 @@ pub fn reduce(state: &mut AppState, event: UiEvent) -> Vec<Command> {
             state.background.remote_label = Some("pushing…".into());
             issue(state, vec![Command::Push { generation: gen }])
         }
+        UiEvent::SetOpenAfterInstantWorktree(enabled) => {
+            state.ui.open_after_instant_worktree = enabled;
+            Vec::new()
+        }
         UiEvent::CreateWorktree { branch, path } => {
             if branch.trim().is_empty() {
                 set_error(state, "ブランチ名を入力してください".into());
@@ -322,6 +326,7 @@ pub fn reduce(state: &mut AppState, event: UiEvent) -> Vec<Command> {
                 }],
             )
         }
+        UiEvent::InstantWorktree { branch } => reduce_instant_worktree(state, gen, &branch),
         UiEvent::RequestRemoveWorktree(path) => {
             state.ui.confirm_remove_worktree = Some(path);
             Vec::new()
@@ -601,8 +606,11 @@ pub fn apply(state: &mut AppState, message: AppMessage) -> Vec<Command> {
             }
         },
         AppMessage::WorktreeCreated { result, .. } => match result {
-            Ok(_) => {
+            Ok(info) => {
                 state.ui.confirm_remove_worktree = None;
+                if state.ui.open_after_instant_worktree {
+                    state.ui.pending_open_worktree = Some(info.path.clone());
+                }
                 issue(state, vec![Command::LoadWorktrees { generation: gen }])
             }
             Err(err) => {
@@ -743,6 +751,48 @@ fn reduce_commit(state: &mut AppState, generation: Generation) -> Vec<Command> {
         state,
         vec![Command::Commit {
             message,
+            generation,
+        }],
+    )
+}
+
+/// Instant Worktree: branch → default path → create (issue #21).
+fn reduce_instant_worktree(
+    state: &mut AppState,
+    generation: Generation,
+    branch: &str,
+) -> Vec<Command> {
+    let branch = branch.trim().to_string();
+    if branch.is_empty() {
+        set_error(
+            state,
+            "Instant Worktree にはブランチの選択が必要です".into(),
+        );
+        return Vec::new();
+    }
+    state.selection.branch = Some(branch.clone());
+    if state
+        .branch
+        .branches
+        .iter()
+        .any(|b| b.name == branch && b.is_remote)
+    {
+        set_error(
+            state,
+            "リモート追跡ブランチからは Instant Worktree できません".into(),
+        );
+        return Vec::new();
+    }
+    let Some(repo) = state.repository.path.clone() else {
+        set_error(state, "リポジトリが開かれていません".into());
+        return Vec::new();
+    };
+    let path = crate::git::worktree::default_worktree_path(&repo, &branch);
+    issue(
+        state,
+        vec![Command::CreateWorktree {
+            branch,
+            path,
             generation,
         }],
     )
@@ -1050,6 +1100,35 @@ mod tests {
         assert_eq!(state.diff.content, Loadable::Idle);
         assert_eq!(state.repository.head.branch.as_deref(), Some("dev"));
         assert_eq!(cmds.len(), 3);
+    }
+
+    #[test]
+    fn instant_worktree_requires_branch_and_dispatches_create() {
+        let mut state = AppState::new();
+        let cmds = reduce(
+            &mut state,
+            UiEvent::InstantWorktree {
+                branch: String::new(),
+            },
+        );
+        assert!(cmds.is_empty());
+        assert!(state.ui.error_banner.is_some());
+
+        state.ui.error_banner = None;
+        state.repository.path = Some(PathBuf::from("/tmp/app"));
+        let cmds = reduce(
+            &mut state,
+            UiEvent::InstantWorktree {
+                branch: "feature/auth".into(),
+            },
+        );
+        assert_eq!(state.selection.branch.as_deref(), Some("feature/auth"));
+        assert!(matches!(
+            cmds.as_slice(),
+            [Command::CreateWorktree { branch, path, .. }]
+                if branch == "feature/auth"
+                    && path.ends_with("app-worktrees/feature-auth")
+        ));
     }
 
     #[test]

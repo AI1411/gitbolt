@@ -60,9 +60,14 @@ pub fn create_worktree(repo: &Path, branch: &str, path: &Path) -> Result<Worktre
         .ok_or_else(|| GitError::Backend("worktree path is not valid UTF-8".into()))?;
     cli.run(&["worktree", "add", path_str, branch])?;
     let trees = list_worktrees(repo)?;
+    let canonical = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
     trees
         .into_iter()
-        .find(|w| w.path == path)
+        .find(|w| {
+            w.path == path
+                || w.path.canonicalize().ok().as_ref() == Some(&canonical)
+                || w.branch.as_deref() == Some(branch)
+        })
         .ok_or_else(|| GitError::Backend("worktree created but not listed".into()))
 }
 
