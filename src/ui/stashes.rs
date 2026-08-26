@@ -52,14 +52,14 @@ pub fn StashesView(props: StashesViewProps) -> Element {
                 div {
                     style: "display:flex;gap:0.4rem;flex-wrap:wrap;align-items:center;",
                     input {
-                        style: "flex:1;min-width:10rem;padding:0.35rem 0.5rem;border-radius:4px;\
-                                border:1px solid #334155;background:#0f1419;color:#e8eef7;font-size:0.85rem;",
+                        style: "flex:1;min-width:10rem;padding:0.35rem 0.5rem;border-radius:var(--gb-radius);\
+                                border:1px solid var(--gb-border-strong);background:var(--gb-bg);color:var(--gb-text);font-size:0.85rem;",
                         placeholder: "message (optional)",
                         value: "{message_draft()}",
                         oninput: move |evt| message_draft.set(evt.value()),
                     }
                     button {
-                        style: "border:0;background:#3d8bfd;color:white;border-radius:4px;\
+                        style: "border:0;background:var(--gb-accent);color:white;border-radius:var(--gb-radius);\
                                 padding:0.35rem 0.75rem;cursor:pointer;font-size:0.8rem;font-weight:600;",
                         onclick: move |_| {
                             let msg = message_draft().trim().to_string();
@@ -94,21 +94,21 @@ pub fn StashesView(props: StashesViewProps) -> Element {
                         {
                             let index = entry.index;
                             let is_sel = selected == Some(index);
-                            let bg = if is_sel { "#1e3a5f" } else { "transparent" };
+                            let bg = if is_sel { "var(--gb-selected)" } else { "transparent" };
                             rsx! {
                                 li {
                                     key: "stash-{index}",
                                     style: format!(
                                         "display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;\
-                                         padding:0.35rem 0.45rem;border-radius:4px;border:1px solid #1e293b;\
+                                         padding:0.35rem 0.45rem;border-radius:var(--gb-radius);border:1px solid var(--gb-chip);\
                                          background:{bg};"
                                     ),
                                     button {
                                         style: "flex:1;text-align:left;border:0;background:transparent;\
-                                                color:#e8eef7;cursor:pointer;padding:0;min-width:0;",
+                                                color:var(--gb-text);cursor:pointer;padding:0;min-width:0;",
                                         onclick: move |_| props.on_event.call(UiEvent::SelectStash(index)),
                                         span {
-                                            style: "font-family:ui-monospace,monospace;font-size:0.75rem;\
+                                            style: "font-family:var(--gb-mono);font-size:0.75rem;\
                                                     opacity:0.6;margin-right:0.45rem;",
                                             "stash@{{{index}}}"
                                         }
@@ -126,8 +126,8 @@ pub fn StashesView(props: StashesViewProps) -> Element {
                                             "Pop"
                                         }
                                         button {
-                                            style: "border:1px solid #7f1d1d;background:transparent;color:#fca5a5;\
-                                                    border-radius:4px;padding:0.15rem 0.45rem;cursor:pointer;font-size:0.72rem;",
+                                            style: "border:1px solid var(--gb-danger-border);background:transparent;color:var(--gb-danger);\
+                                                    border-radius:var(--gb-radius);padding:0.15rem 0.45rem;cursor:pointer;font-size:0.72rem;",
                                             onclick: move |_| props.on_event.call(UiEvent::RequestDropStash(index)),
                                             "Drop"
                                         }
@@ -159,19 +159,19 @@ fn StashDiffPreview(diff: Loadable<crate::app::model::DiffContent>) -> Element {
                     p { style: "margin:0;opacity:0.6;font-size:0.85rem;", "Loading stash diff…" }
                 },
                 Loadable::Failed(err) => rsx! {
-                    p { style: "margin:0;color:#fca5a5;font-size:0.85rem;", "Diff error: {err}" }
+                    p { style: "margin:0;color:var(--gb-danger);font-size:0.85rem;", "Diff error: {err}" }
                 },
                 Loadable::Ready(content) => rsx! {
                     if let Some(notice) = content.notice.as_ref() {
                         div {
-                            style: "padding:0.35rem 0.55rem;border-radius:4px;background:#1e293b;\
-                                    color:#fde68a;font-size:0.8rem;",
+                            style: "padding:0.35rem 0.55rem;border-radius:var(--gb-radius);background:var(--gb-chip);\
+                                    color:var(--gb-warning);font-size:0.8rem;",
                             "{notice}"
                         }
                     }
                     div {
-                        style: "padding:0.5rem 0;border:1px solid #243044;border-radius:6px;\
-                                background:#151b24;font-family:ui-monospace,monospace;font-size:0.82rem;\
+                        style: "padding:0.5rem 0;border:1px solid var(--gb-border);border-radius:var(--gb-radius-lg);\
+                                background:var(--gb-surface-raised);font-family:var(--gb-mono);font-size:0.82rem;\
                                 overflow:auto;max-height:40vh;",
                         for (hi, hunk) in content.hunks.iter().enumerate() {
                             HunkBlock { key: "{hi}", hunk: hunk.clone() }
@@ -188,15 +188,15 @@ fn HunkBlock(hunk: DiffHunk) -> Element {
     rsx! {
         div {
             div {
-                style: "padding:0.25rem 0.65rem;opacity:0.55;background:#0f1419;",
+                style: "padding:0.25rem 0.65rem;opacity:0.55;background:var(--gb-bg);",
                 "{hunk.header}"
             }
             for line in hunk.lines.iter() {
                 {
                     let color = match line.origin {
-                        '+' => "#86efac",
-                        '-' => "#fca5a5",
-                        _ => "#cbd5e1",
+                        '+' => "var(--gb-add)",
+                        '-' => "var(--gb-danger)",
+                        _ => "var(--gb-chip-text)",
                     };
                     let tinted = tint_line(&line.content);
                     rsx! {
@@ -218,6 +218,6 @@ fn HunkBlock(hunk: DiffHunk) -> Element {
 }
 
 fn action_style() -> &'static str {
-    "border:1px solid #334155;background:transparent;color:#9fb0c7;\
-     border-radius:4px;padding:0.15rem 0.45rem;cursor:pointer;font-size:0.72rem;"
+    "border:1px solid var(--gb-border-strong);background:transparent;color:var(--gb-text-muted);\
+     border-radius:var(--gb-radius);padding:0.15rem 0.45rem;cursor:pointer;font-size:0.72rem;"
 }

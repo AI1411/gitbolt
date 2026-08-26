@@ -28,7 +28,7 @@ pub fn ContextPane(props: ContextPaneProps) -> Element {
         aside {
             class: "context-pane",
             style: "display:flex;flex-direction:column;gap:0.75rem;padding:0.85rem;\
-                    height:100%;box-sizing:border-box;overflow:auto;border-left:1px solid #243044;",
+                    height:100%;box-sizing:border-box;overflow:auto;border-left:1px solid var(--gb-border);",
             h2 {
                 style: "margin:0;font-size:0.8rem;letter-spacing:0.06em;text-transform:uppercase;\
                         opacity:0.65;font-weight:600;",
@@ -113,7 +113,7 @@ fn CommitDetailPanel(state: AppState, on_event: EventHandler<UiEvent>) -> Elemen
             p { style: "margin:0;opacity:0.6;font-size:0.85rem;", "Loading commit…" }
         },
         Loadable::Failed(err) => rsx! {
-            p { style: "margin:0;color:#fca5a5;font-size:0.85rem;", "Error: {err}" }
+            p { style: "margin:0;color:var(--gb-danger);font-size:0.85rem;", "Error: {err}" }
         },
         Loadable::Idle => rsx! {
             p { style: "margin:0;opacity:0.6;font-size:0.85rem;", "Select a commit." }
@@ -175,10 +175,10 @@ fn CommitDetailBody(
                     title: "Commit Back (⌘[)",
                     disabled: !can_back,
                     style: if can_back {
-                        "border:1px solid #334155;background:#1e293b;color:#e2e8f0;border-radius:4px;\
+                        "border:1px solid var(--gb-border-strong);background:var(--gb-chip);color:var(--gb-chip-strong);border-radius:var(--gb-radius);\
                          padding:0.15rem 0.45rem;cursor:pointer;font-size:0.75rem;"
                     } else {
-                        "border:1px solid #1e293b;background:transparent;color:#475569;border-radius:4px;\
+                        "border:1px solid var(--gb-chip);background:transparent;color:var(--gb-text-disabled);border-radius:var(--gb-radius);\
                          padding:0.15rem 0.45rem;cursor:default;font-size:0.75rem;opacity:0.5;"
                     },
                     onclick: move |_| on_event.call(UiEvent::NavigateCommit { delta: -1 }),
@@ -189,10 +189,10 @@ fn CommitDetailBody(
                     title: "Commit Forward (⌘])",
                     disabled: !can_forward,
                     style: if can_forward {
-                        "border:1px solid #334155;background:#1e293b;color:#e2e8f0;border-radius:4px;\
+                        "border:1px solid var(--gb-border-strong);background:var(--gb-chip);color:var(--gb-chip-strong);border-radius:var(--gb-radius);\
                          padding:0.15rem 0.45rem;cursor:pointer;font-size:0.75rem;"
                     } else {
-                        "border:1px solid #1e293b;background:transparent;color:#475569;border-radius:4px;\
+                        "border:1px solid var(--gb-chip);background:transparent;color:var(--gb-text-disabled);border-radius:var(--gb-radius);\
                          padding:0.15rem 0.45rem;cursor:default;font-size:0.75rem;opacity:0.5;"
                     },
                     onclick: move |_| on_event.call(UiEvent::NavigateCommit { delta: 1 }),
@@ -202,7 +202,7 @@ fn CommitDetailBody(
             div {
                 style: "display:flex;align-items:center;gap:0.4rem;flex-wrap:wrap;",
                 span {
-                    style: "font-family:ui-monospace,monospace;font-size:0.78rem;opacity:0.75;",
+                    style: "font-family:var(--gb-mono);font-size:0.78rem;opacity:0.75;",
                     "{short}"
                 }
                 CopyButton {
@@ -253,7 +253,7 @@ fn CommitDetailBody(
                                 let path_label = f.path.display().to_string();
                                 let status = f.status;
                                 let selected = selected_file.as_ref() == Some(&f.path);
-                                let bg = if selected { "#1e3a5f" } else { "transparent" };
+                                let bg = if selected { "var(--gb-selected)" } else { "transparent" };
                                 rsx! {
                                     li {
                                         key: "{path_label}",
@@ -261,8 +261,8 @@ fn CommitDetailBody(
                                             r#type: "button",
                                             style: format!(
                                                 "display:flex;align-items:center;gap:0.35rem;width:100%;text-align:left;\
-                                                 border:0;border-radius:4px;padding:0.2rem 0.3rem;cursor:pointer;\
-                                                 background:{bg};color:#e2e8f0;font-family:ui-monospace,monospace;\
+                                                 border:0;border-radius:var(--gb-radius);padding:0.2rem 0.3rem;cursor:pointer;\
+                                                 background:{bg};color:var(--gb-chip-strong);font-family:var(--gb-mono);\
                                                  font-size:0.78rem;"
                                             ),
                                             onclick: move |_| {
@@ -301,7 +301,7 @@ fn CommitFileDiffPreview(
     rsx! {
         div {
             style: "display:flex;flex-direction:column;gap:0.35rem;margin-top:0.35rem;\
-                    padding-top:0.45rem;border-top:1px solid #243044;",
+                    padding-top:0.45rem;border-top:1px solid var(--gb-border);",
             div {
                 style: "display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;",
                 h3 {
@@ -309,13 +309,13 @@ fn CommitFileDiffPreview(
                     "File diff"
                 }
                 span {
-                    style: "font-family:ui-monospace,monospace;font-size:0.75rem;opacity:0.85;\
+                    style: "font-family:var(--gb-mono);font-size:0.75rem;opacity:0.85;\
                             overflow:hidden;text-overflow:ellipsis;min-width:0;",
                     "{title}"
                 }
                 button {
-                    style: "margin-left:auto;padding:0.15rem 0.5rem;border:1px solid #334155;border-radius:4px;\
-                            cursor:pointer;background:transparent;color:#9fb0c7;font-size:0.72rem;",
+                    style: "margin-left:auto;padding:0.15rem 0.5rem;border:1px solid var(--gb-border-strong);border-radius:var(--gb-radius);\
+                            cursor:pointer;background:transparent;color:var(--gb-text-muted);font-size:0.72rem;",
                     onclick: move |_| on_event.call(UiEvent::ClearCommitFileDiff),
                     "Close"
                 }
@@ -328,13 +328,13 @@ fn CommitFileDiffPreview(
                     p { style: "margin:0;opacity:0.6;font-size:0.8rem;", "Loading file diff…" }
                 },
                 Loadable::Failed(err) => rsx! {
-                    p { style: "margin:0;color:#fca5a5;font-size:0.8rem;", "Diff error: {err}" }
+                    p { style: "margin:0;color:var(--gb-danger);font-size:0.8rem;", "Diff error: {err}" }
                 },
                 Loadable::Ready(content) => rsx! {
                     if let Some(notice) = content.notice.as_ref() {
                         div {
-                            style: "padding:0.35rem 0.55rem;border-radius:4px;background:#1e293b;\
-                                    color:#fde68a;font-size:0.78rem;",
+                            style: "padding:0.35rem 0.55rem;border-radius:var(--gb-radius);background:var(--gb-chip);\
+                                    color:var(--gb-warning);font-size:0.78rem;",
                             "{notice}"
                         }
                     }
@@ -345,8 +345,8 @@ fn CommitFileDiffPreview(
                         }
                     } else {
                         div {
-                            style: "padding:0.35rem 0;border:1px solid #243044;border-radius:6px;\
-                                    background:#151b24;font-family:ui-monospace,monospace;font-size:0.75rem;\
+                            style: "padding:0.35rem 0;border:1px solid var(--gb-border);border-radius:var(--gb-radius-lg);\
+                                    background:var(--gb-surface-raised);font-family:var(--gb-mono);font-size:0.75rem;\
                                     overflow:auto;max-height:50vh;",
                             for (hi, hunk) in content.hunks.iter().enumerate() {
                                 CommitHunkBlock { key: "{hi}", hunk: hunk.clone() }
@@ -364,15 +364,15 @@ fn CommitHunkBlock(hunk: DiffHunk) -> Element {
     rsx! {
         div {
             div {
-                style: "padding:0.2rem 0.5rem;opacity:0.55;background:#0f1419;",
+                style: "padding:0.2rem 0.5rem;opacity:0.55;background:var(--gb-bg);",
                 "{hunk.header}"
             }
             for line in hunk.lines.iter() {
                 {
                     let color = match line.origin {
-                        '+' => "#86efac",
-                        '-' => "#fca5a5",
-                        _ => "#cbd5e1",
+                        '+' => "var(--gb-add)",
+                        '-' => "var(--gb-danger)",
+                        _ => "var(--gb-chip-text)",
                     };
                     let tinted = tint_line(&line.content);
                     rsx! {
@@ -437,7 +437,7 @@ fn BranchContextPanel(state: AppState, on_event: EventHandler<UiEvent>) -> Eleme
             }
             if let Some(path) = worktree_path {
                 div {
-                    style: "font-size:0.78rem;opacity:0.7;font-family:ui-monospace,monospace;",
+                    style: "font-size:0.78rem;opacity:0.7;font-family:var(--gb-mono);",
                     "Worktree: {path}"
                 }
             } else {
@@ -454,14 +454,14 @@ fn BranchContextPanel(state: AppState, on_event: EventHandler<UiEvent>) -> Eleme
                     rsx! {
                         button {
                             r#type: "button",
-                            style: "border:1px solid #334155;background:#1e293b;color:#e2e8f0;border-radius:4px;\
+                            style: "border:1px solid var(--gb-border-strong);background:var(--gb-chip);color:var(--gb-chip-strong);border-radius:var(--gb-radius);\
                                     padding:0.25rem 0.55rem;cursor:pointer;font-size:0.75rem;",
                             onclick: move |_| on_event.call(UiEvent::CheckoutBranch(checkout.clone())),
                             "Checkout"
                         }
                         button {
                             r#type: "button",
-                            style: "border:1px solid #334155;background:transparent;color:#9fb0c7;border-radius:4px;\
+                            style: "border:1px solid var(--gb-border-strong);background:transparent;color:var(--gb-text-muted);border-radius:var(--gb-radius);\
                                     padding:0.25rem 0.55rem;cursor:pointer;font-size:0.75rem;",
                             onclick: move |_| on_event.call(UiEvent::InstantWorktree { branch: instant.clone() }),
                             "Instant Worktree"
@@ -564,8 +564,8 @@ fn WorktreeContext(state: AppState, on_event: EventHandler<UiEvent>) -> Element 
             if let Some(branch) = selected_branch {
                 button {
                     r#type: "button",
-                    style: "align-self:flex-start;border:1px solid #334155;background:#1e293b;color:#e2e8f0;\
-                            border-radius:4px;padding:0.25rem 0.55rem;cursor:pointer;font-size:0.75rem;",
+                    style: "align-self:flex-start;border:1px solid var(--gb-border-strong);background:var(--gb-chip);color:var(--gb-chip-strong);\
+                            border-radius:var(--gb-radius);padding:0.25rem 0.55rem;cursor:pointer;font-size:0.75rem;",
                     onclick: move |_| {
                         on_event.call(UiEvent::InstantWorktree {
                             branch: branch.clone(),
@@ -603,21 +603,21 @@ fn StashContext(state: AppState, on_event: EventHandler<UiEvent>) -> Element {
                     style: "display:flex;gap:0.35rem;flex-wrap:wrap;",
                     button {
                         r#type: "button",
-                        style: "border:1px solid #334155;background:#1e293b;color:#e2e8f0;border-radius:4px;\
+                        style: "border:1px solid var(--gb-border-strong);background:var(--gb-chip);color:var(--gb-chip-strong);border-radius:var(--gb-radius);\
                                 padding:0.25rem 0.55rem;cursor:pointer;font-size:0.75rem;",
                         onclick: move |_| on_event.call(UiEvent::StashApply(index)),
                         "Apply"
                     }
                     button {
                         r#type: "button",
-                        style: "border:1px solid #334155;background:transparent;color:#9fb0c7;border-radius:4px;\
+                        style: "border:1px solid var(--gb-border-strong);background:transparent;color:var(--gb-text-muted);border-radius:var(--gb-radius);\
                                 padding:0.25rem 0.55rem;cursor:pointer;font-size:0.75rem;",
                         onclick: move |_| on_event.call(UiEvent::StashPop(index)),
                         "Pop"
                     }
                     button {
                         r#type: "button",
-                        style: "border:1px solid #7f1d1d;background:transparent;color:#fca5a5;border-radius:4px;\
+                        style: "border:1px solid var(--gb-danger-border);background:transparent;color:var(--gb-danger);border-radius:var(--gb-radius);\
                                 padding:0.25rem 0.55rem;cursor:pointer;font-size:0.75rem;",
                         onclick: move |_| on_event.call(UiEvent::RequestDropStash(index)),
                         "Drop…"
@@ -649,8 +649,8 @@ fn CommitBox(
                 key: "{autofocus_key}",
                 autofocus: autofocus_key > 0,
                 style: "width:100%;min-height:5.5rem;box-sizing:border-box;resize:vertical;\
-                        padding:0.45rem 0.55rem;border-radius:4px;border:1px solid #334155;\
-                        background:#0f1419;color:#e8eef7;font-size:0.85rem;font-family:inherit;",
+                        padding:0.45rem 0.55rem;border-radius:var(--gb-radius);border:1px solid var(--gb-border-strong);\
+                        background:var(--gb-bg);color:var(--gb-text);font-size:0.85rem;font-family:inherit;",
                 placeholder: format!(
                     "feat(scope): … (type chips below, {}Enter to commit)",
                     crate::platform::mod_key_label()
@@ -685,8 +685,8 @@ fn CommitBox(
                                 button {
                                     key: "{ty}",
                                     r#type: "button",
-                                    style: "border:1px solid #334155;background:#1e293b;color:#cbd5e1;\
-                                            border-radius:4px;padding:0.15rem 0.4rem;cursor:pointer;font-size:0.7rem;",
+                                    style: "border:1px solid var(--gb-border-strong);background:var(--gb-chip);color:var(--gb-chip-text);\
+                                            border-radius:var(--gb-radius);padding:0.15rem 0.4rem;cursor:pointer;font-size:0.7rem;",
                                     onclick: move |_| {
                                         let next = crate::app::conventional::apply_type(&msg, &ty_s);
                                         on_event.call(UiEvent::SetCommitMessage(next));
@@ -709,8 +709,8 @@ fn CommitBox(
                                 button {
                                     key: "{scope}",
                                     r#type: "button",
-                                    style: "border:1px solid #334155;background:transparent;color:#9fb0c7;\
-                                            border-radius:4px;padding:0.15rem 0.4rem;cursor:pointer;font-size:0.7rem;",
+                                    style: "border:1px solid var(--gb-border-strong);background:transparent;color:var(--gb-text-muted);\
+                                            border-radius:var(--gb-radius);padding:0.15rem 0.4rem;cursor:pointer;font-size:0.7rem;",
                                     onclick: move |_| {
                                         let next = crate::app::conventional::apply_scope(&msg, &scope_s);
                                         on_event.call(UiEvent::SetCommitMessage(next));
@@ -725,7 +725,7 @@ fn CommitBox(
             div {
                 style: "display:flex;align-items:center;gap:0.5rem;",
                 button {
-                    style: "border:0;background:#3d8bfd;color:white;border-radius:4px;\
+                    style: "border:0;background:var(--gb-accent);color:white;border-radius:var(--gb-radius);\
                             padding:0.35rem 0.75rem;cursor:pointer;font-size:0.8rem;font-weight:600;",
                     disabled: staged_n == 0,
                     onclick: move |_| on_event.call(UiEvent::Commit),
@@ -748,8 +748,8 @@ fn CommitBox(
 fn CopyButton(label: String, text: String, on_event: EventHandler<UiEvent>) -> Element {
     rsx! {
         button {
-            style: "border:1px solid #334155;background:transparent;color:#9fb0c7;\
-                    border-radius:4px;padding:0.15rem 0.45rem;cursor:pointer;font-size:0.68rem;",
+            style: "border:1px solid var(--gb-border-strong);background:transparent;color:var(--gb-text-muted);\
+                    border-radius:var(--gb-radius);padding:0.15rem 0.45rem;cursor:pointer;font-size:0.68rem;",
             onclick: move |_| on_event.call(UiEvent::CopyText(text.clone())),
             "{label}"
         }
@@ -762,8 +762,8 @@ fn RemoteLinkActions(url: String, on_event: EventHandler<UiEvent>) -> Element {
         div {
             style: "display:flex;gap:0.35rem;flex-wrap:wrap;align-items:center;",
             button {
-                style: "border:1px solid #334155;background:transparent;color:#9fb0c7;\
-                        border-radius:4px;padding:0.15rem 0.45rem;cursor:pointer;font-size:0.68rem;",
+                style: "border:1px solid var(--gb-border-strong);background:transparent;color:var(--gb-text-muted);\
+                        border-radius:var(--gb-radius);padding:0.15rem 0.45rem;cursor:pointer;font-size:0.68rem;",
                 onclick: move |_| on_event.call(UiEvent::OpenUrl(url.clone())),
                 "Open"
             }
@@ -806,7 +806,7 @@ fn IssueLinkList(
                 div {
                     key: "{label}",
                     style: "display:flex;align-items:center;gap:0.4rem;flex-wrap:wrap;font-size:0.8rem;",
-                    span { style: "opacity:0.85;font-family:ui-monospace,monospace;", "{label}" }
+                    span { style: "opacity:0.85;font-family:var(--gb-mono);", "{label}" }
                     if let Some(url) = url {
                         RemoteLinkActions { url: url, on_event: on_event }
                     }

@@ -61,8 +61,8 @@ pub fn DiffPane(props: DiffViewProps) -> Element {
                 }
                 if let Some(target) = props.state.diff.target.as_ref() {
                     button {
-                        style: "padding:0.35rem 0.75rem;border:1px solid #334155;border-radius:4px;\
-                                cursor:pointer;background:transparent;color:#9fb0c7;font-size:0.8rem;",
+                        style: "padding:0.35rem 0.75rem;border:1px solid var(--gb-border-strong);border-radius:var(--gb-radius);\
+                                cursor:pointer;background:transparent;color:var(--gb-text-muted);font-size:0.8rem;",
                         onclick: {
                             let path = target.path.clone();
                             move |_| props.on_event.call(UiEvent::ShowFileHistory { path: path.clone() })
@@ -73,8 +73,8 @@ pub fn DiffPane(props: DiffViewProps) -> Element {
                 span { style: "opacity:0.45;font-size:0.75rem;", "[ / ] hunks · H file history · Shift+click blame → line history" }
                 if !selected.is_empty() {
                     button {
-                        style: "padding:0.35rem 0.75rem;border:0;border-radius:4px;cursor:pointer;\
-                                background:#3d8bfd;color:white;font-size:0.8rem;font-weight:600;",
+                        style: "padding:0.35rem 0.75rem;border:0;border-radius:var(--gb-radius);cursor:pointer;\
+                                background:var(--gb-accent);color:white;font-size:0.8rem;font-weight:600;",
                         onclick: move |_| {
                             if staged {
                                 props.on_event.call(UiEvent::UnstageSelectedLines);
@@ -89,8 +89,8 @@ pub fn DiffPane(props: DiffViewProps) -> Element {
                         }
                     }
                     button {
-                        style: "padding:0.35rem 0.75rem;border:1px solid #334155;border-radius:4px;\
-                                cursor:pointer;background:transparent;color:#9fb0c7;font-size:0.8rem;",
+                        style: "padding:0.35rem 0.75rem;border:1px solid var(--gb-border-strong);border-radius:var(--gb-radius);\
+                                cursor:pointer;background:transparent;color:var(--gb-text-muted);font-size:0.8rem;",
                         onclick: move |_| props.on_event.call(UiEvent::ClearDiffLineSelection),
                         "Clear"
                     }
@@ -106,31 +106,31 @@ pub fn DiffPane(props: DiffViewProps) -> Element {
                 Loadable::Ready(content) => rsx! {
                     if let Some(notice) = content.notice.as_ref() {
                         div {
-                            style: "padding:0.4rem 0.65rem;border-radius:4px;background:#1e293b;\
-                                    color:#fde68a;font-size:0.8rem;",
+                            style: "padding:0.4rem 0.65rem;border-radius:var(--gb-radius);background:var(--gb-chip);\
+                                    color:var(--gb-warning);font-size:0.8rem;",
                             "{notice}"
                         }
                     }
                     div {
-                        style: "padding:0.5rem 0;border:1px solid #243044;border-radius:6px;\
-                                background:#151b24;font-family:ui-monospace,monospace;font-size:0.82rem;\
+                        style: "padding:0.5rem 0;border:1px solid var(--gb-border);border-radius:var(--gb-radius-lg);\
+                                background:var(--gb-surface-raised);font-family:var(--gb-mono);font-size:0.82rem;\
                                 overflow:visible;",
                         for (hi, hunk) in content.hunks.iter().enumerate() {
                             {
-                                let hunk_bg = if hi == focused { "#1a2740" } else { "transparent" };
+                                let hunk_bg = if hi == focused { "var(--gb-selected-row)" } else { "transparent" };
                                 rsx! {
                                     div {
                                         key: "{hi}",
                                         style: format!("background:{hunk_bg};"),
                                         div {
-                                            style: "padding:0.25rem 0.65rem;opacity:0.55;background:#0f1419;\
+                                            style: "padding:0.25rem 0.65rem;opacity:0.55;background:var(--gb-bg);\
                                                     display:flex;align-items:center;justify-content:space-between;gap:0.5rem;",
                                             span { "{hunk.header}" }
                                             if hi == focused {
                                                 button {
                                                     r#type: "button",
-                                                    style: "border:1px solid #334155;background:#1e293b;color:#cbd5e1;\
-                                                            border-radius:3px;padding:0.1rem 0.4rem;cursor:pointer;font-size:0.68rem;",
+                                                    style: "border:1px solid var(--gb-border-strong);background:var(--gb-chip);color:var(--gb-chip-text);\
+                                                            border-radius:var(--gb-radius-sm);padding:0.1rem 0.4rem;cursor:pointer;font-size:0.68rem;",
                                                     title: "Stage hunk (s)",
                                                     onclick: move |_| {
                                                         props.on_event.call(UiEvent::StageFocusedHunk);
@@ -168,7 +168,7 @@ pub fn DiffPane(props: DiffViewProps) -> Element {
                     div { style: "opacity:0.6;font-size:0.85rem;", "Loading diff…" }
                 },
                 Loadable::Failed(err) => rsx! {
-                    div { style: "color:#fca5a5;font-size:0.85rem;", "Diff error: {err}" }
+                    div { style: "color:var(--gb-danger);font-size:0.85rem;", "Diff error: {err}" }
                 },
                 Loadable::Idle => rsx! {
                     div {
@@ -202,18 +202,18 @@ fn UnifiedLine(
     let idx = line.body_index;
     let stageable = line.origin == '+' || line.origin == '-';
     let bg = if selected {
-        "#1e3a5f"
+        "var(--gb-selected)"
     } else if line.origin == '+' {
-        "#13281c"
+        "var(--gb-add-bg)"
     } else if line.origin == '-' {
-        "#2a1518"
+        "var(--gb-del-bg)"
     } else {
         "transparent"
     };
     let color = match line.origin {
-        '+' => "#86efac",
-        '-' => "#fca5a5",
-        _ => "#cbd5e1",
+        '+' => "var(--gb-add)",
+        '-' => "var(--gb-danger)",
+        _ => "var(--gb-chip-text)",
     };
     let tinted = tint_line(&line.content);
     let origin = line.change_origin.clone();
@@ -261,8 +261,8 @@ fn UnifiedLine(
                     rsx! {
                         button {
                             style: "flex:0 0 auto;max-width:12rem;overflow:hidden;text-overflow:ellipsis;\
-                                    border:0;background:transparent;color:#7dd3fc;cursor:pointer;\
-                                    font-size:0.7rem;font-family:ui-monospace,monospace;padding:0;\
+                                    border:0;background:transparent;color:var(--gb-link);cursor:pointer;\
+                                    font-size:0.7rem;font-family:var(--gb-mono);padding:0;\
                                     align-self:baseline;",
                             title: "{hover} · Shift+click for line history",
                             onclick: move |evt| {
@@ -298,9 +298,9 @@ fn SplitHunk(
 ) -> Element {
     rsx! {
         div {
-            style: "display:grid;grid-template-columns:1fr 1fr;gap:0;border-top:1px solid #1e293b;",
+            style: "display:grid;grid-template-columns:1fr 1fr;gap:0;border-top:1px solid var(--gb-chip);",
             div {
-                style: "border-right:1px solid #1e293b;",
+                style: "border-right:1px solid var(--gb-chip);",
                 for line in lines.iter().filter(|l| l.origin != '+') {
                     UnifiedLine {
                         line: line.clone(),
@@ -328,12 +328,12 @@ fn SplitHunk(
 
 fn mode_style(active: bool) -> String {
     if active {
-        "padding:0.25rem 0.55rem;border:0;border-radius:4px;cursor:pointer;\
-         background:#3d8bfd;color:white;font-size:0.75rem;font-weight:600;"
+        "padding:0.25rem 0.55rem;border:0;border-radius:var(--gb-radius);cursor:pointer;\
+         background:var(--gb-accent);color:white;font-size:0.75rem;font-weight:600;"
             .into()
     } else {
-        "padding:0.25rem 0.55rem;border:1px solid #334155;border-radius:4px;cursor:pointer;\
-         background:transparent;color:#9fb0c7;font-size:0.75rem;"
+        "padding:0.25rem 0.55rem;border:1px solid var(--gb-border-strong);border-radius:var(--gb-radius);cursor:pointer;\
+         background:transparent;color:var(--gb-text-muted);font-size:0.75rem;"
             .into()
     }
 }
@@ -346,10 +346,10 @@ pub(crate) fn tint_line(content: &str) -> String {
         return format!("<span style=\"opacity:0.55\">{esc}</span>");
     }
     if let Some(rest) = esc.strip_prefix("&quot;") {
-        return format!("<span style=\"color:#fcd34d\">&quot;{rest}</span>");
+        return format!("<span style=\"color:var(--gb-string)\">&quot;{rest}</span>");
     }
     if let Some(rest) = esc.strip_prefix('\'') {
-        return format!("<span style=\"color:#fcd34d\">'{rest}</span>");
+        return format!("<span style=\"color:var(--gb-string)\">'{rest}</span>");
     }
     esc
 }

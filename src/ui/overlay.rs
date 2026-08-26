@@ -27,8 +27,8 @@ pub fn OverlayHost(props: OverlayHostProps) -> Element {
                             justify-content:center;padding-top:10vh;background:rgba(0,0,0,0.45);",
                     onclick: move |_| props.on_event.call(UiEvent::CloseOverlay),
                     div {
-                        style: "width:min(40rem,92vw);background:#121820;border:1px solid #334155;\
-                                border-radius:8px;box-shadow:0 12px 40px rgba(0,0,0,0.45);\
+                        style: "width:min(40rem,92vw);background:var(--gb-surface);border:1px solid var(--gb-border-strong);\
+                                border-radius:var(--gb-radius-xl);box-shadow:0 12px 40px rgba(0,0,0,0.45);\
                                 padding:1rem 1.1rem;max-height:70vh;overflow:auto;",
                         onclick: move |evt| evt.stop_propagation(),
                         h2 {
@@ -50,8 +50,8 @@ pub fn OverlayHost(props: OverlayHostProps) -> Element {
                             justify-content:center;padding-top:12vh;background:rgba(0,0,0,0.45);",
                     onclick: move |_| props.on_event.call(UiEvent::CloseOverlay),
                     div {
-                        style: "width:min(36rem,92vw);background:#121820;border:1px solid #334155;\
-                                border-radius:8px;box-shadow:0 12px 40px rgba(0,0,0,0.45);\
+                        style: "width:min(36rem,92vw);background:var(--gb-surface);border:1px solid var(--gb-border-strong);\
+                                border-radius:var(--gb-radius-xl);box-shadow:0 12px 40px rgba(0,0,0,0.45);\
                                 display:flex;flex-direction:column;max-height:60vh;",
                         onclick: move |evt| evt.stop_propagation(),
                         OverlayHeader {
@@ -63,7 +63,7 @@ pub fn OverlayHost(props: OverlayHostProps) -> Element {
                             style: "overflow:auto;flex:1;padding:0.25rem 0;",
                             for (i, cmd) in items.into_iter().enumerate() {
                                 {
-                                    let bg = if i == selected { "#1e3a5f" } else { "transparent" };
+                                    let bg = if i == selected { "var(--gb-selected)" } else { "transparent" };
                                     let label = cmd.label;
                                     let keys = cmd.keys;
                                     rsx! {
@@ -71,7 +71,7 @@ pub fn OverlayHost(props: OverlayHostProps) -> Element {
                                             key: "{cmd.id}",
                                             style: format!(
                                                 "width:100%;display:flex;justify-content:space-between;gap:0.75rem;\
-                                                 text-align:left;border:0;background:{bg};color:#e8eef7;cursor:pointer;\
+                                                 text-align:left;border:0;background:{bg};color:var(--gb-text);cursor:pointer;\
                                                  padding:0.4rem 0.85rem;font-size:0.85rem;"
                                             ),
                                             onclick: move |_| {
@@ -80,7 +80,7 @@ pub fn OverlayHost(props: OverlayHostProps) -> Element {
                                             span { "{label}" }
                                             if !keys.is_empty() {
                                                 span {
-                                                    style: "font-size:0.72rem;opacity:0.5;font-family:ui-monospace,monospace;",
+                                                    style: "font-size:0.72rem;opacity:0.5;font-family:var(--gb-mono);",
                                                     "{keys}"
                                                 }
                                             }
@@ -104,8 +104,8 @@ pub fn OverlayHost(props: OverlayHostProps) -> Element {
                             justify-content:center;padding-top:12vh;background:rgba(0,0,0,0.45);",
                     onclick: move |_| props.on_event.call(UiEvent::CloseOverlay),
                     div {
-                        style: "width:min(36rem,92vw);background:#121820;border:1px solid #334155;\
-                                border-radius:8px;box-shadow:0 12px 40px rgba(0,0,0,0.45);\
+                        style: "width:min(36rem,92vw);background:var(--gb-surface);border:1px solid var(--gb-border-strong);\
+                                border-radius:var(--gb-radius-xl);box-shadow:0 12px 40px rgba(0,0,0,0.45);\
                                 display:flex;flex-direction:column;max-height:60vh;",
                         onclick: move |evt| evt.stop_propagation(),
                         OverlayHeader {
@@ -117,7 +117,7 @@ pub fn OverlayHost(props: OverlayHostProps) -> Element {
                             style: "overflow:auto;flex:1;padding:0.25rem 0;",
                             for (i, item) in items.into_iter().enumerate() {
                                 {
-                                    let bg = if i == selected { "#1e3a5f" } else { "transparent" };
+                                    let bg = if i == selected { "var(--gb-selected)" } else { "transparent" };
                                     let kind = match item.kind {
                                         QuickOpenKind::File => "file",
                                         QuickOpenKind::Branch => "branch",
@@ -130,7 +130,7 @@ pub fn OverlayHost(props: OverlayHostProps) -> Element {
                                             key: "{kind}-{label}",
                                             style: format!(
                                                 "width:100%;display:flex;align-items:baseline;gap:0.65rem;\
-                                                 text-align:left;border:0;background:{bg};color:#e8eef7;cursor:pointer;\
+                                                 text-align:left;border:0;background:{bg};color:var(--gb-text);cursor:pointer;\
                                                  padding:0.4rem 0.85rem;font-size:0.85rem;"
                                             ),
                                             onclick: move |_| {
@@ -164,7 +164,7 @@ pub fn OverlayHost(props: OverlayHostProps) -> Element {
 fn OverlayHeader(title: String, query: String, on_event: EventHandler<UiEvent>) -> Element {
     rsx! {
         div {
-            style: "padding:0.65rem 0.85rem;border-bottom:1px solid #243044;",
+            style: "padding:0.65rem 0.85rem;border-bottom:1px solid var(--gb-border);",
             div {
                 style: "font-size:0.72rem;letter-spacing:0.06em;text-transform:uppercase;\
                         opacity:0.55;margin-bottom:0.35rem;",
@@ -173,8 +173,8 @@ fn OverlayHeader(title: String, query: String, on_event: EventHandler<UiEvent>) 
             input {
                 autofocus: true,
                 style: "width:100%;box-sizing:border-box;padding:0.45rem 0.55rem;\
-                        border-radius:4px;border:1px solid #334155;background:#0f1419;\
-                        color:#e8eef7;font-size:0.9rem;font-family:inherit;",
+                        border-radius:var(--gb-radius);border:1px solid var(--gb-border-strong);background:var(--gb-bg);\
+                        color:var(--gb-text);font-size:0.9rem;font-family:inherit;",
                 placeholder: "Type to filter…",
                 value: "{query}",
                 onfocus: move |_| on_event.call(UiEvent::SetTyping(true)),
@@ -214,7 +214,7 @@ fn OverlayHeader(title: String, query: String, on_event: EventHandler<UiEvent>) 
 fn OverlayFooter(hint: String) -> Element {
     rsx! {
         div {
-            style: "padding:0.4rem 0.85rem;border-top:1px solid #243044;\
+            style: "padding:0.4rem 0.85rem;border-top:1px solid var(--gb-border);\
                     font-size:0.72rem;opacity:0.5;",
             "{hint}"
         }
@@ -250,7 +250,7 @@ fn CheatSheetBody(modi: String) -> Element {
             for (keys, desc) in rows {
                 tr {
                     td {
-                        style: "padding:0.28rem 0.5rem 0.28rem 0;font-family:ui-monospace,monospace;\
+                        style: "padding:0.28rem 0.5rem 0.28rem 0;font-family:var(--gb-mono);\
                                 opacity:0.85;white-space:nowrap;vertical-align:top;",
                         "{keys}"
                     }
