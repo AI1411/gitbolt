@@ -12,18 +12,19 @@ use crate::ui::context::ContextPane;
 use crate::ui::diff::DiffView;
 use crate::ui::error_banner::InlineErrorBanner;
 use crate::ui::history::HistoryView;
+use crate::ui::layout_model::clamp_context_width;
 use crate::ui::layout_model::content_heading;
+use crate::ui::layout_model::context_pane_width;
 use crate::ui::layout_model::history_title;
+use crate::ui::layout_model::CONTEXT_MAX;
+use crate::ui::layout_model::CONTEXT_MIN;
+use crate::ui::layout_model::NAV_MAX;
+use crate::ui::layout_model::NAV_MIN;
 use crate::ui::nav::NavPane;
 use crate::ui::overlay::OverlayHost;
 use crate::ui::pulse::PulseHeader;
 use crate::ui::stashes::StashesView;
 use crate::ui::worktrees::WorktreesView;
-
-const NAV_MIN: f64 = 140.0;
-const NAV_MAX: f64 = 360.0;
-const CONTEXT_MIN: f64 = 180.0;
-const CONTEXT_MAX: f64 = 480.0;
 
 /// Props for the ready-state shell.
 #[derive(Props, Clone, PartialEq)]
@@ -49,8 +50,8 @@ enum DragTarget {
 #[component]
 pub fn Shell(props: ShellProps) -> Element {
     let prefs = crate::app::layout_prefs::load_layout_prefs();
-    let mut nav_width = use_signal(|| prefs.nav_width);
-    let mut context_width = use_signal(|| prefs.context_width);
+    let mut nav_width = use_signal(|| prefs.nav_width.clamp(NAV_MIN, NAV_MAX));
+    let mut context_width = use_signal(|| clamp_context_width(prefs.context_width));
     let mut drag = use_signal(|| None::<DragState>);
 
     let context_open = props.state.navigation.context_panel_open;
@@ -283,8 +284,7 @@ pub fn Shell(props: ShellProps) -> Element {
                             nav_width.set((state.start_width + delta).clamp(NAV_MIN, NAV_MAX));
                         }
                         DragTarget::Context => {
-                            context_width
-                                .set((state.start_width - delta).clamp(CONTEXT_MIN, CONTEXT_MAX));
+                            context_width.set(clamp_context_width(state.start_width - delta));
                         }
                     }
                 }
@@ -381,11 +381,7 @@ pub fn Shell(props: ShellProps) -> Element {
                                 props.state.context.file_diff,
                                 crate::app::model::Loadable::Idle
                             );
-                        let ctx_w = if showing_commit_diff {
-                            context_width().max(360.0)
-                        } else {
-                            context_width()
-                        };
+                        let ctx_w = context_pane_width(context_width(), showing_commit_diff);
                         rsx! {
                     div {
                         class: "resize-handle",
@@ -395,7 +391,7 @@ pub fn Shell(props: ShellProps) -> Element {
                             drag.set(Some(DragState {
                                 target: DragTarget::Context,
                                 start_x: evt.data().client_coordinates().x,
-                                start_width: context_width(),
+                                start_width: ctx_w,
                             }));
                         },
                     }
