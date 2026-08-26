@@ -23,6 +23,13 @@ pub enum Command {
         target: DiffTarget,
         generation: Generation,
     },
+    /// Progressive Smart Blame for diff old-side lines (issue #22).
+    EnrichBlame {
+        target: DiffTarget,
+        lines: Vec<u32>,
+        remaining: Vec<u32>,
+        generation: Generation,
+    },
     LoadHistoryPage {
         offset: usize,
         generation: Generation,
@@ -117,6 +124,7 @@ impl Command {
             Self::OpenRepository { generation, .. }
             | Self::LoadStatus { generation }
             | Self::LoadDiff { generation, .. }
+            | Self::EnrichBlame { generation, .. }
             | Self::LoadHistoryPage { generation, .. }
             | Self::LoadBranches { generation }
             | Self::EnrichBranchHealth { generation, .. }

@@ -30,26 +30,12 @@ pub fn execute(cmd: &Command, repo_path: Option<&Path>) -> AppMessage {
             generation: *generation,
             result: load_diff(repo_path, target),
         },
-        Command::Stage { path, generation } => AppMessage::StageCompleted {
-            generation: *generation,
-            path: path.clone(),
-            result: with_service(repo_path, |svc| svc.stage(path)),
-        },
-        Command::Unstage { path, generation } => AppMessage::UnstageCompleted {
-            generation: *generation,
-            path: path.clone(),
-            result: with_service(repo_path, |svc| svc.unstage(path)),
-        },
-        Command::StageLines {
-            path,
-            from_staged,
+        Command::EnrichBlame {
+            target,
             lines,
+            remaining,
             generation,
-        } => AppMessage::StageCompleted {
-            generation: *generation,
-            path: path.clone(),
-            result: with_service(repo_path, |svc| svc.stage_lines(path, *from_staged, lines)),
-        },
+        } => enrich_blame_message(repo_path, target, lines, remaining, *generation),
         Command::LoadHistoryPage { offset, generation } => AppMessage::HistoryPageLoaded {
             generation: *generation,
             offset: *offset,
@@ -85,6 +71,47 @@ pub fn execute(cmd: &Command, repo_path: Option<&Path>) -> AppMessage {
             generation: *generation,
             result: load_worktrees(repo_path),
         },
+        Command::Stage { .. }
+        | Command::Unstage { .. }
+        | Command::StageLines { .. }
+        | Command::StageAll { .. }
+        | Command::UnstageAll { .. }
+        | Command::Commit { .. } => execute_stage_commit(cmd, repo_path),
+        Command::CreateBranch { .. } | Command::Checkout { .. } | Command::DeleteBranch { .. } => {
+            execute_branch_mutation(cmd, repo_path)
+        }
+        Command::Fetch { .. }
+        | Command::AutoFetch { .. }
+        | Command::Pull { .. }
+        | Command::Push { .. } => execute_remote(cmd, repo_path),
+        Command::CreateWorktree { .. } | Command::RemoveWorktree { .. } => {
+            execute_worktree_mutation(cmd, repo_path)
+        }
+    }
+}
+
+fn execute_stage_commit(cmd: &Command, repo_path: Option<&Path>) -> AppMessage {
+    match cmd {
+        Command::Stage { path, generation } => AppMessage::StageCompleted {
+            generation: *generation,
+            path: path.clone(),
+            result: with_service(repo_path, |svc| svc.stage(path)),
+        },
+        Command::Unstage { path, generation } => AppMessage::UnstageCompleted {
+            generation: *generation,
+            path: path.clone(),
+            result: with_service(repo_path, |svc| svc.unstage(path)),
+        },
+        Command::StageLines {
+            path,
+            from_staged,
+            lines,
+            generation,
+        } => AppMessage::StageCompleted {
+            generation: *generation,
+            path: path.clone(),
+            result: with_service(repo_path, |svc| svc.stage_lines(path, *from_staged, lines)),
+        },
         Command::StageAll { generation } => AppMessage::StageCompleted {
             generation: *generation,
             path: Path::new(".").to_path_buf(),
@@ -102,16 +129,7 @@ pub fn execute(cmd: &Command, repo_path: Option<&Path>) -> AppMessage {
             generation: *generation,
             result: with_service(repo_path, |svc| svc.commit(message).map(Oid)),
         },
-        Command::CreateBranch { .. } | Command::Checkout { .. } | Command::DeleteBranch { .. } => {
-            execute_branch_mutation(cmd, repo_path)
-        }
-        Command::Fetch { .. }
-        | Command::AutoFetch { .. }
-        | Command::Pull { .. }
-        | Command::Push { .. } => execute_remote(cmd, repo_path),
-        Command::CreateWorktree { .. } | Command::RemoveWorktree { .. } => {
-            execute_worktree_mutation(cmd, repo_path)
-        }
+        _ => unreachable!("stage/commit only"),
     }
 }
 
@@ -257,9 +275,55 @@ fn load_diff(
     let diff = service
         .diff(&target.path, target.staged)
         .map_err(|e| e.user_message())?;
-    let content = parse_diff_content(target.clone(), &diff.text);
-    let blame = service.blame(&target.path).unwrap_or_default();
-    Ok(super::diff_parse::attach_change_origins(content, &blame))
+    // Blame is enriched progressively after DiffLoaded (issue #22).
+    Ok(parse_diff_content(target.clone(), &diff.text))
+}
+
+fn enrich_blame_message(
+    repo_path: Option<&Path>,
+    target: &DiffTarget,
+    lines: &[u32],
+    remaining: &[u32],
+    generation: crate::app::model::Generation,
+) -> AppMessage {
+    let result = enrich_blame(repo_path, &target.path, lines);
+    match result {
+        Ok(origins) => AppMessage::BlameEnriched {
+            generation,
+            target: target.clone(),
+            origins,
+            remaining: remaining.to_vec(),
+        },
+        Err(err) => {
+            // Soft-fail: still clear remaining so we don't loop forever.
+            let _ = err;
+            AppMessage::BlameEnriched {
+                generation,
+                target: target.clone(),
+                origins: std::collections::HashMap::new(),
+                remaining: Vec::new(),
+            }
+        }
+    }
+}
+
+fn enrich_blame(
+    repo_path: Option<&Path>,
+    path: &Path,
+    lines: &[u32],
+) -> Result<std::collections::HashMap<u32, crate::app::model::CommitSummary>, String> {
+    if lines.is_empty() {
+        return Ok(std::collections::HashMap::new());
+    }
+    let repo = repo_path.ok_or_else(|| "リポジトリが開かれていません".to_string())?;
+    let service = GixService::open(repo).map_err(|e| e.user_message())?;
+    let map = service
+        .blame_lines(path, lines)
+        .map_err(|e| e.user_message())?;
+    Ok(map
+        .into_iter()
+        .map(|(line, info)| (line, to_summary(info)))
+        .collect())
 }
 
 fn unix_now_secs() -> i64 {
@@ -587,7 +651,7 @@ mod tests {
     }
 
     #[test]
-    fn load_diff_attaches_change_origin_from_head_blame() {
+    fn load_diff_then_enrich_blame_attaches_change_origin() {
         let repo = TempRepo::init();
         repo.write("f.txt", "alpha\nbeta\ngamma\n");
         repo.stage("f.txt");
@@ -595,33 +659,47 @@ mod tests {
         let seed = repo.run(&["rev-parse", "HEAD"]);
         repo.write("f.txt", "alpha\nBETA\ngamma\n");
 
+        let target = DiffTarget {
+            path: Path::new("f.txt").to_path_buf(),
+            staged: false,
+        };
         let msg = execute(
             &Command::LoadDiff {
-                target: DiffTarget {
-                    path: Path::new("f.txt").to_path_buf(),
-                    staged: false,
-                },
+                target: target.clone(),
                 generation: Generation(5),
             },
             Some(repo.path()),
         );
 
-        match msg {
+        let content = match msg {
             AppMessage::DiffLoaded {
                 result: Ok(content),
                 ..
-            } => {
-                let deleted = content
-                    .hunks
-                    .iter()
-                    .flat_map(|h| h.lines.iter())
-                    .find(|l| l.origin == '-' && l.content == "beta")
-                    .expect("deleted beta");
-                let origin = deleted.change_origin.as_ref().expect("origin");
-                assert_eq!(origin.oid.0, seed);
-                assert!(origin.summary.contains("seed"));
-            }
+            } => content,
             other => panic!("unexpected: {other:?}"),
+        };
+        let old_lines: Vec<u32> = content
+            .hunks
+            .iter()
+            .flat_map(|h| h.lines.iter())
+            .filter_map(|l| l.old_line)
+            .collect();
+        assert!(!old_lines.is_empty());
+
+        let enrich = execute(
+            &Command::EnrichBlame {
+                target,
+                lines: old_lines,
+                remaining: Vec::new(),
+                generation: Generation(5),
+            },
+            Some(repo.path()),
+        );
+        match enrich {
+            AppMessage::BlameEnriched { origins, .. } => {
+                assert!(origins.values().any(|c| c.oid.0 == seed));
+            }
+            other => panic!("unexpected enrich: {other:?}"),
         }
     }
 }
