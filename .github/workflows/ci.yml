@@ -10,6 +10,7 @@ env:
 
 jobs:
   check:
+    # macos-latest is an Apple Silicon (arm64) runner, matching the MVP target.
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -25,6 +26,9 @@ jobs:
 
       - name: Clippy
         run: cargo clippy --all-targets -- -D warnings
+
+      - name: Test
+        run: cargo test --all-targets
 
       - name: Build
         run: cargo build --release
