@@ -1,5 +1,127 @@
-//! Application messages returned from workers to update state.
+//! Messages returned from background workers to update state
+//! (Worker -> State).
+//!
+//! Each message carries the [`Generation`] of the command that produced it.
+//! The reducer drops messages whose generation is older than the current one
+//! (stale results), while still reconciling background bookkeeping.
 
-/// Placeholder for the `AppMessage` enum (to be defined in a later issue).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub struct AppMessagePlaceholder;
+use super::model::{
+    BranchInfo, CommitSummary, DiffContent, FileChange, Generation, HeadInfo, Oid, WorktreeInfo,
+};
+
+/// Error payload carried by failed operations.
+///
+/// A dedicated `GitError` type is introduced with the Git Service (issue #5);
+/// until then messages carry a user-facing string.
+pub type Failure = String;
+
+/// Repository metadata gathered when opening.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RepositoryData {
+    pub head: HeadInfo,
+}
+
+/// A full working-tree status snapshot.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct StatusData {
+    pub staged: Vec<FileChange>,
+    pub unstaged: Vec<FileChange>,
+    pub untracked: Vec<FileChange>,
+    pub conflicted: Vec<FileChange>,
+}
+
+/// Which network remote operation completed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RemoteOp {
+    Fetch,
+    Pull,
+    Push,
+}
+
+/// A worker-produced message.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AppMessage {
+    RepositoryOpened {
+        generation: Generation,
+        result: Result<RepositoryData, Failure>,
+    },
+    StatusLoaded {
+        generation: Generation,
+        result: Result<StatusData, Failure>,
+    },
+    DiffLoaded {
+        generation: Generation,
+        result: Result<DiffContent, Failure>,
+    },
+    HistoryPageLoaded {
+        generation: Generation,
+        offset: usize,
+        result: Result<Vec<CommitSummary>, Failure>,
+    },
+    BranchesLoaded {
+        generation: Generation,
+        result: Result<(Vec<BranchInfo>, Option<String>), Failure>,
+    },
+    WorktreesLoaded {
+        generation: Generation,
+        result: Result<Vec<WorktreeInfo>, Failure>,
+    },
+    StageCompleted {
+        generation: Generation,
+        path: std::path::PathBuf,
+        result: Result<(), Failure>,
+    },
+    UnstageCompleted {
+        generation: Generation,
+        path: std::path::PathBuf,
+        result: Result<(), Failure>,
+    },
+    CommitCompleted {
+        generation: Generation,
+        result: Result<Oid, Failure>,
+    },
+    CheckoutCompleted {
+        generation: Generation,
+        result: Result<HeadInfo, Failure>,
+    },
+    BranchCreated {
+        generation: Generation,
+        result: Result<(), Failure>,
+    },
+    BranchDeleted {
+        generation: Generation,
+        result: Result<(), Failure>,
+    },
+    WorktreeCreated {
+        generation: Generation,
+        result: Result<WorktreeInfo, Failure>,
+    },
+    RemoteCompleted {
+        generation: Generation,
+        op: RemoteOp,
+        result: Result<(), Failure>,
+    },
+}
+
+impl AppMessage {
+    /// The generation of the command that produced this message.
+    #[must_use]
+    pub fn generation(&self) -> Generation {
+        match self {
+            Self::RepositoryOpened { generation, .. }
+            | Self::StatusLoaded { generation, .. }
+            | Self::DiffLoaded { generation, .. }
+            | Self::HistoryPageLoaded { generation, .. }
+            | Self::BranchesLoaded { generation, .. }
+            | Self::WorktreesLoaded { generation, .. }
+            | Self::StageCompleted { generation, .. }
+            | Self::UnstageCompleted { generation, .. }
+            | Self::CommitCompleted { generation, .. }
+            | Self::CheckoutCompleted { generation, .. }
+            | Self::BranchCreated { generation, .. }
+            | Self::BranchDeleted { generation, .. }
+            | Self::WorktreeCreated { generation, .. }
+            | Self::RemoteCompleted { generation, .. } => *generation,
+        }
+    }
+}

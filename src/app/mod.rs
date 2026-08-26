@@ -5,4 +5,6 @@
 pub mod command;
 pub mod event;
 pub mod message;
+pub mod model;
+pub mod reducer;
 pub mod state;
