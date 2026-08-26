@@ -318,14 +318,17 @@ pub fn Shell(props: ShellProps) -> Element {
 
                 main {
                     style: "flex:1 1 auto;min-width:0;display:flex;flex-direction:column;\
-                            padding:0.85rem;overflow:auto;",
+                            padding:0.85rem;overflow:hidden;min-height:0;",
                     h1 {
-                        style: "margin:0 0 0.75rem;font-size:1.05rem;font-weight:600;",
+                        style: "margin:0 0 0.75rem;font-size:1.05rem;font-weight:600;flex:0 0 auto;",
                         "{heading}"
                     }
-                    ContentBody {
-                        state: props.state.clone(),
-                        on_event: props.on_event,
+                    div {
+                        style: "flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;",
+                        ContentBody {
+                            state: props.state.clone(),
+                            on_event: props.on_event,
+                        }
                     }
                 }
 
@@ -364,13 +367,24 @@ pub fn Shell(props: ShellProps) -> Element {
 fn ContentBody(state: AppState, on_event: EventHandler<UiEvent>) -> Element {
     match state.navigation.active_view {
         View::Changes => rsx! {
-            DiffView {
-                state: state.clone(),
-                on_event: on_event,
-            }
-            ChangesView {
-                state: state,
-                on_event: on_event,
+            div {
+                style: "display:flex;flex-direction:row;align-items:stretch;gap:0;\
+                        flex:1;min-height:0;height:100%;overflow:hidden;",
+                div {
+                    style: "flex:0 0 38%;min-width:12rem;max-width:24rem;overflow:auto;\
+                            border-right:1px solid #243044;padding-right:0.65rem;box-sizing:border-box;",
+                    ChangesView {
+                        state: state.clone(),
+                        on_event: on_event,
+                    }
+                }
+                div {
+                    style: "flex:1;min-width:0;overflow:auto;padding-left:0.65rem;box-sizing:border-box;",
+                    DiffView {
+                        state: state,
+                        on_event: on_event,
+                    }
+                }
             }
         },
         View::History => rsx! {
