@@ -42,8 +42,16 @@ pub const ROOT_VARS: &str = "\
 --gb-radius-lg:6px;\
 --gb-radius-xl:8px;\
 --gb-radius-pill:999px;\
---gb-font:ui-sans-serif,system-ui,sans-serif;\
---gb-mono:ui-monospace,SFMono-Regular,Menlo,monospace;\
+--gb-font:system-ui,-apple-system,sans-serif;\
+--gb-mono:ui-monospace,Menlo,Consolas,monospace;\
+--gb-size-hero:2rem;\
+--gb-size-title:1.125rem;\
+--gb-size-body:0.875rem;\
+--gb-size-pulse:0.8125rem;\
+--gb-size-label:0.6875rem;\
+--gb-size-hint:0.75rem;\
+--gb-weight-regular:500;\
+--gb-weight-semibold:600;\
 --gb-space-1:0.25rem;\
 --gb-space-2:0.5rem;\
 --gb-space-3:0.75rem;\
@@ -95,6 +103,9 @@ mod tests {
             "--gb-selected:",
             "--gb-radius:",
             "--gb-font:",
+            "--gb-mono:",
+            "--gb-size-title:",
+            "--gb-size-hint:",
         ] {
             assert!(css.contains(token), "missing {token}");
         }

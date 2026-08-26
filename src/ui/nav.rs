@@ -34,7 +34,7 @@ pub fn NavPane(props: NavPaneProps) -> Element {
                             class: if selected { "nav-item active" } else { "nav-item" },
                             style: format!(
                                 "text-align:left;border:0;border-radius:var(--gb-radius);padding:0.45rem 0.65rem;\
-                                 cursor:pointer;font-size:0.9rem;background:{};color:{};font-weight:{};\
+                                 cursor:pointer;font-size:var(--gb-size-body);background:{};color:{};font-weight:{};\
                                  display:flex;align-items:center;justify-content:space-between;gap:0.4rem;",
                                 if selected { "var(--gb-selected)" } else { "transparent" },
                                 if selected { "var(--gb-text)" } else { "var(--gb-text-muted)" },

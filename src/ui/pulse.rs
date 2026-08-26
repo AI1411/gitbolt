@@ -37,8 +37,8 @@ pub fn PulseHeader(props: PulseHeaderProps) -> Element {
     rsx! {
         header {
             style: "flex:0 0 auto;padding:0.55rem 0.85rem;border-bottom:1px solid var(--gb-border);\
-                    font-weight:600;font-size:0.9rem;display:flex;flex-wrap:wrap;gap:0.35rem 0.55rem;\
-                    align-items:center;",
+                    font-weight:var(--gb-weight-semibold);font-size:var(--gb-size-pulse);display:flex;flex-wrap:wrap;gap:0.35rem 0.55rem;\
+                    align-items:center;letter-spacing:-0.01em;",
             span {
                 style: "opacity:0.9;cursor:pointer;",
                 title: "Switch repository",

@@ -215,7 +215,7 @@ fn OverlayFooter(hint: String) -> Element {
     rsx! {
         div {
             style: "padding:0.4rem 0.85rem;border-top:1px solid var(--gb-border);\
-                    font-size:0.72rem;opacity:0.5;",
+                    font-size:var(--gb-size-hint);opacity:0.5;",
             "{hint}"
         }
     }

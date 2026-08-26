@@ -90,7 +90,7 @@ pub fn ChangesView(props: ChangesViewProps) -> Element {
                 }
             }
             p {
-                style: "margin:0;opacity:0.45;font-size:0.75rem;",
+                style: "margin:0;opacity:0.45;font-size:var(--gb-size-hint);",
                 "j / k move · Space stage/unstage · click opens diff"
             }
             FileSection {
@@ -134,7 +134,7 @@ fn FileSection(
     rsx! {
         div {
             h3 {
-                style: "margin:0 0 0.35rem;font-size:0.75rem;letter-spacing:0.06em;\
+                style: "margin:0 0 0.35rem;font-size:var(--gb-size-label);letter-spacing:0.06em;\
                         text-transform:uppercase;opacity:0.6;position:sticky;top:0;z-index:1;\
                         background:var(--gb-surface);padding:0.35rem 0;",
                 "{title} ({files.len()})"
