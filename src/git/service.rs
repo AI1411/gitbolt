@@ -230,6 +230,33 @@ pub trait GitService: Sized {
         Err(GitError::unsupported("log_page"))
     }
 
+    /// Commits touching `path`, following renames.
+    ///
+    /// # Errors
+    /// Returns [`GitError::Unsupported`] until implemented.
+    fn file_log_page(
+        &self,
+        _path: &Path,
+        _skip: usize,
+        _limit: usize,
+    ) -> Result<Vec<CommitInfo>, GitError> {
+        Err(GitError::unsupported("file_log_page"))
+    }
+
+    /// Commits that changed `line` (1-based) in `path`.
+    ///
+    /// # Errors
+    /// Returns [`GitError::Unsupported`] until implemented.
+    fn line_log_page(
+        &self,
+        _path: &Path,
+        _line: u32,
+        _skip: usize,
+        _limit: usize,
+    ) -> Result<Vec<CommitInfo>, GitError> {
+        Err(GitError::unsupported("line_log_page"))
+    }
+
     /// Blame a file at HEAD (1-based line → commit).
     ///
     /// # Errors

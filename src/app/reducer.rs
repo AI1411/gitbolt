@@ -18,7 +18,7 @@ use super::message::{AppMessage, RemoteOp};
 use super::model::{
     ChangeKind, CommitSummary, DiffContent, DiffTarget, FileChange, Generation, Loadable, View,
 };
-use super::state::{AppState, RepositoryState, RepositoryStatus};
+use super::state::{AppState, HistoryFilter, RepositoryState, RepositoryStatus};
 
 /// Number of commits fetched per history page.
 pub const HISTORY_PAGE: usize = 100;
@@ -358,7 +358,53 @@ pub fn reduce(state: &mut AppState, event: UiEvent) -> Vec<Command> {
             issue(
                 state,
                 vec![Command::LoadHistoryPage {
+                    filter: state.history.filter.clone(),
                     offset,
+                    generation: gen,
+                }],
+            )
+        }
+        UiEvent::ShowFileHistory { path } => {
+            state.selection.file = Some(path.clone());
+            state.navigation.active_view = View::History;
+            state.navigation.context_panel_open = true;
+            reset_history(state, HistoryFilter::File { path: path.clone() });
+            issue(
+                state,
+                vec![Command::LoadHistoryPage {
+                    filter: HistoryFilter::File { path },
+                    offset: 0,
+                    generation: gen,
+                }],
+            )
+        }
+        UiEvent::ShowLineHistory { path, line } => {
+            state.selection.file = Some(path.clone());
+            state.navigation.active_view = View::History;
+            state.navigation.context_panel_open = true;
+            reset_history(
+                state,
+                HistoryFilter::Line {
+                    path: path.clone(),
+                    line,
+                },
+            );
+            issue(
+                state,
+                vec![Command::LoadHistoryPage {
+                    filter: HistoryFilter::Line { path, line },
+                    offset: 0,
+                    generation: gen,
+                }],
+            )
+        }
+        UiEvent::ClearHistoryFilter => {
+            reset_history(state, HistoryFilter::All);
+            issue(
+                state,
+                vec![Command::LoadHistoryPage {
+                    filter: HistoryFilter::All,
+                    offset: 0,
                     generation: gen,
                 }],
             )
@@ -400,6 +446,7 @@ pub fn apply(state: &mut AppState, message: AppMessage) -> Vec<Command> {
                         Command::LoadBranches { generation: gen },
                         Command::LoadWorktrees { generation: gen },
                         Command::LoadHistoryPage {
+                            filter: state.history.filter.clone(),
                             offset: 0,
                             generation: gen,
                         },
@@ -480,8 +527,14 @@ pub fn apply(state: &mut AppState, message: AppMessage) -> Vec<Command> {
                 )
             }
         }
-        AppMessage::HistoryPageLoaded { offset, result, .. } => {
+        AppMessage::HistoryPageLoaded {
+            offset,
+            filter,
+            result,
+            ..
+        } => {
             state.history.loading = false;
+            state.history.filter = filter;
             match result {
                 Ok(commits) => {
                     state.history.has_more = commits.len() >= HISTORY_PAGE;
@@ -598,6 +651,7 @@ pub fn apply(state: &mut AppState, message: AppMessage) -> Vec<Command> {
                     vec![
                         Command::LoadStatus { generation: gen },
                         Command::LoadHistoryPage {
+                            filter: state.history.filter.clone(),
                             offset: 0,
                             generation: gen,
                         },
@@ -624,6 +678,7 @@ pub fn apply(state: &mut AppState, message: AppMessage) -> Vec<Command> {
                         Command::LoadStatus { generation: gen },
                         Command::LoadBranches { generation: gen },
                         Command::LoadHistoryPage {
+                            filter: state.history.filter.clone(),
                             offset: 0,
                             generation: gen,
                         },
@@ -688,6 +743,7 @@ pub fn apply(state: &mut AppState, message: AppMessage) -> Vec<Command> {
                             Command::LoadStatus { generation: gen },
                             Command::LoadBranches { generation: gen },
                             Command::LoadHistoryPage {
+                                filter: state.history.filter.clone(),
                                 offset: 0,
                                 generation: gen,
                             },
@@ -723,6 +779,16 @@ fn set_error(state: &mut AppState, message: String) {
 fn bump_after_head_change(state: &mut AppState) {
     state.generation = state.generation.next();
     state.diff.content = Loadable::Idle;
+    state.history.commits.clear();
+    state.history.has_more = true;
+    state.history.loading = false;
+}
+
+fn reset_history(state: &mut AppState, filter: HistoryFilter) {
+    state.history.filter = filter;
+    state.history.commits.clear();
+    state.history.has_more = true;
+    state.history.loading = true;
 }
 
 /// Builds the recent-repositories list with `path` moved to the front.
@@ -896,6 +962,7 @@ fn lazy_load_view(state: &mut AppState, view: View) -> Vec<Command> {
             issue(
                 state,
                 vec![Command::LoadHistoryPage {
+                    filter: state.history.filter.clone(),
                     offset: 0,
                     generation: gen,
                 }],
@@ -974,7 +1041,8 @@ mod tests {
     use super::*;
     use crate::app::message::RepositoryData;
     use crate::app::model::{CommitSummary, DiffContent, DiffHunk, HeadInfo, Oid};
-    use std::path::PathBuf;
+    use crate::app::state::HistoryFilter;
+    use std::path::{Path, PathBuf};
     use std::sync::Arc;
 
     fn staged_state() -> AppState {
@@ -1256,6 +1324,7 @@ mod tests {
             &mut state,
             AppMessage::HistoryPageLoaded {
                 generation: gen,
+                filter: HistoryFilter::All,
                 offset: 0,
                 result: Ok(full),
             },
@@ -1269,6 +1338,7 @@ mod tests {
             &mut state,
             AppMessage::HistoryPageLoaded {
                 generation: gen,
+                filter: HistoryFilter::All,
                 offset: HISTORY_PAGE,
                 result: Ok(vec![CommitSummary {
                     oid: Oid("x".into()),
@@ -1356,5 +1426,55 @@ mod tests {
                 .map(|t| (t.path.as_path(), t.staged)),
             Some((Path::new("b.txt"), false))
         );
+    }
+
+    #[test]
+    fn show_file_history_switches_view_and_loads() {
+        let mut state = AppState::new();
+        let cmds = reduce(
+            &mut state,
+            UiEvent::ShowFileHistory {
+                path: PathBuf::from("src/main.rs"),
+            },
+        );
+        assert_eq!(state.navigation.active_view, View::History);
+        assert!(matches!(
+            state.history.filter,
+            HistoryFilter::File { ref path } if path == Path::new("src/main.rs")
+        ));
+        assert!(state.history.loading);
+        assert!(matches!(
+            cmds.as_slice(),
+            [Command::LoadHistoryPage {
+                filter: HistoryFilter::File { .. },
+                offset: 0,
+                ..
+            }]
+        ));
+    }
+
+    #[test]
+    fn show_line_history_switches_view_and_loads() {
+        let mut state = AppState::new();
+        let cmds = reduce(
+            &mut state,
+            UiEvent::ShowLineHistory {
+                path: PathBuf::from("lib.rs"),
+                line: 42,
+            },
+        );
+        assert_eq!(state.navigation.active_view, View::History);
+        assert!(matches!(
+            state.history.filter,
+            HistoryFilter::Line { ref path, line: 42 } if path == Path::new("lib.rs")
+        ));
+        assert!(matches!(
+            cmds.as_slice(),
+            [Command::LoadHistoryPage {
+                filter: HistoryFilter::Line { .. },
+                offset: 0,
+                ..
+            }]
+        ));
     }
 }

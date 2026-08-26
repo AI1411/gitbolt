@@ -9,6 +9,7 @@ use super::model::{
     BranchHealth, BranchInfo, CommitSummary, DiffContent, DiffTarget, FileChange, Generation,
     HeadInfo, Oid, WorktreeInfo,
 };
+use super::state::HistoryFilter;
 
 /// Error payload carried by failed operations.
 ///
@@ -89,6 +90,7 @@ pub enum AppMessage {
     },
     HistoryPageLoaded {
         generation: Generation,
+        filter: HistoryFilter,
         offset: usize,
         result: Result<Vec<CommitSummary>, Failure>,
     },

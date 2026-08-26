@@ -166,6 +166,25 @@ impl GitService for GixService {
         history::log_page(self.workdir()?, skip, limit)
     }
 
+    fn file_log_page(
+        &self,
+        path: &Path,
+        skip: usize,
+        limit: usize,
+    ) -> Result<Vec<CommitInfo>, GitError> {
+        history::file_log_page(self.workdir()?, path, skip, limit)
+    }
+
+    fn line_log_page(
+        &self,
+        path: &Path,
+        line: u32,
+        skip: usize,
+        limit: usize,
+    ) -> Result<Vec<CommitInfo>, GitError> {
+        history::line_log_page(self.workdir()?, path, line, skip, limit)
+    }
+
     fn branches(&self) -> Result<Vec<BranchRef>, GitError> {
         branch::list_branches(self.workdir()?)
     }
