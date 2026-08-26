@@ -15,6 +15,7 @@ use super::recent::{load_recent, save_recent};
 use super::reducer::{apply, reduce};
 use super::state::{AppState, RepositoryStatus};
 use crate::task::{Outcome, Priority, TaskRunner};
+use crate::watcher::{RepoWatcher, WatchEvent};
 
 /// Number of worker threads for Git / IO work.
 const WORKERS: usize = 4;
@@ -26,6 +27,9 @@ pub struct AppSession {
     rx: Receiver<Outcome<AppMessage>>,
     /// Path of the currently opened repository (for follow-up commands).
     repo_path: Option<PathBuf>,
+    /// Live filesystem watcher for the open repository (issue #12 / #7).
+    watcher: Option<RepoWatcher>,
+    watch_rx: Option<Receiver<WatchEvent>>,
 }
 
 impl AppSession {
@@ -40,21 +44,26 @@ impl AppSession {
             runner,
             rx,
             repo_path: None,
+            watcher: None,
+            watch_rx: None,
         }
     }
 
     /// Applies a UI event, persists Recent on open, and submits commands.
     pub fn dispatch_event(&mut self, event: UiEvent) {
         let opening = matches!(event, UiEvent::OpenRepository(_));
+        let closing = matches!(event, UiEvent::CloseRepository);
         let commands = reduce(&mut self.state, event);
         if opening {
             let _ = save_recent(&self.state.repository.recent);
             if let Some(path) = self.state.repository.path.clone() {
                 self.repo_path = Some(path);
             }
+            self.stop_watcher();
         }
-        if matches!(self.state.repository.status, RepositoryStatus::NotOpened) {
+        if closing || matches!(self.state.repository.status, RepositoryStatus::NotOpened) {
             self.repo_path = None;
+            self.stop_watcher();
         }
         self.submit_commands(commands);
     }
@@ -66,12 +75,16 @@ impl AppSession {
         }
     }
 
-    /// Drains completed worker messages. Returns true if state changed.
+    /// Drains completed worker messages and watch events. Returns true if state changed.
     pub fn poll(&mut self) -> bool {
         let mut changed = false;
         while let Ok(outcome) = self.rx.try_recv() {
             let follow = apply(&mut self.state, outcome.message);
             self.submit_commands(follow);
+            changed = true;
+        }
+        self.ensure_watcher();
+        if self.poll_watch() {
             changed = true;
         }
         changed
@@ -91,6 +104,54 @@ impl AppSession {
             }
             Err(_) => false,
         }
+    }
+
+    fn ensure_watcher(&mut self) {
+        if !self.state.is_ready() {
+            self.stop_watcher();
+            return;
+        }
+        if self.watcher.is_some() {
+            return;
+        }
+        let Some(path) = self.repo_path.clone() else {
+            return;
+        };
+        if let Ok((watcher, rx)) = RepoWatcher::start(&path, Duration::from_millis(200)) {
+            self.watcher = Some(watcher);
+            self.watch_rx = Some(rx);
+        }
+        // Watcher is best-effort; status still refreshes after Git ops.
+    }
+
+    fn stop_watcher(&mut self) {
+        self.watcher = None;
+        self.watch_rx = None;
+    }
+
+    fn poll_watch(&mut self) -> bool {
+        let Some(rx) = &self.watch_rx else {
+            return false;
+        };
+        let mut saw_head = false;
+        let mut saw_any = false;
+        while let Ok(ev) = rx.try_recv() {
+            saw_any = true;
+            if matches!(ev, WatchEvent::Head) {
+                saw_head = true;
+            }
+        }
+        if !saw_any {
+            return false;
+        }
+        let gen = self.state.generation;
+        let mut cmds = vec![Command::LoadStatus { generation: gen }];
+        if saw_head {
+            cmds.push(Command::LoadBranches { generation: gen });
+            cmds.push(Command::LoadWorktrees { generation: gen });
+        }
+        self.submit_commands(cmds);
+        true
     }
 
     fn submit_commands(&mut self, commands: Vec<Command>) {
