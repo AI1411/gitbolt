@@ -5,6 +5,7 @@
 pub mod blame_format;
 pub mod branch_health;
 pub mod command;
+pub mod conventional;
 pub mod diff_parse;
 pub mod event;
 pub mod executor;

@@ -1005,6 +1005,13 @@ fn confirm_overlay(state: &mut AppState) -> Vec<Command> {
             };
             let action = cmd.event;
             state.ui.overlay = Overlay::None;
+            if let crate::app::palette::PaletteAction::ConventionalType(ty) = action {
+                let next = crate::app::conventional::apply_type(&state.ui.commit_message, ty);
+                state.navigation.context_panel_open = true;
+                state.navigation.active_view = View::Changes;
+                state.ui.commit_focus_token = state.ui.commit_focus_token.saturating_add(1);
+                return reduce(state, UiEvent::SetCommitMessage(next));
+            }
             let event = crate::app::palette::action_to_event(action);
             reduce(state, event)
         }

@@ -41,16 +41,28 @@ pub fn ContextPane(props: ContextPaneProps) -> Element {
                 }
             } else {
                 match view {
-                    View::Changes => rsx! {
-                        FileContext {
-                            state: props.state.clone(),
-                            on_event: props.on_event,
-                        }
-                        CommitBox {
-                            staged_n: staged_n,
-                            autofocus_key: autofocus_key,
-                            message: props.state.ui.commit_message.clone(),
-                            on_event: props.on_event,
+                    View::Changes => {
+                        let paths: Vec<std::path::PathBuf> = props
+                            .state
+                            .changes
+                            .staged
+                            .iter()
+                            .chain(props.state.changes.unstaged.iter())
+                            .chain(props.state.changes.untracked.iter())
+                            .map(|f| f.path.clone())
+                            .collect();
+                        rsx! {
+                            FileContext {
+                                state: props.state.clone(),
+                                on_event: props.on_event,
+                            }
+                            CommitBox {
+                                staged_n: staged_n,
+                                autofocus_key: autofocus_key,
+                                message: props.state.ui.commit_message.clone(),
+                                changed_paths: paths,
+                                on_event: props.on_event,
+                            }
                         }
                     },
                     View::History => rsx! {
@@ -430,8 +442,11 @@ fn CommitBox(
     staged_n: usize,
     autofocus_key: u64,
     message: String,
+    changed_paths: Vec<std::path::PathBuf>,
     on_event: EventHandler<UiEvent>,
 ) -> Element {
+    let type_suggestions = crate::app::conventional::suggest_types(&message);
+    let scope_suggestions = crate::app::conventional::suggest_scopes(&message, &changed_paths);
     rsx! {
         div {
             style: "display:flex;flex-direction:column;gap:0.4rem;",
@@ -445,7 +460,7 @@ fn CommitBox(
                 style: "width:100%;min-height:5.5rem;box-sizing:border-box;resize:vertical;\
                         padding:0.45rem 0.55rem;border-radius:4px;border:1px solid #334155;\
                         background:#0f1419;color:#e8eef7;font-size:0.85rem;font-family:inherit;",
-                placeholder: "Commit message… (C to focus, ⌘Enter to commit)",
+                placeholder: "feat(scope): … (type chips below, ⌘Enter to commit)",
                 value: "{message}",
                 oninput: move |evt| {
                     on_event.call(UiEvent::SetCommitMessage(evt.value()));
@@ -463,6 +478,54 @@ fn CommitBox(
                     }
                 },
             }
+            if !type_suggestions.is_empty() {
+                div {
+                    style: "display:flex;flex-wrap:wrap;gap:0.3rem;",
+                    for ty in type_suggestions {
+                        {
+                            let ty_s = ty.to_string();
+                            let msg = message.clone();
+                            rsx! {
+                                button {
+                                    key: "{ty}",
+                                    r#type: "button",
+                                    style: "border:1px solid #334155;background:#1e293b;color:#cbd5e1;\
+                                            border-radius:4px;padding:0.15rem 0.4rem;cursor:pointer;font-size:0.7rem;",
+                                    onclick: move |_| {
+                                        let next = crate::app::conventional::apply_type(&msg, &ty_s);
+                                        on_event.call(UiEvent::SetCommitMessage(next));
+                                    },
+                                    "{ty}"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            if !scope_suggestions.is_empty() {
+                div {
+                    style: "display:flex;flex-wrap:wrap;gap:0.3rem;",
+                    for scope in scope_suggestions {
+                        {
+                            let scope_s = scope.clone();
+                            let msg = message.clone();
+                            rsx! {
+                                button {
+                                    key: "{scope}",
+                                    r#type: "button",
+                                    style: "border:1px solid #334155;background:transparent;color:#9fb0c7;\
+                                            border-radius:4px;padding:0.15rem 0.4rem;cursor:pointer;font-size:0.7rem;",
+                                    onclick: move |_| {
+                                        let next = crate::app::conventional::apply_scope(&msg, &scope_s);
+                                        on_event.call(UiEvent::SetCommitMessage(next));
+                                    },
+                                    "({scope})"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
             div {
                 style: "display:flex;align-items:center;gap:0.5rem;",
                 button {
@@ -479,7 +542,7 @@ fn CommitBox(
             }
             p {
                 style: "margin:0;font-size:0.75rem;opacity:0.5;",
-                "C focus · ⌘Enter commit"
+                "C focus · ⌘Enter commit · conventional type chips"
             }
         }
     }

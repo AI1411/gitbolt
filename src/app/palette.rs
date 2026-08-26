@@ -33,6 +33,8 @@ pub enum PaletteAction {
     CommitBack,
     CommitForward,
     ToggleHeatmap,
+    /// Insert a conventional commit type prefix (issue #77).
+    ConventionalType(&'static str),
 }
 
 /// Built-in palette entries.
@@ -148,6 +150,42 @@ pub fn all_commands() -> Vec<PaletteCommand> {
             keys: "",
             event: PaletteAction::ToggleHeatmap,
         },
+        PaletteCommand {
+            id: "commit.type.feat",
+            label: "Commit type: feat",
+            keys: "",
+            event: PaletteAction::ConventionalType("feat"),
+        },
+        PaletteCommand {
+            id: "commit.type.fix",
+            label: "Commit type: fix",
+            keys: "",
+            event: PaletteAction::ConventionalType("fix"),
+        },
+        PaletteCommand {
+            id: "commit.type.docs",
+            label: "Commit type: docs",
+            keys: "",
+            event: PaletteAction::ConventionalType("docs"),
+        },
+        PaletteCommand {
+            id: "commit.type.chore",
+            label: "Commit type: chore",
+            keys: "",
+            event: PaletteAction::ConventionalType("chore"),
+        },
+        PaletteCommand {
+            id: "commit.type.refactor",
+            label: "Commit type: refactor",
+            keys: "",
+            event: PaletteAction::ConventionalType("refactor"),
+        },
+        PaletteCommand {
+            id: "commit.type.test",
+            label: "Commit type: test",
+            keys: "",
+            event: PaletteAction::ConventionalType("test"),
+        },
     ]
 }
 
@@ -190,6 +228,10 @@ pub fn action_to_event(action: PaletteAction) -> UiEvent {
         PaletteAction::CommitBack => UiEvent::NavigateCommit { delta: -1 },
         PaletteAction::CommitForward => UiEvent::NavigateCommit { delta: 1 },
         PaletteAction::ToggleHeatmap => UiEvent::ToggleHeatmap,
+        PaletteAction::ConventionalType(ty) => {
+            // Placeholder — confirm_overlay applies against current message.
+            UiEvent::SetCommitMessage(format!("{ty}: "))
+        }
     }
 }
 
