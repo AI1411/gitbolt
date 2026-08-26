@@ -11,6 +11,7 @@ A blazing-fast, lightweight Git GUI built with Rust.
 | 1 | [01-overview.md](01-overview.md) | プロダクト概要・設計原則・ターゲット |
 | 2 | [02-tech-and-performance.md](02-tech-and-performance.md) | 技術方針・パフォーマンス要件 |
 | 3 | [03-features.md](03-features.md) | MVP機能・GitToolBox系機能・GitBolt独自拡張 |
+| 3b | [deferred-reevaluation.md](deferred-reevaluation.md) | 旧・保留機能の再評価 (#35) と Phase 3+ バックログ |
 | 4 | [04-ui-design.md](04-ui-design.md) | 画面設計・Keyboard First |
 | 5 | [05-architecture.md](05-architecture.md) | アプリケーション状態・イベント/Commandモデル・モジュール構成 |
 | 6 | [06-user-flows.md](06-user-flows.md) | 主要ユーザーフロー |

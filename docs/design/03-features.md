@@ -33,15 +33,22 @@
 | Branch Tracking | A |
 | Copy Git Info | B |
 
-## 保留
+## 保留 (再評価済み・見送り)
 
-- Remote Commit/File/Line Link
-- Issue / PR Link Detection
-- Conventional Commit Completion
-- Gitmoji
-- Outdated Branch Cleanup
-- Squashed Branch Detection
-- Author Avatar
+Phase 1/2 完了後の再評価結果は [deferred-reevaluation.md](deferred-reevaluation.md) を参照。
+
+- Gitmoji — 需要が出るまで見送り (Conventional Commits を優先)
+- Author Avatar — オフライン / プライバシー方針が固まるまで見送り
+
+## Phase 3+ バックログ (旧・保留から採用)
+
+| 機能 | 優先度 | Issue |
+|------|--------|-------|
+| Remote Commit / File / Line Link | A | #75 |
+| Issue / PR Link Detection | A | #76 |
+| Conventional Commit Completion | B | #77 |
+| Outdated Branch Cleanup | B | #78 |
+| Squashed Branch Detection | C | #79 |
 
 ## 不採用
 
