@@ -14,9 +14,10 @@ use super::branch;
 use super::diff::{self as diff_mod};
 use super::error::GitError;
 use super::service::{
-    BranchRef, ChangeStatus, CommitInfo, FileChange, GitService, Head, RepoStatus,
+    BranchRef, ChangeStatus, CommitInfo, FileChange, GitService, Head, RepoStatus, WorktreeRef,
 };
 use super::stage;
+use super::worktree;
 
 /// A repository opened through gitoxide.
 pub struct GixService {
@@ -173,6 +174,10 @@ impl GitService for GixService {
 
     fn set_upstream(&self, name: &str, upstream: &str) -> Result<(), GitError> {
         branch::set_upstream(self.workdir()?, name, upstream)
+    }
+
+    fn worktrees(&self) -> Result<Vec<WorktreeRef>, GitError> {
+        worktree::list_worktrees(self.workdir()?)
     }
 
     fn blame(&self, path: &Path) -> Result<std::collections::HashMap<u32, CommitInfo>, GitError> {

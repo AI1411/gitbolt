@@ -77,10 +77,26 @@ pub fn execute(cmd: &Command, repo_path: Option<&Path>) -> AppMessage {
         },
         Command::LoadWorktrees { generation } => AppMessage::WorktreesLoaded {
             generation: *generation,
-            result: Ok(Vec::new()),
+            result: load_worktrees(repo_path),
         },
         other => unsupported(other),
     }
+}
+
+fn load_worktrees(
+    repo_path: Option<&Path>,
+) -> Result<Vec<crate::app::model::WorktreeInfo>, String> {
+    let path = repo_path.ok_or_else(|| "リポジトリが開かれていません".to_string())?;
+    let service = GixService::open(path).map_err(|e| e.user_message())?;
+    let trees = service.worktrees().map_err(|e| e.user_message())?;
+    Ok(trees
+        .into_iter()
+        .map(|w| crate::app::model::WorktreeInfo {
+            path: w.path,
+            branch: w.branch,
+            is_primary: w.is_primary,
+        })
+        .collect())
 }
 
 fn open_repository(path: &Path) -> Result<RepositoryData, String> {
