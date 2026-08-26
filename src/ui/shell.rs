@@ -10,6 +10,7 @@ use crate::ui::branches::BranchesView;
 use crate::ui::changes::ChangesView;
 use crate::ui::context::ContextPane;
 use crate::ui::diff::DiffView;
+use crate::ui::error_banner::InlineErrorBanner;
 use crate::ui::history::HistoryView;
 use crate::ui::layout_model::content_heading;
 use crate::ui::layout_model::history_title;
@@ -270,6 +271,11 @@ pub fn Shell(props: ShellProps) -> Element {
 
             PulseHeader {
                 state: props.state.clone(),
+                on_event: props.on_event,
+            }
+
+            InlineErrorBanner {
+                message: props.state.ui.error_banner.clone(),
                 on_event: props.on_event,
             }
 

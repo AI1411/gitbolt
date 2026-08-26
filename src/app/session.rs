@@ -92,6 +92,10 @@ impl AppSession {
 
     /// Drains completed worker messages and watch events. Returns true if state changed.
     pub fn poll(&mut self) -> bool {
+        if self.check_repo_still_present() {
+            // Degraded — skip further work this tick.
+            return true;
+        }
         let mut changed = false;
         while let Ok(outcome) = self.rx.try_recv() {
             self.cache_diff_result(&outcome.message);
@@ -214,6 +218,26 @@ impl AppSession {
         }
     }
 
+    fn check_repo_still_present(&mut self) -> bool {
+        if !self.state.is_ready() {
+            return false;
+        }
+        let Some(path) = self.repo_path.as_ref() else {
+            return false;
+        };
+        // Linked worktrees and primary repos both expose a `.git` file or directory.
+        if path.exists() && path.join(".git").exists() {
+            return false;
+        }
+        let msg = crate::git::GitError::RepoMissing(path.clone()).user_message();
+        self.state.repository.status = RepositoryStatus::Error(msg.clone());
+        self.state.ui.error_banner = Some(msg.clone());
+        self.state.background.last_error = Some(msg);
+        self.stop_watcher();
+        self.next_auto_fetch = None;
+        true
+    }
+
     fn ensure_watcher(&mut self) {
         if !self.state.is_ready() {
             self.stop_watcher();
@@ -326,7 +350,17 @@ impl AppSession {
                 _ => self.repo_path.clone(),
             };
             self.runner.submit(priority, generation, move || {
-                executor::execute(&cmd, path.as_deref())
+                let cmd = cmd;
+                let path = path;
+                match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    executor::execute(&cmd, path.as_deref())
+                })) {
+                    Ok(message) => message,
+                    Err(_) => AppMessage::WorkerFault {
+                        generation,
+                        detail: "内部エラーが発生しました（操作は中断されました）".into(),
+                    },
+                }
             });
         }
     }

@@ -175,6 +175,11 @@ pub enum AppMessage {
         generation: Generation,
         result: Result<(), Failure>,
     },
+    /// Worker panicked or produced an unrecoverable fault (issue #27).
+    WorkerFault {
+        generation: Generation,
+        detail: Failure,
+    },
     CommitDetailLoaded {
         generation: Generation,
         oid: Oid,
@@ -217,6 +222,7 @@ impl AppMessage {
             | Self::StashApplied { generation, .. }
             | Self::StashPopped { generation, .. }
             | Self::StashDropped { generation, .. }
+            | Self::WorkerFault { generation, .. }
             | Self::CommitDetailLoaded { generation, .. }
             | Self::RemoteCompleted { generation, .. } => *generation,
         }

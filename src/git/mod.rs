@@ -23,7 +23,7 @@ pub mod worktree;
 pub(crate) mod fixture;
 
 pub use cli::GitCli;
-pub use error::GitError;
+pub use error::{classify_message, GitError};
 pub use repository::GixService;
 pub use service::{
     BranchRef, ChangeStatus, CommitInfo, DiffText, FileChange, GitService, Head, RepoStatus,

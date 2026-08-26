@@ -67,27 +67,7 @@ impl GitCli {
         }
 
         let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
-        Err(classify_stderr(&stderr))
-    }
-}
-
-/// Classifies a git CLI stderr string into a [`GitError`].
-fn classify_stderr(stderr: &str) -> GitError {
-    let lower = stderr.to_lowercase();
-    if lower.contains("authentication failed")
-        || lower.contains("could not read username")
-        || lower.contains("permission denied (publickey)")
-        || lower.contains("terminal prompts disabled")
-    {
-        GitError::Auth(stderr.trim().to_string())
-    } else if lower.contains("conflict")
-        || lower.contains("would be overwritten")
-        || lower.contains("local changes")
-        || lower.contains("your local changes to the following files would be overwritten")
-    {
-        GitError::Conflict(stderr.trim().to_string())
-    } else {
-        GitError::Backend(stderr.trim().to_string())
+        Err(super::error::classify_message(&stderr))
     }
 }
 
