@@ -30,10 +30,13 @@ pub enum PaletteAction {
     ToggleContext,
     StashSave,
     ToggleQuickOpen,
+    CommitBack,
+    CommitForward,
 }
 
 /// Built-in palette entries.
 #[must_use]
+#[allow(clippy::too_many_lines)]
 pub fn all_commands() -> Vec<PaletteCommand> {
     vec![
         PaletteCommand {
@@ -126,6 +129,18 @@ pub fn all_commands() -> Vec<PaletteCommand> {
             keys: "⌘P",
             event: PaletteAction::ToggleQuickOpen,
         },
+        PaletteCommand {
+            id: "commit.back",
+            label: "Commit Back",
+            keys: "⌘[",
+            event: PaletteAction::CommitBack,
+        },
+        PaletteCommand {
+            id: "commit.forward",
+            label: "Commit Forward",
+            keys: "⌘]",
+            event: PaletteAction::CommitForward,
+        },
     ]
 }
 
@@ -165,6 +180,8 @@ pub fn action_to_event(action: PaletteAction) -> UiEvent {
         PaletteAction::ToggleContext => UiEvent::ToggleContextPanel,
         PaletteAction::StashSave => UiEvent::StashSave { message: None },
         PaletteAction::ToggleQuickOpen => UiEvent::OpenQuickOpen,
+        PaletteAction::CommitBack => UiEvent::NavigateCommit { delta: -1 },
+        PaletteAction::CommitForward => UiEvent::NavigateCommit { delta: 1 },
     }
 }
 

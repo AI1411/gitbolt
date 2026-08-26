@@ -16,7 +16,7 @@ use super::command::Command;
 use super::event::UiEvent;
 use super::message::{AppMessage, RemoteOp};
 use super::model::{
-    ChangeKind, CommitSummary, DiffContent, DiffTarget, FileChange, Generation, Loadable, View,
+    ChangeKind, CommitSummary, DiffContent, DiffTarget, FileChange, Generation, Loadable, Oid, View,
 };
 use super::state::{AppState, HistoryFilter, Overlay, RepositoryState, RepositoryStatus};
 
@@ -103,22 +103,14 @@ pub fn reduce(state: &mut AppState, event: UiEvent) -> Vec<Command> {
             let (path, staged) = entries[next].clone();
             reduce(state, UiEvent::SelectFile { path, staged })
         }
-        UiEvent::SelectCommit(oid) => {
-            state.selection.commit = Some(oid.clone());
-            state.navigation.context_panel_open = true;
-            state.context.commit = Loadable::Loading;
-            issue(
-                state,
-                vec![Command::LoadCommitDetail {
-                    oid,
-                    generation: gen,
-                }],
-            )
-        }
+        UiEvent::SelectCommit(oid) => select_commit(state, oid, true),
+        UiEvent::NavigateCommit { delta } => navigate_commit(state, delta),
         UiEvent::SelectBranch(name) => {
             state.selection.branch = Some(name);
             state.selection.commit = None;
             state.context.commit = Loadable::Idle;
+            state.navigation.commit_back.clear();
+            state.navigation.commit_forward.clear();
             state.navigation.context_panel_open = true;
             Vec::new()
         }
@@ -1047,9 +1039,65 @@ fn reduce_escape(state: &mut AppState) -> Vec<Command> {
         state.branch.filter.clear();
         return Vec::new();
     }
+    // Commit trail Back (issue #32) — Esc clears or steps back before view stack.
+    if state.selection.commit.is_some() {
+        if !state.navigation.commit_back.is_empty() {
+            return navigate_commit(state, -1);
+        }
+        state.selection.commit = None;
+        state.context.commit = Loadable::Idle;
+        state.navigation.commit_forward.clear();
+        return Vec::new();
+    }
     if let Some(prev) = state.navigation.back_stack.pop() {
         state.navigation.active_view = prev;
         return lazy_load_view(state, prev);
+    }
+    Vec::new()
+}
+
+/// Records or restores a commit selection and loads detail (issue #32).
+fn select_commit(state: &mut AppState, oid: Oid, record_history: bool) -> Vec<Command> {
+    let gen = state.generation;
+    if record_history {
+        if let Some(prev) = state.selection.commit.clone() {
+            if prev != oid {
+                state.navigation.commit_back.push(prev);
+                state.navigation.commit_forward.clear();
+            }
+        }
+    }
+    state.selection.commit = Some(oid.clone());
+    state.navigation.context_panel_open = true;
+    state.context.commit = Loadable::Loading;
+    issue(
+        state,
+        vec![Command::LoadCommitDetail {
+            oid,
+            generation: gen,
+        }],
+    )
+}
+
+/// Browser-like Back (−1) / Forward (+1) through visited commits.
+fn navigate_commit(state: &mut AppState, delta: i32) -> Vec<Command> {
+    if delta < 0 {
+        let Some(prev) = state.navigation.commit_back.pop() else {
+            return Vec::new();
+        };
+        if let Some(current) = state.selection.commit.clone() {
+            state.navigation.commit_forward.push(current);
+        }
+        return select_commit(state, prev, false);
+    }
+    if delta > 0 {
+        let Some(next) = state.navigation.commit_forward.pop() else {
+            return Vec::new();
+        };
+        if let Some(current) = state.selection.commit.clone() {
+            state.navigation.commit_back.push(current);
+        }
+        return select_commit(state, next, false);
     }
     Vec::new()
 }
@@ -1079,7 +1127,7 @@ fn navigate_history(state: &mut AppState, delta: i32) -> Vec<Command> {
         }
     };
     let oid = commits[next].oid.clone();
-    reduce(state, UiEvent::SelectCommit(oid))
+    select_commit(state, oid, true)
 }
 
 /// Registers the given number of commands as in-flight and returns them.
@@ -1852,6 +1900,40 @@ mod tests {
             cmds.as_slice(),
             [Command::LoadCommitDetail { .. }]
         ));
+    }
+
+    #[test]
+    fn commit_navigation_back_forward_and_escape() {
+        let mut state = AppState::new();
+        let a = Oid("aaa".into());
+        let b = Oid("bbb".into());
+        let c = Oid("ccc".into());
+        let _ = reduce(&mut state, UiEvent::SelectCommit(a.clone()));
+        let _ = reduce(&mut state, UiEvent::SelectCommit(b.clone()));
+        let _ = reduce(&mut state, UiEvent::SelectCommit(c.clone()));
+        assert_eq!(state.selection.commit, Some(c.clone()));
+        assert_eq!(state.navigation.commit_back, vec![a.clone(), b.clone()]);
+        assert!(state.navigation.commit_forward.is_empty());
+
+        let _ = reduce(&mut state, UiEvent::NavigateCommit { delta: -1 });
+        assert_eq!(state.selection.commit, Some(b.clone()));
+        assert_eq!(state.navigation.commit_back, vec![a.clone()]);
+        assert_eq!(state.navigation.commit_forward, vec![c.clone()]);
+
+        let _ = reduce(&mut state, UiEvent::NavigateCommit { delta: 1 });
+        assert_eq!(state.selection.commit, Some(c.clone()));
+        assert_eq!(state.navigation.commit_back, vec![a.clone(), b.clone()]);
+        assert!(state.navigation.commit_forward.is_empty());
+
+        // Esc steps back through the trail.
+        let _ = reduce(&mut state, UiEvent::Escape);
+        assert_eq!(state.selection.commit, Some(b.clone()));
+        let _ = reduce(&mut state, UiEvent::Escape);
+        assert_eq!(state.selection.commit, Some(a.clone()));
+        // Empty trail: Esc clears selection.
+        let _ = reduce(&mut state, UiEvent::Escape);
+        assert!(state.selection.commit.is_none());
+        assert!(matches!(state.context.commit, Loadable::Idle));
     }
 
     #[test]

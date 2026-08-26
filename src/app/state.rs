@@ -135,6 +135,10 @@ pub struct NavigationState {
     pub active_view: View,
     pub context_panel_open: bool,
     pub back_stack: Vec<View>,
+    /// Previously visited commits (issue #32 Back). Newest visit is last.
+    pub commit_back: Vec<Oid>,
+    /// Commits skipped by Back, available via Forward.
+    pub commit_forward: Vec<Oid>,
 }
 
 impl Default for NavigationState {
@@ -143,6 +147,8 @@ impl Default for NavigationState {
             active_view: View::default(),
             context_panel_open: true,
             back_stack: Vec::new(),
+            commit_back: Vec::new(),
+            commit_forward: Vec::new(),
         }
     }
 }

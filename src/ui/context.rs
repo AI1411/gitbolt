@@ -79,6 +79,8 @@ pub fn ContextPane(props: ContextPaneProps) -> Element {
 #[component]
 fn CommitDetailPanel(state: AppState, on_event: EventHandler<UiEvent>) -> Element {
     let oid = state.selection.commit.clone();
+    let can_back = !state.navigation.commit_back.is_empty();
+    let can_forward = !state.navigation.commit_forward.is_empty();
     match &state.context.commit {
         Loadable::Loading => rsx! {
             p { style: "margin:0;opacity:0.6;font-size:0.85rem;", "Loading commit…" }
@@ -93,6 +95,8 @@ fn CommitDetailPanel(state: AppState, on_event: EventHandler<UiEvent>) -> Elemen
             CommitDetailBody {
                 detail: detail.clone(),
                 oid: oid.clone(),
+                can_back: can_back,
+                can_forward: can_forward,
                 on_event: on_event,
             }
         },
@@ -103,6 +107,8 @@ fn CommitDetailPanel(state: AppState, on_event: EventHandler<UiEvent>) -> Elemen
 fn CommitDetailBody(
     detail: CommitDetail,
     oid: Option<crate::app::model::Oid>,
+    can_back: bool,
+    can_forward: bool,
     on_event: EventHandler<UiEvent>,
 ) -> Element {
     let now = std::time::SystemTime::now()
@@ -121,6 +127,37 @@ fn CommitDetailBody(
     rsx! {
         div {
             style: "display:flex;flex-direction:column;gap:0.55rem;font-size:0.85rem;",
+            div {
+                style: "display:flex;align-items:center;gap:0.35rem;",
+                button {
+                    r#type: "button",
+                    title: "Commit Back (⌘[)",
+                    disabled: !can_back,
+                    style: if can_back {
+                        "border:1px solid #334155;background:#1e293b;color:#e2e8f0;border-radius:4px;\
+                         padding:0.15rem 0.45rem;cursor:pointer;font-size:0.75rem;"
+                    } else {
+                        "border:1px solid #1e293b;background:transparent;color:#475569;border-radius:4px;\
+                         padding:0.15rem 0.45rem;cursor:default;font-size:0.75rem;opacity:0.5;"
+                    },
+                    onclick: move |_| on_event.call(UiEvent::NavigateCommit { delta: -1 }),
+                    "← Back"
+                }
+                button {
+                    r#type: "button",
+                    title: "Commit Forward (⌘])",
+                    disabled: !can_forward,
+                    style: if can_forward {
+                        "border:1px solid #334155;background:#1e293b;color:#e2e8f0;border-radius:4px;\
+                         padding:0.15rem 0.45rem;cursor:pointer;font-size:0.75rem;"
+                    } else {
+                        "border:1px solid #1e293b;background:transparent;color:#475569;border-radius:4px;\
+                         padding:0.15rem 0.45rem;cursor:default;font-size:0.75rem;opacity:0.5;"
+                    },
+                    onclick: move |_| on_event.call(UiEvent::NavigateCommit { delta: 1 }),
+                    "Forward →"
+                }
+            }
             div {
                 style: "display:flex;align-items:center;gap:0.4rem;flex-wrap:wrap;",
                 span {

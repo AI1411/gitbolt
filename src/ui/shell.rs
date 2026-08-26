@@ -87,6 +87,14 @@ pub fn Shell(props: ShellProps) -> Element {
                             evt.prevent_default();
                             props.on_event.call(UiEvent::OpenQuickOpen);
                         }
+                        Key::Character(ch) if ch == "[" => {
+                            evt.prevent_default();
+                            props.on_event.call(UiEvent::NavigateCommit { delta: -1 });
+                        }
+                        Key::Character(ch) if ch == "]" => {
+                            evt.prevent_default();
+                            props.on_event.call(UiEvent::NavigateCommit { delta: 1 });
+                        }
                         Key::Enter => {
                             evt.prevent_default();
                             props.on_event.call(UiEvent::Commit);

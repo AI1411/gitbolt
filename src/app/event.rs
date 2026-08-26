@@ -148,6 +148,8 @@ pub enum UiEvent {
     Escape,
     /// Navigate history commits by `delta` (−1 / +1).
     NavigateHistory { delta: i32 },
+    /// Browser-like commit trail: −1 Back / +1 Forward (issue #32).
+    NavigateCommit { delta: i32 },
 
     /// Update the search query.
     Search(String),
