@@ -50,9 +50,10 @@ pub fn save_layout_prefs(prefs: &LayoutPrefs) {
 /// Splits a path into parent (dim) + file name (bright) for list display.
 #[must_use]
 pub fn split_path_display(path: &std::path::Path) -> (String, String) {
-    let name = path
-        .file_name()
-        .map_or_else(|| path.display().to_string(), |s| s.to_string_lossy().into_owned());
+    let name = path.file_name().map_or_else(
+        || path.display().to_string(),
+        |s| s.to_string_lossy().into_owned(),
+    );
     let parent = path
         .parent()
         .filter(|p| !p.as_os_str().is_empty())
