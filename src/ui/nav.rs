@@ -33,11 +33,11 @@ pub fn NavPane(props: NavPaneProps) -> Element {
                             key: "{label}",
                             class: if selected { "nav-item active" } else { "nav-item" },
                             style: format!(
-                                "text-align:left;border:0;border-radius:4px;padding:0.45rem 0.65rem;\
+                                "text-align:left;border:0;border-radius:var(--gb-radius);padding:0.45rem 0.65rem;\
                                  cursor:pointer;font-size:0.9rem;background:{};color:{};font-weight:{};\
                                  display:flex;align-items:center;justify-content:space-between;gap:0.4rem;",
-                                if selected { "#1e3a5f" } else { "transparent" },
-                                if selected { "#e8eef7" } else { "#9fb0c7" },
+                                if selected { "var(--gb-selected)" } else { "transparent" },
+                                if selected { "var(--gb-text)" } else { "var(--gb-text-muted)" },
                                 if selected { "600" } else { "500" },
                             ),
                             onclick: move |_| props.on_event.call(UiEvent::SelectView(view)),
@@ -46,7 +46,7 @@ pub fn NavPane(props: NavPaneProps) -> Element {
                                 span {
                                     style: format!(
                                         "font-size:0.72rem;font-weight:600;padding:0.05rem 0.35rem;\
-                                         border-radius:999px;background:{};color:{};",
+                                         border-radius:var(--gb-radius-pill);background:{};color:{};",
                                         b.bg, b.fg
                                     ),
                                     "{b.text}"
@@ -76,14 +76,14 @@ fn nav_badge(state: &AppState, view: View) -> Option<Badge> {
             if !state.changes.conflicted.is_empty() {
                 Some(Badge {
                     text: format!("!{n}"),
-                    bg: "#7f1d1d",
-                    fg: "#fecaca",
+                    bg: "var(--gb-danger-border)",
+                    fg: "var(--gb-danger-fg)",
                 })
             } else if n > 0 {
                 Some(Badge {
                     text: n.to_string(),
-                    bg: "#1e3a5f",
-                    fg: "#93c5fd",
+                    bg: "var(--gb-selected)",
+                    fg: "var(--gb-accent-muted)",
                 })
             } else {
                 None
@@ -93,16 +93,16 @@ fn nav_badge(state: &AppState, view: View) -> Option<Badge> {
             let n = state.stash.entries.len();
             (n > 0).then(|| Badge {
                 text: n.to_string(),
-                bg: "#1e293b",
-                fg: "#cbd5e1",
+                bg: "var(--gb-chip)",
+                fg: "var(--gb-chip-text)",
             })
         }
         View::Worktrees => {
             let n = state.worktree.worktrees.len();
             (n > 1).then(|| Badge {
                 text: n.to_string(),
-                bg: "#1e293b",
-                fg: "#cbd5e1",
+                bg: "var(--gb-chip)",
+                fg: "var(--gb-chip-text)",
             })
         }
         View::Branches | View::History => None,

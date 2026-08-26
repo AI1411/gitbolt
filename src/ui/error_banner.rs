@@ -21,15 +21,15 @@ pub fn InlineErrorBanner(props: InlineErrorProps) -> Element {
         div {
             role: "alert",
             style: "flex:0 0 auto;margin:0.55rem 0.85rem 0;padding:0.55rem 0.75rem;\
-                    border:1px solid #7f1d1d;background:#1c1212;border-radius:6px;\
-                    display:flex;align-items:flex-start;gap:0.65rem;color:#fecaca;font-size:0.85rem;",
+                    border:1px solid var(--gb-danger-border);background:var(--gb-danger-bg);border-radius:var(--gb-radius-lg);\
+                    display:flex;align-items:flex-start;gap:0.65rem;color:var(--gb-danger-fg);font-size:0.85rem;",
             p {
                 style: "margin:0;flex:1;line-height:1.4;white-space:pre-wrap;",
                 "{message}"
             }
             button {
-                style: "border:1px solid #7f1d1d;background:transparent;color:#fca5a5;\
-                        border-radius:4px;padding:0.15rem 0.5rem;cursor:pointer;font-size:0.72rem;",
+                style: "border:1px solid var(--gb-danger-border);background:transparent;color:var(--gb-danger);\
+                        border-radius:var(--gb-radius);padding:0.15rem 0.5rem;cursor:pointer;font-size:0.72rem;",
                 onclick: move |_| props.on_event.call(UiEvent::DismissError),
                 "Dismiss"
             }
@@ -51,8 +51,8 @@ pub struct ConfirmPanelProps {
 pub fn ConfirmPanel(props: ConfirmPanelProps) -> Element {
     rsx! {
         div {
-            style: "padding:0.55rem 0.65rem;border:1px solid #7f1d1d;background:#1c1212;\
-                    border-radius:4px;display:flex;flex-direction:column;gap:0.4rem;",
+            style: "padding:0.55rem 0.65rem;border:1px solid var(--gb-danger-border);background:var(--gb-danger-bg);\
+                    border-radius:var(--gb-radius);display:flex;flex-direction:column;gap:0.4rem;",
             p {
                 style: "margin:0;font-size:0.85rem;",
                 "{props.message}"
@@ -60,14 +60,14 @@ pub fn ConfirmPanel(props: ConfirmPanelProps) -> Element {
             div {
                 style: "display:flex;gap:0.4rem;",
                 button {
-                    style: "border:0;background:#b91c1c;color:white;border-radius:4px;\
+                    style: "border:0;background:var(--gb-danger-strong);color:white;border-radius:var(--gb-radius);\
                             padding:0.3rem 0.65rem;cursor:pointer;font-size:0.78rem;",
                     onclick: move |_| props.on_confirm.call(()),
                     "{props.confirm_label}"
                 }
                 button {
-                    style: "border:1px solid #334155;background:transparent;color:#9fb0c7;\
-                            border-radius:4px;padding:0.3rem 0.55rem;cursor:pointer;font-size:0.78rem;",
+                    style: "border:1px solid var(--gb-border-strong);background:transparent;color:var(--gb-text-muted);\
+                            border-radius:var(--gb-radius);padding:0.3rem 0.55rem;cursor:pointer;font-size:0.78rem;",
                     onclick: move |_| props.on_cancel.call(()),
                     "Cancel"
                 }

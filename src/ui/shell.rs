@@ -65,7 +65,7 @@ pub fn Shell(props: ShellProps) -> Element {
         div {
             class: "shell",
             style: "display:flex;flex-direction:column;width:100%;height:100%;\
-                    background:#0f1419;color:#e8eef7;font-family:ui-sans-serif,system-ui,sans-serif;\
+                    background:var(--gb-bg);color:var(--gb-text);font-family:var(--gb-font);\
                     user-select:none;",
             tabindex: "0",
             autofocus: true,
@@ -332,8 +332,8 @@ pub fn Shell(props: ShellProps) -> Element {
 
                 div {
                     style: format!(
-                        "flex:0 0 {}px;min-width:{}px;max-width:{}px;border-right:1px solid #243044;\
-                         background:#121820;",
+                        "flex:0 0 {}px;min-width:{}px;max-width:{}px;border-right:1px solid var(--gb-border);\
+                         background:var(--gb-surface);",
                         nav_width(),
                         NAV_MIN,
                         NAV_MAX
@@ -399,7 +399,7 @@ pub fn Shell(props: ShellProps) -> Element {
                     }
                     div {
                         style: format!(
-                            "flex:0 0 {}px;min-width:{}px;max-width:{}px;background:#121820;",
+                            "flex:0 0 {}px;min-width:{}px;max-width:{}px;background:var(--gb-surface);",
                             ctx_w,
                             CONTEXT_MIN,
                             CONTEXT_MAX
@@ -426,7 +426,7 @@ fn ContentBody(state: AppState, on_event: EventHandler<UiEvent>) -> Element {
                         flex:1;min-height:0;height:100%;overflow:hidden;",
                 div {
                     style: "flex:0 0 38%;min-width:12rem;max-width:24rem;overflow:auto;\
-                            border-right:1px solid #243044;padding-right:0.65rem;box-sizing:border-box;",
+                            border-right:1px solid var(--gb-border);padding-right:0.65rem;box-sizing:border-box;",
                     ChangesView {
                         state: state.clone(),
                         on_event: on_event,

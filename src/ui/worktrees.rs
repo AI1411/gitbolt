@@ -57,8 +57,8 @@ pub fn WorktreesView(props: WorktreesViewProps) -> Element {
                 div {
                     style: "display:flex;gap:0.4rem;flex-wrap:wrap;align-items:center;",
                     input {
-                        style: "flex:1;min-width:7rem;padding:0.35rem 0.5rem;border-radius:4px;\
-                                border:1px solid #334155;background:#0f1419;color:#e8eef7;font-size:0.85rem;",
+                        style: "flex:1;min-width:7rem;padding:0.35rem 0.5rem;border-radius:var(--gb-radius);\
+                                border:1px solid var(--gb-border-strong);background:var(--gb-bg);color:var(--gb-text);font-size:0.85rem;",
                         placeholder: "branch",
                         value: "{branch_draft()}",
                         oninput: move |evt| {
@@ -76,14 +76,14 @@ pub fn WorktreesView(props: WorktreesViewProps) -> Element {
                         },
                     }
                     input {
-                        style: "flex:2;min-width:10rem;padding:0.35rem 0.5rem;border-radius:4px;\
-                                border:1px solid #334155;background:#0f1419;color:#e8eef7;font-size:0.85rem;",
+                        style: "flex:2;min-width:10rem;padding:0.35rem 0.5rem;border-radius:var(--gb-radius);\
+                                border:1px solid var(--gb-border-strong);background:var(--gb-bg);color:var(--gb-text);font-size:0.85rem;",
                         placeholder: "path",
                         value: "{path_draft()}",
                         oninput: move |evt| path_draft.set(evt.value()),
                     }
                     button {
-                        style: "border:0;background:#3d8bfd;color:white;border-radius:4px;\
+                        style: "border:0;background:var(--gb-accent);color:white;border-radius:var(--gb-radius);\
                                 padding:0.35rem 0.7rem;cursor:pointer;font-size:0.8rem;",
                         onclick: move |_| {
                             let branch = branch_draft().trim().to_string();
@@ -146,12 +146,12 @@ pub fn WorktreesView(props: WorktreesViewProps) -> Element {
                                     li {
                                         style: "display:flex;align-items:center;gap:0.5rem;",
                                         span {
-                                            style: "font-family:ui-monospace,monospace;font-size:0.85rem;",
+                                            style: "font-family:var(--gb-mono);font-size:0.85rem;",
                                             "{name}"
                                         }
                                         button {
-                                            style: "border:1px solid #334155;background:transparent;color:#9fb0c7;\
-                                                    border-radius:4px;padding:0.15rem 0.45rem;cursor:pointer;font-size:0.72rem;",
+                                            style: "border:1px solid var(--gb-border-strong);background:transparent;color:var(--gb-text-muted);\
+                                                    border-radius:var(--gb-radius);padding:0.15rem 0.45rem;cursor:pointer;font-size:0.72rem;",
                                             onclick: move |_| {
                                                 if let Some(repo) = &repo {
                                                     let path = default_worktree_path(repo, &branch);
@@ -201,20 +201,20 @@ fn WorktreeRow(
     rsx! {
         li {
             style: "display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;\
-                    padding:0.3rem 0.35rem;border-radius:4px;border:1px solid #1e293b;",
+                    padding:0.3rem 0.35rem;border-radius:var(--gb-radius);border:1px solid var(--gb-chip);",
             span { style: "opacity:0.7;", "{marker}" }
             span {
-                style: "font-family:ui-monospace,monospace;font-size:0.85rem;min-width:7rem;",
+                style: "font-family:var(--gb-mono);font-size:0.85rem;min-width:7rem;",
                 "{branch}"
             }
             span {
-                style: "flex:1;font-family:ui-monospace,monospace;font-size:0.75rem;opacity:0.65;",
+                style: "flex:1;font-family:var(--gb-mono);font-size:0.75rem;opacity:0.65;",
                 "{path.display()}"
             }
             if !is_current {
                 button {
-                    style: "border:1px solid #334155;background:transparent;color:#9fb0c7;\
-                            border-radius:4px;padding:0.15rem 0.45rem;cursor:pointer;font-size:0.72rem;",
+                    style: "border:1px solid var(--gb-border-strong);background:transparent;color:var(--gb-text-muted);\
+                            border-radius:var(--gb-radius);padding:0.15rem 0.45rem;cursor:pointer;font-size:0.72rem;",
                     onclick: move |_| {
                         on_event.call(UiEvent::OpenRepository(open_path.clone()));
                     },
@@ -223,8 +223,8 @@ fn WorktreeRow(
             }
             if !worktree.is_primary {
                 button {
-                    style: "border:1px solid #7f1d1d;background:transparent;color:#fca5a5;\
-                            border-radius:4px;padding:0.15rem 0.45rem;cursor:pointer;font-size:0.72rem;",
+                    style: "border:1px solid var(--gb-danger-border);background:transparent;color:var(--gb-danger);\
+                            border-radius:var(--gb-radius);padding:0.15rem 0.45rem;cursor:pointer;font-size:0.72rem;",
                     onclick: move |_| {
                         on_event.call(UiEvent::RequestRemoveWorktree(remove_path.clone()));
                     },

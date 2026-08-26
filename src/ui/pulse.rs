@@ -28,15 +28,15 @@ pub fn PulseHeader(props: PulseHeaderProps) -> Element {
     let muted = "border:0;background:transparent;color:inherit;cursor:pointer;padding:0;\
                  font:inherit;font-weight:500;opacity:0.75;";
     let push_style = if ahead > 0 {
-        "border:0;background:#3d8bfd;color:white;cursor:pointer;padding:0.15rem 0.45rem;\
-         font:inherit;font-weight:600;border-radius:4px;"
+        "border:0;background:var(--gb-accent);color:white;cursor:pointer;padding:0.15rem 0.45rem;\
+         font:inherit;font-weight:600;border-radius:var(--gb-radius);"
     } else {
         muted
     };
 
     rsx! {
         header {
-            style: "flex:0 0 auto;padding:0.55rem 0.85rem;border-bottom:1px solid #243044;\
+            style: "flex:0 0 auto;padding:0.55rem 0.85rem;border-bottom:1px solid var(--gb-border);\
                     font-weight:600;font-size:0.9rem;display:flex;flex-wrap:wrap;gap:0.35rem 0.55rem;\
                     align-items:center;",
             span {
@@ -106,7 +106,7 @@ pub fn PulseHeader(props: PulseHeaderProps) -> Element {
                 if let Some(label) = props.state.background.remote_label.clone() {
                     span { style: "opacity:0.8;", "{label}" }
                 } else if let Some(status) = props.state.ui.remote_status.clone() {
-                    span { style: "opacity:0.85;color:#86efac;", "{status}" }
+                    span { style: "opacity:0.85;color:var(--gb-add);", "{status}" }
                 } else if props.state.background.inflight > 0 {
                     span { style: "opacity:0.7;", "working…" }
                 }

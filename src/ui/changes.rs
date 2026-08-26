@@ -77,14 +77,14 @@ pub fn ChangesView(props: ChangesViewProps) -> Element {
             div {
                 style: "display:flex;gap:0.4rem;flex-wrap:wrap;",
                 button {
-                    style: "padding:0.3rem 0.55rem;border:0;border-radius:4px;cursor:pointer;\
-                            background:#3d8bfd;color:white;font-size:0.75rem;font-weight:600;",
+                    style: "padding:0.3rem 0.55rem;border:0;border-radius:var(--gb-radius);cursor:pointer;\
+                            background:var(--gb-accent);color:white;font-size:0.75rem;font-weight:600;",
                     onclick: move |_| props.on_event.call(UiEvent::StageAll),
                     "Stage all"
                 }
                 button {
-                    style: "padding:0.3rem 0.55rem;border:1px solid #334155;border-radius:4px;cursor:pointer;\
-                            background:transparent;color:#9fb0c7;font-size:0.75rem;",
+                    style: "padding:0.3rem 0.55rem;border:1px solid var(--gb-border-strong);border-radius:var(--gb-radius);cursor:pointer;\
+                            background:transparent;color:var(--gb-text-muted);font-size:0.75rem;",
                     onclick: move |_| props.on_event.call(UiEvent::UnstageAll),
                     "Unstage all"
                 }
@@ -162,15 +162,15 @@ fn FileSection(
                             let is_sel = selected.as_ref().is_some_and(|t| {
                                 t.path == path && t.staged == staged_area
                             });
-                            let bg = if is_sel { "#1e3a5f" } else { "transparent" };
+                            let bg = if is_sel { "var(--gb-selected)" } else { "transparent" };
                             rsx! {
                                 li {
                                     style: "display:flex;align-items:center;gap:0.35rem;",
                                     button {
                                         style: format!(
                                             "flex:1;text-align:left;border:0;background:{bg};\
-                                             color:#e8eef7;cursor:pointer;font-family:ui-monospace,monospace;\
-                                             font-size:0.82rem;padding:0.2rem 0.35rem;border-radius:3px;"
+                                             color:var(--gb-text);cursor:pointer;font-family:var(--gb-mono);\
+                                             font-size:0.82rem;padding:0.2rem 0.35rem;border-radius:var(--gb-radius-sm);"
                                         ),
                                         onclick: move |_| {
                                             on_event.call(UiEvent::SelectFile {
@@ -189,8 +189,8 @@ fn FileSection(
                                         }
                                     }
                                     button {
-                                        style: "border:1px solid #334155;background:transparent;color:#9fb0c7;\
-                                                border-radius:4px;padding:0.1rem 0.4rem;cursor:pointer;font-size:0.7rem;",
+                                        style: "border:1px solid var(--gb-border-strong);background:transparent;color:var(--gb-text-muted);\
+                                                border-radius:var(--gb-radius);padding:0.1rem 0.4rem;cursor:pointer;font-size:0.7rem;",
                                         onclick: move |_| {
                                             if staged_area {
                                                 on_event.call(UiEvent::UnstageFile(path_stage.clone()));

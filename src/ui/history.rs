@@ -52,14 +52,14 @@ pub fn HistoryView(props: HistoryViewProps) -> Element {
             if !matches!(filter, HistoryFilter::All) {
                 div {
                     style: "display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;\
-                            padding:0.35rem 0.55rem;border-radius:4px;background:#1e293b;",
+                            padding:0.35rem 0.55rem;border-radius:var(--gb-radius);background:var(--gb-chip);",
                     span {
                         style: "font-size:0.8rem;opacity:0.85;",
                         "{filter_label(filter)}"
                     }
                     button {
-                        style: "padding:0.2rem 0.55rem;border:1px solid #334155;border-radius:4px;\
-                                cursor:pointer;background:transparent;color:#9fb0c7;font-size:0.75rem;",
+                        style: "padding:0.2rem 0.55rem;border:1px solid var(--gb-border-strong);border-radius:var(--gb-radius);\
+                                cursor:pointer;background:transparent;color:var(--gb-text-muted);font-size:0.75rem;",
                         onclick: move |_| props.on_event.call(UiEvent::ClearHistoryFilter),
                         "All commits"
                     }
@@ -77,7 +77,7 @@ pub fn HistoryView(props: HistoryViewProps) -> Element {
                         {
                             let oid = Oid(c.oid.0.clone());
                             let is_sel = selected.as_ref() == Some(&oid);
-                            let bg = if is_sel { "#1e3a5f" } else { "transparent" };
+                            let bg = if is_sel { "var(--gb-selected)" } else { "transparent" };
                             let short = if c.oid.0.len() > 7 {
                                 c.oid.0[..7].to_string()
                             } else {
@@ -92,15 +92,15 @@ pub fn HistoryView(props: HistoryViewProps) -> Element {
                                         style: format!(
                                             "width:100%;display:grid;grid-template-columns:1.2rem 1fr;\
                                              gap:0.55rem;text-align:left;border:0;background:{bg};\
-                                             color:#e8eef7;cursor:pointer;padding:0.35rem 0.45rem;\
-                                             border-radius:4px;"
+                                             color:var(--gb-text);cursor:pointer;padding:0.35rem 0.45rem;\
+                                             border-radius:var(--gb-radius);"
                                         ),
                                         onclick: move |_| {
                                             props.on_event.call(UiEvent::SelectCommit(oid.clone()));
                                         },
                                         pre {
                                             style: "margin:0;font-size:0.75rem;line-height:1.1;opacity:0.55;\
-                                                    color:#7dd3fc;font-family:ui-monospace,monospace;",
+                                                    color:var(--gb-link);font-family:var(--gb-mono);",
                                             "{graph}"
                                         }
                                         div {
@@ -108,7 +108,7 @@ pub fn HistoryView(props: HistoryViewProps) -> Element {
                                             div {
                                                 style: "display:flex;gap:0.5rem;align-items:baseline;flex-wrap:wrap;",
                                                 span {
-                                                    style: "font-family:ui-monospace,monospace;font-size:0.75rem;opacity:0.6;",
+                                                    style: "font-family:var(--gb-mono);font-size:0.75rem;opacity:0.6;",
                                                     "{short}"
                                                 }
                                                 span {
@@ -132,8 +132,8 @@ pub fn HistoryView(props: HistoryViewProps) -> Element {
             if has_more {
                 button {
                     style: "align-self:flex-start;margin-top:0.35rem;padding:0.35rem 0.75rem;\
-                            border:1px solid #334155;border-radius:4px;cursor:pointer;\
-                            background:transparent;color:#9fb0c7;font-size:0.8rem;",
+                            border:1px solid var(--gb-border-strong);border-radius:var(--gb-radius);cursor:pointer;\
+                            background:transparent;color:var(--gb-text-muted);font-size:0.8rem;",
                     disabled: loading,
                     onclick: move |_| props.on_event.call(UiEvent::LoadMoreHistory),
                     if loading { "Loading…" } else { "Load more" }

@@ -30,8 +30,8 @@ pub fn OpenScreen(props: OpenScreenProps) -> Element {
         div {
             class: "open-screen",
             style: "display:flex;flex-direction:column;align-items:center;justify-content:center;\
-                    width:100%;height:100%;gap:1.25rem;font-family:ui-sans-serif,system-ui,sans-serif;\
-                    background:linear-gradient(160deg,#0f1419 0%,#1a2332 55%,#243044 100%);color:#e8eef7;",
+                    width:100%;height:100%;gap:1.25rem;font-family:var(--gb-font);\
+                    background:linear-gradient(160deg,var(--gb-bg) 0%,var(--gb-surface-mid) 55%,var(--gb-border) 100%);color:var(--gb-text);",
             ondragover: move |evt| {
                 evt.prevent_default();
                 drop_hover.set(true);
@@ -56,8 +56,8 @@ pub fn OpenScreen(props: OpenScreenProps) -> Element {
             }
 
             button {
-                style: "padding:0.65rem 1.4rem;border:0;border-radius:6px;cursor:pointer;\
-                        background:#3d8bfd;color:white;font-size:0.95rem;font-weight:600;",
+                style: "padding:0.65rem 1.4rem;border:0;border-radius:var(--gb-radius-lg);cursor:pointer;\
+                        background:var(--gb-accent);color:white;font-size:0.95rem;font-weight:600;",
                 disabled: props.opening,
                 onclick: move |_| {
                     if let Some(path) = rfd::FileDialog::new().pick_folder() {
@@ -70,9 +70,9 @@ pub fn OpenScreen(props: OpenScreenProps) -> Element {
             div {
                 style: format!(
                     "min-width:min(28rem,90vw);min-height:7rem;border:2px dashed {};\
-                     border-radius:8px;display:flex;align-items:center;justify-content:center;\
+                     border-radius:var(--gb-radius-xl);display:flex;align-items:center;justify-content:center;\
                      padding:1rem;opacity:0.9;transition:border-color 120ms ease;",
-                    if drop_hover() { "#3d8bfd" } else { "#4a5568" }
+                    if drop_hover() { "var(--gb-accent)" } else { "var(--gb-drop-idle)" }
                 ),
                 "Drop a repository folder here"
             }
@@ -89,7 +89,7 @@ pub fn OpenScreen(props: OpenScreenProps) -> Element {
                         }
                         button {
                             r#type: "button",
-                            style: "border:0;background:transparent;color:#94a3b8;cursor:pointer;font-size:0.72rem;",
+                            style: "border:0;background:transparent;color:var(--gb-text-faint);cursor:pointer;font-size:0.72rem;",
                             onclick: move |_| props.on_prune_recent.call(()),
                             "Remove missing"
                         }
@@ -112,8 +112,8 @@ pub fn OpenScreen(props: OpenScreenProps) -> Element {
                                             button {
                                                 style: format!(
                                                     "flex:1;text-align:left;padding:0.45rem 0.75rem;\
-                                                     border:1px solid #334155;border-radius:6px;background:#111827;\
-                                                     color:#e8eef7;cursor:pointer;opacity:{};",
+                                                     border:1px solid var(--gb-border-strong);border-radius:var(--gb-radius-lg);background:var(--gb-surface);\
+                                                     color:var(--gb-text);cursor:pointer;opacity:{};",
                                                     if missing { "0.55" } else { "1" }
                                                 ),
                                                 disabled: props.opening || missing,
@@ -123,7 +123,7 @@ pub fn OpenScreen(props: OpenScreenProps) -> Element {
                                                     "{name}"
                                                 }
                                                 div {
-                                                    style: "font-size:0.72rem;opacity:0.55;font-family:ui-monospace,monospace;\
+                                                    style: "font-size:0.72rem;opacity:0.55;font-family:var(--gb-mono);\
                                                             overflow:hidden;text-overflow:ellipsis;",
                                                     if missing { "Missing · {path_label}" } else { "{path_label}" }
                                                 }
@@ -131,16 +131,16 @@ pub fn OpenScreen(props: OpenScreenProps) -> Element {
                                             button {
                                                 r#type: "button",
                                                 title: "Pin to top",
-                                                style: "border:1px solid #334155;background:transparent;color:#9fb0c7;\
-                                                        border-radius:6px;padding:0 0.55rem;cursor:pointer;font-size:0.75rem;",
+                                                style: "border:1px solid var(--gb-border-strong);background:transparent;color:var(--gb-text-muted);\
+                                                        border-radius:var(--gb-radius-lg);padding:0 0.55rem;cursor:pointer;font-size:0.75rem;",
                                                 onclick: move |_| props.on_pin_recent.call(pin_path.clone()),
                                                 "Pin"
                                             }
                                             button {
                                                 r#type: "button",
                                                 title: "Remove from Recent",
-                                                style: "border:1px solid #334155;background:transparent;color:#fca5a5;\
-                                                        border-radius:6px;padding:0 0.55rem;cursor:pointer;font-size:0.75rem;",
+                                                style: "border:1px solid var(--gb-border-strong);background:transparent;color:var(--gb-danger);\
+                                                        border-radius:var(--gb-radius-lg);padding:0 0.55rem;cursor:pointer;font-size:0.75rem;",
                                                 onclick: move |_| props.on_remove_recent.call(remove_path.clone()),
                                                 "×"
                                             }
@@ -155,7 +155,7 @@ pub fn OpenScreen(props: OpenScreenProps) -> Element {
 
             if let Some(err) = props.error.as_ref() {
                 p {
-                    style: "margin:0;color:#fca5a5;max-width:28rem;text-align:center;font-size:0.9rem;",
+                    style: "margin:0;color:var(--gb-danger);max-width:28rem;text-align:center;font-size:0.9rem;",
                     "{err}"
                 }
             }

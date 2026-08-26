@@ -18,6 +18,7 @@ pub mod overlay;
 pub mod pulse;
 pub mod shell;
 pub mod stashes;
+pub mod theme;
 pub mod worktrees;
 
 use std::path::PathBuf;
@@ -88,8 +89,8 @@ pub fn App() -> Element {
 
     rsx! {
         div {
-            width: "100vw",
-            height: "100vh",
+            class: "gb-root",
+            style: crate::ui::theme::root_style(),
             match state.repository.status {
                 RepositoryStatus::Ready => {
                     rsx! {

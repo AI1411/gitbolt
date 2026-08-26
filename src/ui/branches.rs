@@ -77,7 +77,7 @@ pub fn BranchesView(props: BranchesViewProps) -> Element {
                 style: "display:flex;gap:0.4rem;flex-wrap:wrap;align-items:center;",
                 button {
                     r#type: "button",
-                    style: "border:1px solid #334155;background:#1e293b;color:#e2e8f0;border-radius:4px;\
+                    style: "border:1px solid var(--gb-border-strong);background:var(--gb-chip);color:var(--gb-chip-strong);border-radius:var(--gb-radius);\
                             padding:0.3rem 0.65rem;cursor:pointer;font-size:0.78rem;",
                     disabled: cleanup_candidates.is_empty(),
                     onclick: move |_| props.on_event.call(UiEvent::OpenBranchCleanup),
@@ -101,8 +101,8 @@ pub fn BranchesView(props: BranchesViewProps) -> Element {
             div {
                 style: "display:flex;gap:0.4rem;align-items:center;flex-wrap:wrap;",
                 input {
-                    style: "flex:1;min-width:8rem;padding:0.35rem 0.5rem;border-radius:4px;\
-                            border:1px solid #334155;background:#0f1419;color:#e8eef7;font-size:0.85rem;",
+                    style: "flex:1;min-width:8rem;padding:0.35rem 0.5rem;border-radius:var(--gb-radius);\
+                            border:1px solid var(--gb-border-strong);background:var(--gb-bg);color:var(--gb-text);font-size:0.85rem;",
                     placeholder: "New branch name",
                     value: "{create_draft()}",
                     oninput: move |evt| create_draft.set(evt.value()),
@@ -117,7 +117,7 @@ pub fn BranchesView(props: BranchesViewProps) -> Element {
                     },
                 }
                 button {
-                    style: "border:0;background:#3d8bfd;color:white;border-radius:4px;\
+                    style: "border:0;background:var(--gb-accent);color:white;border-radius:var(--gb-radius);\
                             padding:0.35rem 0.7rem;cursor:pointer;font-size:0.8rem;",
                     onclick: move |_| {
                         let name = create_draft().trim().to_string();
@@ -132,8 +132,8 @@ pub fn BranchesView(props: BranchesViewProps) -> Element {
 
             // Quick Open filter for branches
             input {
-                style: "width:100%;box-sizing:border-box;padding:0.4rem 0.55rem;border-radius:4px;\
-                        border:1px solid #334155;background:#0f1419;color:#e8eef7;font-size:0.85rem;",
+                style: "width:100%;box-sizing:border-box;padding:0.4rem 0.55rem;border-radius:var(--gb-radius);\
+                        border:1px solid var(--gb-border-strong);background:var(--gb-bg);color:var(--gb-text);font-size:0.85rem;",
                 placeholder: "Quick Open branches (/)",
                 value: "{filter_text()}",
                 oninput: move |evt| {
@@ -159,9 +159,9 @@ pub fn BranchesView(props: BranchesViewProps) -> Element {
                                 rsx! {
                                     li {
                                         button {
-                                            style: "border:1px solid #334155;background:#151b24;color:#cbd5e1;\
-                                                    border-radius:4px;padding:0.2rem 0.5rem;cursor:pointer;\
-                                                    font-family:ui-monospace,monospace;font-size:0.75rem;",
+                                            style: "border:1px solid var(--gb-border-strong);background:var(--gb-surface-raised);color:var(--gb-chip-text);\
+                                                    border-radius:var(--gb-radius);padding:0.2rem 0.5rem;cursor:pointer;\
+                                                    font-family:var(--gb-mono);font-size:0.75rem;",
                                             title: "Checkout",
                                             onclick: move |_| {
                                                 props.on_event.call(UiEvent::CheckoutBranch(checkout.clone()));
@@ -230,14 +230,14 @@ pub fn BranchesView(props: BranchesViewProps) -> Element {
                     style: "display:flex;gap:0.4rem;align-items:center;flex-wrap:wrap;",
                     span { style: "font-size:0.8rem;opacity:0.7;", "Track for {branch}:" }
                     input {
-                        style: "flex:1;min-width:8rem;padding:0.3rem 0.45rem;border-radius:4px;\
-                                border:1px solid #334155;background:#0f1419;color:#e8eef7;font-size:0.8rem;",
+                        style: "flex:1;min-width:8rem;padding:0.3rem 0.45rem;border-radius:var(--gb-radius);\
+                                border:1px solid var(--gb-border-strong);background:var(--gb-bg);color:var(--gb-text);font-size:0.8rem;",
                         placeholder: "origin/main",
                         value: "{upstream_draft()}",
                         oninput: move |evt| upstream_draft.set(evt.value()),
                     }
                     button {
-                        style: "border:0;background:#3d8bfd;color:white;border-radius:4px;\
+                        style: "border:0;background:var(--gb-accent);color:white;border-radius:var(--gb-radius);\
                                 padding:0.3rem 0.65rem;cursor:pointer;font-size:0.78rem;",
                         onclick: move |_| {
                             let upstream = upstream_draft().trim().to_string();
@@ -252,8 +252,8 @@ pub fn BranchesView(props: BranchesViewProps) -> Element {
                         "Set upstream"
                     }
                     button {
-                        style: "border:1px solid #334155;background:transparent;color:#9fb0c7;\
-                                border-radius:4px;padding:0.3rem 0.55rem;cursor:pointer;font-size:0.78rem;",
+                        style: "border:1px solid var(--gb-border-strong);background:transparent;color:var(--gb-text-muted);\
+                                border-radius:var(--gb-radius);padding:0.3rem 0.55rem;cursor:pointer;font-size:0.78rem;",
                         onclick: move |_| upstream_target.set(None),
                         "Cancel"
                     }
@@ -310,12 +310,12 @@ fn BranchRow(
     rsx! {
         li {
             style: "display:flex;flex-direction:column;gap:0.15rem;padding:0.3rem 0.35rem;\
-                    border-radius:4px;border:1px solid #1e293b;",
+                    border-radius:var(--gb-radius);border:1px solid var(--gb-chip);",
             div {
                 style: "display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;",
                 button {
-                    style: "flex:1;min-width:6rem;text-align:left;border:0;background:transparent;color:#e8eef7;\
-                            cursor:pointer;font-family:ui-monospace,monospace;font-size:0.85rem;",
+                    style: "flex:1;min-width:6rem;text-align:left;border:0;background:transparent;color:var(--gb-text);\
+                            cursor:pointer;font-family:var(--gb-mono);font-size:0.85rem;",
                     onclick: move |_| on_event.call(UiEvent::SelectBranch(name.clone())),
                     if is_remote {
                         span { style: "opacity:0.55;margin-right:0.25rem;", "remote" }
@@ -330,8 +330,8 @@ fn BranchRow(
                 }
                 if !is_current {
                     button {
-                        style: "border:1px solid #334155;background:transparent;color:#9fb0c7;\
-                                border-radius:4px;padding:0.15rem 0.45rem;cursor:pointer;font-size:0.72rem;",
+                        style: "border:1px solid var(--gb-border-strong);background:transparent;color:var(--gb-text-muted);\
+                                border-radius:var(--gb-radius);padding:0.15rem 0.45rem;cursor:pointer;font-size:0.72rem;",
                         onclick: move |_| {
                             on_event.call(UiEvent::CheckoutBranch(checkout_name.clone()));
                         },
@@ -340,8 +340,8 @@ fn BranchRow(
                 }
                 if !is_remote {
                     button {
-                        style: "border:1px solid #334155;background:transparent;color:#9fb0c7;\
-                                border-radius:4px;padding:0.15rem 0.45rem;cursor:pointer;font-size:0.72rem;",
+                        style: "border:1px solid var(--gb-border-strong);background:transparent;color:var(--gb-text-muted);\
+                                border-radius:var(--gb-radius);padding:0.15rem 0.45rem;cursor:pointer;font-size:0.72rem;",
                         title: "Instant Worktree (W)",
                         onclick: move |_| {
                             on_event.call(UiEvent::InstantWorktree {
@@ -351,14 +351,14 @@ fn BranchRow(
                         "W"
                     }
                     button {
-                        style: "border:1px solid #334155;background:transparent;color:#9fb0c7;\
-                                border-radius:4px;padding:0.15rem 0.45rem;cursor:pointer;font-size:0.72rem;",
+                        style: "border:1px solid var(--gb-border-strong);background:transparent;color:var(--gb-text-muted);\
+                                border-radius:var(--gb-radius);padding:0.15rem 0.45rem;cursor:pointer;font-size:0.72rem;",
                         onclick: move |_| on_track.call(track_name.clone()),
                         "Track"
                     }
                     button {
-                        style: "border:1px solid #334155;background:transparent;color:#9fb0c7;\
-                                border-radius:4px;padding:0.15rem 0.45rem;cursor:pointer;font-size:0.72rem;",
+                        style: "border:1px solid var(--gb-border-strong);background:transparent;color:var(--gb-text-muted);\
+                                border-radius:var(--gb-radius);padding:0.15rem 0.45rem;cursor:pointer;font-size:0.72rem;",
                         onclick: move |_| {
                             on_event.call(UiEvent::ShowDivergence {
                                 other: other.clone(),
@@ -368,8 +368,8 @@ fn BranchRow(
                     }
                     if !is_current {
                         button {
-                            style: "border:1px solid #7f1d1d;background:transparent;color:#fca5a5;\
-                                    border-radius:4px;padding:0.15rem 0.45rem;cursor:pointer;font-size:0.72rem;",
+                            style: "border:1px solid var(--gb-danger-border);background:transparent;color:var(--gb-danger);\
+                                    border-radius:var(--gb-radius);padding:0.15rem 0.45rem;cursor:pointer;font-size:0.72rem;",
                             onclick: move |_| {
                                 on_event.call(UiEvent::RequestDeleteBranch(delete_name.clone()));
                             },
@@ -379,7 +379,7 @@ fn BranchRow(
                 }
             }
             div {
-                style: "font-size:0.72rem;opacity:0.55;font-family:ui-monospace,monospace;",
+                style: "font-size:0.72rem;opacity:0.55;font-family:var(--gb-mono);",
                 "{upstream}"
                 if !last.is_empty() {
                     span { " · {last}" }
@@ -408,7 +408,7 @@ fn CleanupPanel(
     let selected_n = selected.len();
     rsx! {
         div {
-            style: "border:1px solid #7f1d1d;background:#1c1212;border-radius:6px;padding:0.65rem;\
+            style: "border:1px solid var(--gb-danger-border);background:var(--gb-danger-bg);border-radius:var(--gb-radius-lg);padding:0.65rem;\
                     display:flex;flex-direction:column;gap:0.45rem;",
             p {
                 style: "margin:0;font-size:0.85rem;font-weight:600;",
@@ -441,13 +441,13 @@ fn CleanupPanel(
                                                 on_event.call(UiEvent::ToggleCleanupBranch(name_cb.clone()));
                                             },
                                         }
-                                        span { style: "font-family:ui-monospace,monospace;", "{name}" }
+                                        span { style: "font-family:var(--gb-mono);", "{name}" }
                                         span { style: "opacity:0.55;", "({reason})" }
                                     }
                                     button {
                                         r#type: "button",
                                         title: "Exclude as false positive",
-                                        style: "border:0;background:transparent;color:#94a3b8;cursor:pointer;font-size:0.7rem;",
+                                        style: "border:0;background:transparent;color:var(--gb-text-faint);cursor:pointer;font-size:0.7rem;",
                                         onclick: move |_| {
                                             on_event.call(UiEvent::ExcludeCleanupBranch(name_ex.clone()));
                                         },
@@ -463,7 +463,7 @@ fn CleanupPanel(
                 style: "display:flex;gap:0.4rem;align-items:center;",
                 button {
                     r#type: "button",
-                    style: "border:0;background:#b91c1c;color:white;border-radius:4px;\
+                    style: "border:0;background:var(--gb-danger-strong);color:white;border-radius:var(--gb-radius);\
                             padding:0.3rem 0.7rem;cursor:pointer;font-size:0.78rem;font-weight:600;",
                     disabled: selected_n == 0,
                     onclick: move |_| on_event.call(UiEvent::ConfirmBranchCleanup),
@@ -471,7 +471,7 @@ fn CleanupPanel(
                 }
                 button {
                     r#type: "button",
-                    style: "border:1px solid #334155;background:transparent;color:#cbd5e1;border-radius:4px;\
+                    style: "border:1px solid var(--gb-border-strong);background:transparent;color:var(--gb-chip-text);border-radius:var(--gb-radius);\
                             padding:0.3rem 0.7rem;cursor:pointer;font-size:0.78rem;",
                     onclick: move |_| on_event.call(UiEvent::CancelBranchCleanup),
                     "Cancel"

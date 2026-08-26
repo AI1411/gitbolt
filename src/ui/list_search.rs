@@ -27,8 +27,8 @@ pub fn ListSearchBar(props: ListSearchBarProps) -> Element {
             input {
                 key: "{token}",
                 autofocus: true,
-                style: "flex:1;padding:0.35rem 0.5rem;border-radius:4px;border:1px solid #334155;\
-                        background:#0f1419;color:#e8eef7;font-size:0.85rem;",
+                style: "flex:1;padding:0.35rem 0.5rem;border-radius:var(--gb-radius);border:1px solid var(--gb-border-strong);\
+                        background:var(--gb-bg);color:var(--gb-text);font-size:0.85rem;",
                 placeholder: "{props.placeholder}",
                 value: "{query}",
                 onfocus: move |_| props.on_event.call(UiEvent::SetTyping(true)),

@@ -39,8 +39,8 @@ pub fn DivergenceView(props: DivergenceViewProps) -> Element {
                     "Divergence · base {base}"
                 }
                 button {
-                    style: "margin-left:auto;border:1px solid #334155;background:transparent;\
-                            color:#9fb0c7;border-radius:4px;padding:0.25rem 0.55rem;cursor:pointer;\
+                    style: "margin-left:auto;border:1px solid var(--gb-border-strong);background:transparent;\
+                            color:var(--gb-text-muted);border-radius:var(--gb-radius);padding:0.25rem 0.55rem;cursor:pointer;\
                             font-size:0.75rem;",
                     onclick: move |_| props.on_event.call(UiEvent::ClearDivergence),
                     "Close"
@@ -69,7 +69,7 @@ pub fn DivergenceView(props: DivergenceViewProps) -> Element {
 fn SideList(title: String, commits: Vec<crate::app::model::CommitSummary>) -> Element {
     rsx! {
         div {
-            style: "border:1px solid #243044;border-radius:6px;background:#151b24;padding:0.55rem;",
+            style: "border:1px solid var(--gb-border);border-radius:var(--gb-radius-lg);background:var(--gb-surface-raised);padding:0.55rem;",
             h4 {
                 style: "margin:0 0 0.45rem;font-size:0.8rem;opacity:0.75;",
                 "{title}"
@@ -90,7 +90,7 @@ fn SideList(title: String, commits: Vec<crate::app::model::CommitSummary>) -> El
                                 li {
                                     style: "font-size:0.8rem;line-height:1.35;",
                                     span {
-                                        style: "font-family:ui-monospace,monospace;opacity:0.55;margin-right:0.4rem;",
+                                        style: "font-family:var(--gb-mono);opacity:0.55;margin-right:0.4rem;",
                                         "{short}"
                                     }
                                     span { "{c.summary}" }
