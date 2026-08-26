@@ -3,6 +3,8 @@
 //! Colors, radii, and type stacks live here as CSS custom properties so later
 //! issues (status color, typography, light theme) can retune the UI in one place.
 
+use crate::app::model::ChangeKind;
+
 /// Dark-theme custom properties applied on the application root.
 pub const ROOT_VARS: &str = "\
 --gb-bg:#0f1419;\
@@ -66,6 +68,18 @@ pub fn selected_bg(on: bool) -> &'static str {
     }
 }
 
+/// Foreground color token for a file-status mark (`A` / `M` / `D` / `?` / …).
+#[must_use]
+pub fn status_fg(kind: ChangeKind) -> &'static str {
+    match kind {
+        ChangeKind::Added | ChangeKind::Copied => "var(--gb-add)",
+        ChangeKind::Modified | ChangeKind::Renamed | ChangeKind::TypeChanged => "var(--gb-warning)",
+        ChangeKind::Deleted => "var(--gb-del)",
+        ChangeKind::Untracked => "var(--gb-link)",
+        ChangeKind::Conflicted => "var(--gb-danger)",
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -90,5 +104,14 @@ mod tests {
     fn selected_bg_toggles() {
         assert_eq!(selected_bg(true), "var(--gb-selected)");
         assert_eq!(selected_bg(false), "transparent");
+    }
+
+    #[test]
+    fn status_fg_distinguishes_kinds() {
+        assert_eq!(status_fg(ChangeKind::Added), "var(--gb-add)");
+        assert_eq!(status_fg(ChangeKind::Deleted), "var(--gb-del)");
+        assert_eq!(status_fg(ChangeKind::Modified), "var(--gb-warning)");
+        assert_eq!(status_fg(ChangeKind::Untracked), "var(--gb-link)");
+        assert_eq!(status_fg(ChangeKind::Conflicted), "var(--gb-danger)");
     }
 }
