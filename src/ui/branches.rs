@@ -19,6 +19,9 @@ pub struct BranchesViewProps {
 pub fn BranchesView(props: BranchesViewProps) -> Element {
     let mut upstream_draft = use_signal(String::new);
     let mut upstream_target = use_signal(|| None::<String>);
+    // Local filter avoids controlled-input races with AppState round-trips
+    // (Quick Open must keep matching rows visible while typing).
+    let mut filter_text = use_signal(|| props.state.branch.filter.clone());
 
     let current = props
         .state
@@ -28,15 +31,13 @@ pub fn BranchesView(props: BranchesViewProps) -> Element {
         .or_else(|| props.state.repository.head.branch.clone())
         .unwrap_or_else(|| "(none)".into());
     let show_div = props.state.divergence.left.is_some() || props.state.divergence.loading;
-    let filter = props.state.branch.filter.to_ascii_lowercase();
-    let filtered: Vec<BranchInfo> = props
-        .state
-        .branch
-        .branches
-        .iter()
-        .filter(|b| filter.is_empty() || b.name.to_ascii_lowercase().contains(&filter))
+    let needle = filter_text();
+    let filtered: Vec<BranchInfo> = filter_branches(&props.state.branch.branches, &needle)
+        .into_iter()
         .cloned()
         .collect();
+    let loaded = props.state.branch.loaded;
+    let total = props.state.branch.branches.len();
 
     rsx! {
         div {
@@ -48,9 +49,11 @@ pub fn BranchesView(props: BranchesViewProps) -> Element {
                 style: "width:100%;box-sizing:border-box;padding:0.4rem 0.55rem;border-radius:4px;\
                         border:1px solid #334155;background:#0f1419;color:#e8eef7;font-size:0.85rem;",
                 placeholder: "Quick Open branches (/)",
-                value: "{props.state.branch.filter}",
+                value: "{filter_text()}",
                 oninput: move |evt| {
-                    props.on_event.call(UiEvent::SetBranchFilter(evt.value()));
+                    let value = evt.value();
+                    filter_text.set(value.clone());
+                    props.on_event.call(UiEvent::SetBranchFilter(value));
                 },
             }
 
@@ -85,19 +88,34 @@ pub fn BranchesView(props: BranchesViewProps) -> Element {
                 }
             }
 
-            if !props.state.branch.loaded {
+            if !loaded {
                 p { style: "margin:0;opacity:0.6;", "Loading branches…" }
+            } else if filtered.is_empty() {
+                p {
+                    style: "margin:0;opacity:0.6;",
+                    if total == 0 {
+                        "No branches"
+                    } else {
+                        "No branches match the filter"
+                    }
+                }
             } else {
                 ul {
                     style: "list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:0.35rem;",
-                    for b in filtered.into_iter() {
-                        BranchRow {
-                            branch: b,
-                            on_event: props.on_event,
-                            on_track: move |name| {
-                                upstream_target.set(Some(name));
-                                upstream_draft.set(String::new());
-                            },
+                    for b in filtered.iter().cloned() {
+                        {
+                            let key = b.name.clone();
+                            rsx! {
+                                BranchRow {
+                                    key: "{key}",
+                                    branch: b,
+                                    on_event: props.on_event,
+                                    on_track: move |name| {
+                                        upstream_target.set(Some(name));
+                                        upstream_draft.set(String::new());
+                                    },
+                                }
+                            }
                         }
                     }
                 }
@@ -220,5 +238,42 @@ fn health_badge(b: &BranchInfo) -> String {
         BranchHealth::Diverged => format!("↑{}↓{}", b.ahead, b.behind),
         BranchHealth::Stale => "◌".into(),
         BranchHealth::Local => "local".into(),
+    }
+}
+
+/// Returns branches whose names contain `needle` (case-insensitive).
+#[must_use]
+pub fn filter_branches<'a>(branches: &'a [BranchInfo], needle: &str) -> Vec<&'a BranchInfo> {
+    let needle = needle.to_ascii_lowercase();
+    branches
+        .iter()
+        .filter(|b| needle.is_empty() || b.name.to_ascii_lowercase().contains(&needle))
+        .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::app::model::BranchHealth;
+
+    fn sample(name: &str) -> BranchInfo {
+        BranchInfo {
+            name: name.into(),
+            upstream: None,
+            health: BranchHealth::Local,
+            ahead: 0,
+            behind: 0,
+            last_commit: None,
+        }
+    }
+
+    #[test]
+    fn filter_branches_matches_substring_case_insensitive() {
+        let all = vec![sample("main"), sample("feature"), sample("wip")];
+        let hit = filter_branches(&all, "FeAt");
+        assert_eq!(hit.len(), 1);
+        assert_eq!(hit[0].name, "feature");
+        assert_eq!(filter_branches(&all, "").len(), 3);
+        assert!(filter_branches(&all, "zzz").is_empty());
     }
 }
