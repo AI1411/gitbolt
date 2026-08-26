@@ -102,22 +102,26 @@ pub fn App() -> Element {
                     }
                 }
                 RepositoryStatus::Opening => {
+                    let session_open = open_session.clone();
+                    let session_remove = open_session.clone();
+                    let session_pin = open_session.clone();
+                    let session_prune = open_session.clone();
                     rsx! {
                         OpenScreen {
                             recent: state.repository.recent.clone(),
                             error: None,
                             opening: true,
                             on_open: move |path| {
-                                dispatch(&open_session, UiEvent::OpenRepository(path), &mut snapshot);
+                                dispatch(&session_open, UiEvent::OpenRepository(path), &mut snapshot);
                             },
                             on_remove_recent: move |path| {
-                                dispatch(&open_session, UiEvent::RemoveRecent(path), &mut snapshot);
+                                dispatch(&session_remove, UiEvent::RemoveRecent(path), &mut snapshot);
                             },
                             on_pin_recent: move |path| {
-                                dispatch(&open_session, UiEvent::PinRecent(path), &mut snapshot);
+                                dispatch(&session_pin, UiEvent::PinRecent(path), &mut snapshot);
                             },
                             on_prune_recent: move |_| {
-                                dispatch(&open_session, UiEvent::PruneRecent, &mut snapshot);
+                                dispatch(&session_prune, UiEvent::PruneRecent, &mut snapshot);
                             },
                         }
                     }
@@ -127,22 +131,26 @@ pub fn App() -> Element {
                         RepositoryStatus::Error(msg) => Some(msg.clone()),
                         _ => state.ui.error_banner.clone(),
                     };
+                    let session_open = open_session.clone();
+                    let session_remove = open_session.clone();
+                    let session_pin = open_session.clone();
+                    let session_prune = open_session.clone();
                     rsx! {
                         OpenScreen {
                             recent: state.repository.recent.clone(),
                             error: error,
                             opening: false,
                             on_open: move |path| {
-                                dispatch(&open_session, UiEvent::OpenRepository(path), &mut snapshot);
+                                dispatch(&session_open, UiEvent::OpenRepository(path), &mut snapshot);
                             },
                             on_remove_recent: move |path| {
-                                dispatch(&open_session, UiEvent::RemoveRecent(path), &mut snapshot);
+                                dispatch(&session_remove, UiEvent::RemoveRecent(path), &mut snapshot);
                             },
                             on_pin_recent: move |path| {
-                                dispatch(&open_session, UiEvent::PinRecent(path), &mut snapshot);
+                                dispatch(&session_pin, UiEvent::PinRecent(path), &mut snapshot);
                             },
                             on_prune_recent: move |_| {
-                                dispatch(&open_session, UiEvent::PruneRecent, &mut snapshot);
+                                dispatch(&session_prune, UiEvent::PruneRecent, &mut snapshot);
                             },
                         }
                     }
