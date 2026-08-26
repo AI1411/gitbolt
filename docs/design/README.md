@@ -16,5 +16,6 @@ A blazing-fast, lightweight Git GUI built with Rust.
 | 6 | [06-user-flows.md](06-user-flows.md) | 主要ユーザーフロー |
 | 7 | [07-runtime.md](07-runtime.md) | キャッシュ・更新・Background Task・エラー/安全設計 |
 | 8 | [08-scope-and-roadmap.md](08-scope-and-roadmap.md) | MVP対象外・CLI/完成体験・次フェーズ |
+| 9 | [09-git-backend.md](09-git-backend.md) | gix / git CLI fallback 対応表・認証/エラー変換方針 |
 
 > 元ファイル: `docs/GitBolt_Design_v0.1.docx`
