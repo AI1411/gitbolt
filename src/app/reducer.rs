@@ -413,13 +413,42 @@ pub fn apply(state: &mut AppState, message: AppMessage) -> Vec<Command> {
             }
             Vec::new()
         }
-        AppMessage::BranchesLoaded { result, .. } => {
+        AppMessage::BranchesLoaded { result, .. } => match result {
+            Ok(data) => {
+                let pending = data.pending_health;
+                state.branch.branches = data.branches.into();
+                state.branch.current = data.current;
+                state.branch.recent = data.recent;
+                state.branch.loaded = true;
+                if pending.is_empty() {
+                    Vec::new()
+                } else {
+                    issue(
+                        state,
+                        vec![Command::EnrichBranchHealth {
+                            names: pending,
+                            generation: gen,
+                        }],
+                    )
+                }
+            }
+            Err(err) => {
+                set_error(state, err);
+                Vec::new()
+            }
+        },
+        AppMessage::BranchHealthEnriched { result, .. } => {
             match result {
-                Ok(data) => {
-                    state.branch.branches = data.branches.into();
-                    state.branch.current = data.current;
-                    state.branch.recent = data.recent;
-                    state.branch.loaded = true;
+                Ok(updates) => {
+                    let mut branches = state.branch.branches.to_vec();
+                    for upd in updates {
+                        if let Some(b) = branches.iter_mut().find(|b| b.name == upd.name) {
+                            b.ahead = upd.ahead;
+                            b.behind = upd.behind;
+                            b.health = upd.health;
+                        }
+                    }
+                    state.branch.branches = branches.into();
                 }
                 Err(err) => set_error(state, err),
             }

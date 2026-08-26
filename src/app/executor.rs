@@ -2,10 +2,12 @@
 
 use std::path::Path;
 
+use super::branch_health::{classify_health, days_since, STALE_DAYS_THRESHOLD};
 use super::command::Command;
 use super::diff_parse::parse_diff_content;
 use super::message::{
-    AppMessage, BranchesData, DivergenceData, RemoteOp, RepositoryData, StatusData,
+    AppMessage, BranchHealthUpdate, BranchesData, DivergenceData, RemoteOp, RepositoryData,
+    StatusData,
 };
 use super::model::{
     BranchHealth, BranchInfo, ChangeKind, CommitSummary, DiffTarget, FileChange, HeadInfo, Oid,
@@ -56,6 +58,10 @@ pub fn execute(cmd: &Command, repo_path: Option<&Path>) -> AppMessage {
         Command::LoadBranches { generation } => AppMessage::BranchesLoaded {
             generation: *generation,
             result: load_branches(repo_path),
+        },
+        Command::EnrichBranchHealth { names, generation } => AppMessage::BranchHealthEnriched {
+            generation: *generation,
+            result: enrich_branch_health(repo_path, names),
         },
         Command::LoadDivergence {
             left,
@@ -188,6 +194,12 @@ fn load_diff(
     Ok(super::diff_parse::attach_change_origins(content, &blame))
 }
 
+fn unix_now_secs() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| i64::try_from(d.as_secs()).unwrap_or(i64::MAX))
+}
+
 fn load_branches(repo_path: Option<&Path>) -> Result<BranchesData, String> {
     let path = repo_path.ok_or_else(|| "リポジトリが開かれていません".to_string())?;
     let service = GixService::open(path).map_err(|e| e.user_message())?;
@@ -197,31 +209,54 @@ fn load_branches(repo_path: Option<&Path>) -> Result<BranchesData, String> {
         .find(|b| b.is_head && !b.is_remote)
         .map(|b| b.name.clone());
     let recent = service.recent_branches(10).map_err(|e| e.user_message())?;
+    let now = unix_now_secs();
+
+    let priority: std::collections::HashSet<&str> = recent
+        .iter()
+        .map(String::as_str)
+        .chain(current.as_deref())
+        .collect();
+
+    let mut pending_health = Vec::new();
     let mut infos = Vec::new();
     for b in refs {
-        let (ahead, behind, health) = if b.is_remote {
-            (0, 0, BranchHealth::Local)
-        } else if let Some(up) = b.upstream.as_deref() {
-            match service.ahead_behind(&b.name, up) {
-                Ok((a, be)) => {
-                    let health = match (a, be) {
-                        (0, 0) => BranchHealth::Synced,
-                        (_, 0) => BranchHealth::Ahead,
-                        (0, _) => BranchHealth::Behind,
-                        _ => BranchHealth::Diverged,
-                    };
-                    (a, be, health)
-                }
-                Err(_) => (0, 0, BranchHealth::Local),
-            }
-        } else {
-            (0, 0, BranchHealth::Local)
-        };
         let last_commit = service
             .branch_last_commit(&b.name)
             .ok()
             .flatten()
             .map(to_summary);
+        let stale_days = last_commit
+            .as_ref()
+            .and_then(|c| days_since(c.timestamp, now));
+
+        let compute_ab_now = !b.is_remote && (priority.contains(b.name.as_str()) || b.is_head);
+        let (ahead, behind) = if b.is_remote {
+            (0, 0)
+        } else if compute_ab_now {
+            if let Some(up) = b.upstream.as_deref() {
+                service.ahead_behind(&b.name, up).unwrap_or((0, 0))
+            } else {
+                (0, 0)
+            }
+        } else {
+            if b.upstream.is_some() {
+                pending_health.push(b.name.clone());
+            }
+            (0, 0)
+        };
+
+        let health = if b.is_remote {
+            BranchHealth::Local
+        } else {
+            classify_health(
+                ahead,
+                behind,
+                b.upstream.is_some(),
+                stale_days,
+                STALE_DAYS_THRESHOLD,
+            )
+        };
+
         infos.push(BranchInfo {
             name: b.name,
             upstream: b.upstream,
@@ -230,13 +265,56 @@ fn load_branches(repo_path: Option<&Path>) -> Result<BranchesData, String> {
             behind,
             last_commit,
             is_remote: b.is_remote,
+            stale_days,
         });
     }
     Ok(BranchesData {
         branches: infos,
         current,
         recent,
+        pending_health,
     })
+}
+
+fn enrich_branch_health(
+    repo_path: Option<&Path>,
+    names: &[String],
+) -> Result<Vec<BranchHealthUpdate>, String> {
+    let path = repo_path.ok_or_else(|| "リポジトリが開かれていません".to_string())?;
+    let service = GixService::open(path).map_err(|e| e.user_message())?;
+    let refs = service.branches().map_err(|e| e.user_message())?;
+    let now = unix_now_secs();
+
+    let mut updates = Vec::new();
+    for name in names {
+        let Some(b) = refs.iter().find(|r| r.name == *name && !r.is_remote) else {
+            continue;
+        };
+        let (ahead, behind) = if let Some(up) = b.upstream.as_deref() {
+            service.ahead_behind(&b.name, up).unwrap_or((0, 0))
+        } else {
+            (0, 0)
+        };
+        let stale_days = service
+            .branch_last_commit(&b.name)
+            .ok()
+            .flatten()
+            .and_then(|c| days_since(c.time, now));
+        let health = classify_health(
+            ahead,
+            behind,
+            b.upstream.is_some(),
+            stale_days,
+            STALE_DAYS_THRESHOLD,
+        );
+        updates.push(BranchHealthUpdate {
+            name: name.clone(),
+            ahead,
+            behind,
+            health,
+        });
+    }
+    Ok(updates)
 }
 
 fn load_divergence(
@@ -327,6 +405,7 @@ fn unsupported(cmd: &Command) -> AppMessage {
         | Command::StageLines { .. }
         | Command::LoadHistoryPage { .. }
         | Command::LoadBranches { .. }
+        | Command::EnrichBranchHealth { .. }
         | Command::LoadDivergence { .. }
         | Command::SetUpstream { .. }
         | Command::LoadWorktrees { .. }
@@ -365,6 +444,7 @@ fn command_name(cmd: &Command) -> &'static str {
         Command::LoadDiff { .. } => "diff",
         Command::LoadHistoryPage { .. } => "log",
         Command::LoadBranches { .. } => "branches",
+        Command::EnrichBranchHealth { .. } => "enrich_branch_health",
         Command::LoadDivergence { .. } => "divergence",
         Command::SetUpstream { .. } => "set_upstream",
         Command::LoadWorktrees { .. } => "worktrees",

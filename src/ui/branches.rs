@@ -2,8 +2,9 @@
 
 use dioxus::prelude::*;
 
+use crate::app::branch_health::format_badge;
 use crate::app::event::UiEvent;
-use crate::app::model::{BranchHealth, BranchInfo};
+use crate::app::model::BranchInfo;
 use crate::app::state::AppState;
 use crate::ui::divergence::DivergenceView;
 
@@ -243,7 +244,12 @@ fn BranchRow(
     on_event: EventHandler<UiEvent>,
     on_track: EventHandler<String>,
 ) -> Element {
-    let badge = health_badge(&branch);
+    let badge = format_badge(
+        branch.health,
+        branch.ahead,
+        branch.behind,
+        branch.stale_days,
+    );
     let name = branch.name.clone();
     let checkout_name = branch.name.clone();
     let other = branch.name.clone();
@@ -339,17 +345,6 @@ fn BranchRow(
     }
 }
 
-fn health_badge(b: &BranchInfo) -> String {
-    match b.health {
-        BranchHealth::Synced => "✓".into(),
-        BranchHealth::Ahead => format!("↑{}", b.ahead),
-        BranchHealth::Behind => format!("↓{}", b.behind),
-        BranchHealth::Diverged => format!("↑{}↓{}", b.ahead, b.behind),
-        BranchHealth::Stale => "◌".into(),
-        BranchHealth::Local => "local".into(),
-    }
-}
-
 /// Returns branches whose names contain `needle` (case-insensitive).
 #[must_use]
 pub fn filter_branches<'a>(branches: &'a [BranchInfo], needle: &str) -> Vec<&'a BranchInfo> {
@@ -374,6 +369,7 @@ mod tests {
             behind: 0,
             last_commit: None,
             is_remote: false,
+            stale_days: None,
         }
     }
 
