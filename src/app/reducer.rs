@@ -232,12 +232,49 @@ pub fn reduce(state: &mut AppState, event: UiEvent) -> Vec<Command> {
             )
         }
         UiEvent::StageAll => {
-            stage_all(state);
-            issue(state, vec![Command::StageAll { generation: gen }])
+            state.ui.confirm_bulk = Some(crate::app::state::BulkConfirm::StageAll);
+            Vec::new()
         }
         UiEvent::UnstageAll => {
-            unstage_all(state);
-            issue(state, vec![Command::UnstageAll { generation: gen }])
+            state.ui.confirm_bulk = Some(crate::app::state::BulkConfirm::UnstageAll);
+            Vec::new()
+        }
+        UiEvent::StashSave { message } => {
+            // Empty working tree stash still confirms; message carried via commit_message unused —
+            // store pending via confirm and re-issue on confirm with None message for simplicity.
+            let _ = message;
+            state.ui.confirm_bulk = Some(crate::app::state::BulkConfirm::StashSave);
+            Vec::new()
+        }
+        UiEvent::RequestBulkConfirm(kind) => {
+            state.ui.confirm_bulk = Some(kind);
+            Vec::new()
+        }
+        UiEvent::ConfirmBulk => {
+            let Some(kind) = state.ui.confirm_bulk.take() else {
+                return Vec::new();
+            };
+            match kind {
+                crate::app::state::BulkConfirm::StageAll => {
+                    stage_all(state);
+                    issue(state, vec![Command::StageAll { generation: gen }])
+                }
+                crate::app::state::BulkConfirm::UnstageAll => {
+                    unstage_all(state);
+                    issue(state, vec![Command::UnstageAll { generation: gen }])
+                }
+                crate::app::state::BulkConfirm::StashSave => issue(
+                    state,
+                    vec![Command::StashSave {
+                        message: None,
+                        generation: gen,
+                    }],
+                ),
+            }
+        }
+        UiEvent::CancelBulk => {
+            state.ui.confirm_bulk = None;
+            Vec::new()
         }
         UiEvent::ToggleStageSelection => {
             let Some(target) = state.diff.target.clone() else {
@@ -385,14 +422,17 @@ pub fn reduce(state: &mut AppState, event: UiEvent) -> Vec<Command> {
             Vec::new()
         }
         UiEvent::Fetch => {
+            state.ui.remote_status = None;
             state.background.remote_label = Some("fetching…".into());
             issue(state, vec![Command::Fetch { generation: gen }])
         }
         UiEvent::Pull => {
+            state.ui.remote_status = None;
             state.background.remote_label = Some("pulling…".into());
             issue(state, vec![Command::Pull { generation: gen }])
         }
         UiEvent::Push => {
+            state.ui.remote_status = None;
             state.background.remote_label = Some("pushing…".into());
             issue(state, vec![Command::Push { generation: gen }])
         }
@@ -435,13 +475,6 @@ pub fn reduce(state: &mut AppState, event: UiEvent) -> Vec<Command> {
             state.ui.confirm_remove_worktree = None;
             Vec::new()
         }
-        UiEvent::StashSave { message } => issue(
-            state,
-            vec![Command::StashSave {
-                message,
-                generation: gen,
-            }],
-        ),
         UiEvent::SelectStash(index) => {
             state.stash.selected = Some(index);
             state.stash.diff = Loadable::Loading;
@@ -1026,6 +1059,11 @@ pub fn apply(state: &mut AppState, message: AppMessage) -> Vec<Command> {
             state.background.remote_label = None;
             match result {
                 Ok(head) => {
+                    state.ui.remote_status = Some(match op {
+                        RemoteOp::Fetch => "Fetched".into(),
+                        RemoteOp::Pull => "Pulled".into(),
+                        RemoteOp::Push => "Pushed".into(),
+                    });
                     let mut cmds = vec![Command::LoadBranches { generation: gen }];
                     if matches!(op, RemoteOp::Fetch | RemoteOp::Pull) {
                         cmds.push(Command::LoadStatus { generation: gen });
@@ -1049,6 +1087,7 @@ pub fn apply(state: &mut AppState, message: AppMessage) -> Vec<Command> {
                     issue(state, cmds)
                 }
                 Err(err) => {
+                    state.ui.remote_status = None;
                     set_error(state, err);
                     Vec::new()
                 }
@@ -1142,6 +1181,10 @@ fn reduce_escape(state: &mut AppState) -> Vec<Command> {
     }
     if state.ui.confirm_delete_branch.is_some() {
         state.ui.confirm_delete_branch = None;
+        return Vec::new();
+    }
+    if state.ui.confirm_bulk.is_some() {
+        state.ui.confirm_bulk = None;
         return Vec::new();
     }
     if state.ui.branch_cleanup.is_some() {
@@ -1734,7 +1777,13 @@ mod tests {
     #[test]
     fn stage_all_moves_everything() {
         let mut state = staged_state();
-        reduce(&mut state, UiEvent::StageAll);
+        let cmds = reduce(&mut state, UiEvent::StageAll);
+        assert!(cmds.is_empty());
+        assert_eq!(
+            state.ui.confirm_bulk,
+            Some(crate::app::state::BulkConfirm::StageAll)
+        );
+        reduce(&mut state, UiEvent::ConfirmBulk);
         assert_eq!(state.changes.staged.len(), 2);
         assert_eq!(state.changes.unstaged.len(), 0);
         assert_eq!(state.changes.untracked.len(), 0);

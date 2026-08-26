@@ -21,11 +21,18 @@ pub fn PulseHeader(props: PulseHeaderProps) -> Element {
     let changes_label = format!("{} changes", pulse.changes);
     let staged_label = format!("{} staged", pulse.staged);
     let worktrees_label = format!("{} worktrees", pulse.worktrees);
+    let ahead = pulse.ahead.unwrap_or(0);
 
     let btn = "border:0;background:transparent;color:inherit;cursor:pointer;padding:0;\
                font:inherit;font-weight:600;";
     let muted = "border:0;background:transparent;color:inherit;cursor:pointer;padding:0;\
                  font:inherit;font-weight:500;opacity:0.75;";
+    let push_style = if ahead > 0 {
+        "border:0;background:#3d8bfd;color:white;cursor:pointer;padding:0.15rem 0.45rem;\
+         font:inherit;font-weight:600;border-radius:4px;"
+    } else {
+        muted
+    };
 
     rsx! {
         header {
@@ -98,6 +105,8 @@ pub fn PulseHeader(props: PulseHeaderProps) -> Element {
                         display:flex;gap:0.45rem;align-items:center;",
                 if let Some(label) = props.state.background.remote_label.clone() {
                     span { style: "opacity:0.8;", "{label}" }
+                } else if let Some(status) = props.state.ui.remote_status.clone() {
+                    span { style: "opacity:0.85;color:#86efac;", "{status}" }
                 } else if props.state.background.inflight > 0 {
                     span { style: "opacity:0.7;", "working…" }
                 }
@@ -114,10 +123,14 @@ pub fn PulseHeader(props: PulseHeaderProps) -> Element {
                     "Pull"
                 }
                 button {
-                    style: "{muted}",
-                    title: "Push",
+                    style: "{push_style}",
+                    title: if ahead > 0 {
+                        format!("Push ({ahead} ahead)")
+                    } else {
+                        "Push".into()
+                    },
                     onclick: move |_| props.on_event.call(UiEvent::Push),
-                    "Push"
+                    if ahead > 0 { "Push ↑{ahead}" } else { "Push" }
                 }
                 button {
                     style: "{muted}",
