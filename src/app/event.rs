@@ -153,6 +153,10 @@ pub enum UiEvent {
     OpenCommandPalette,
     /// Open Quick Open (⌘P).
     OpenQuickOpen,
+    /// Open keyboard cheat sheet (`?`).
+    OpenCheatSheet,
+    /// Text input focus changed (suppress shell shortcuts while typing).
+    SetTyping(bool),
     /// Close any overlay.
     CloseOverlay,
     /// Update overlay search query.

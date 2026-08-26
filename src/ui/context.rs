@@ -88,7 +88,7 @@ pub fn ContextPane(props: ContextPaneProps) -> Element {
 
             p {
                 style: "margin:0;font-size:0.8rem;opacity:0.5;",
-                "⌘I to hide"
+                "{crate::platform::mod_key_label()}I to hide"
             }
         }
     }
@@ -460,8 +460,13 @@ fn CommitBox(
                 style: "width:100%;min-height:5.5rem;box-sizing:border-box;resize:vertical;\
                         padding:0.45rem 0.55rem;border-radius:4px;border:1px solid #334155;\
                         background:#0f1419;color:#e8eef7;font-size:0.85rem;font-family:inherit;",
-                placeholder: "feat(scope): … (type chips below, ⌘Enter to commit)",
+                placeholder: format!(
+                    "feat(scope): … (type chips below, {}Enter to commit)",
+                    crate::platform::mod_key_label()
+                ),
                 value: "{message}",
+                onfocus: move |_| on_event.call(UiEvent::SetTyping(true)),
+                onblur: move |_| on_event.call(UiEvent::SetTyping(false)),
                 oninput: move |evt| {
                     on_event.call(UiEvent::SetCommitMessage(evt.value()));
                 },

@@ -71,7 +71,9 @@ pub fn Shell(props: ShellProps) -> Element {
             onkeydown: move |evt| {
                 let mods = evt.data().modifiers();
                 let shortcut = mods.contains(Modifiers::META) || mods.contains(Modifiers::CONTROL);
+                let shift = mods.contains(Modifiers::SHIFT);
                 let overlay_open = !matches!(props.state.ui.overlay, Overlay::None);
+                let typing = props.state.ui.typing;
 
                 if shortcut {
                     match evt.data().key() {
@@ -129,7 +131,36 @@ pub fn Shell(props: ShellProps) -> Element {
                     return;
                 }
 
+                // While typing in inputs, only allow Esc (handled above).
+                if typing {
+                    return;
+                }
+
                 match evt.data().key() {
+                    Key::Character(ch) if ch == "?" || (shift && ch == "/") => {
+                        evt.prevent_default();
+                        props.on_event.call(UiEvent::OpenCheatSheet);
+                    }
+                    Key::Character(ch) if ch == "1" => {
+                        evt.prevent_default();
+                        props.on_event.call(UiEvent::SelectView(View::Changes));
+                    }
+                    Key::Character(ch) if ch == "2" => {
+                        evt.prevent_default();
+                        props.on_event.call(UiEvent::SelectView(View::History));
+                    }
+                    Key::Character(ch) if ch == "3" => {
+                        evt.prevent_default();
+                        props.on_event.call(UiEvent::SelectView(View::Branches));
+                    }
+                    Key::Character(ch) if ch == "4" => {
+                        evt.prevent_default();
+                        props.on_event.call(UiEvent::SelectView(View::Worktrees));
+                    }
+                    Key::Character(ch) if ch == "5" => {
+                        evt.prevent_default();
+                        props.on_event.call(UiEvent::SelectView(View::Stashes));
+                    }
                     Key::Character(ch) if ch == "/" => {
                         evt.prevent_default();
                         props.on_event.call(UiEvent::OpenQuickOpen);
@@ -138,38 +169,26 @@ pub fn Shell(props: ShellProps) -> Element {
                         evt.prevent_default();
                         props.on_event.call(UiEvent::SelectView(View::Branches));
                     }
-                    Key::Character(ch) if ch.eq_ignore_ascii_case("h") => {
-                        if props.state.navigation.active_view == View::Changes {
-                            if let Some(path) = props
-                                .state
-                                .diff
-                                .target
-                                .as_ref()
-                                .map(|t| t.path.clone())
-                                .or_else(|| props.state.selection.file.clone())
-                            {
-                                evt.prevent_default();
-                                props.on_event.call(UiEvent::ShowFileHistory { path });
-                            } else {
-                                evt.prevent_default();
-                                props.on_event.call(UiEvent::SelectView(View::History));
-                            }
-                        } else {
+                    Key::Character(ch) if ch.eq_ignore_ascii_case("h") && shift => {
+                        if let Some(path) = props
+                            .state
+                            .diff
+                            .target
+                            .as_ref()
+                            .map(|t| t.path.clone())
+                            .or_else(|| props.state.selection.file.clone())
+                        {
                             evt.prevent_default();
-                            props.on_event.call(UiEvent::SelectView(View::History));
+                            props.on_event.call(UiEvent::ShowFileHistory { path });
                         }
+                    }
+                    Key::Character(ch) if ch.eq_ignore_ascii_case("h") => {
+                        evt.prevent_default();
+                        props.on_event.call(UiEvent::SelectView(View::History));
                     }
                     Key::Character(ch) if ch.eq_ignore_ascii_case("w") => {
                         evt.prevent_default();
-                        if props.state.navigation.active_view == View::Branches {
-                            if let Some(branch) = props.state.selection.branch.clone() {
-                                props.on_event.call(UiEvent::InstantWorktree { branch });
-                            } else {
-                                props.on_event.call(UiEvent::SelectView(View::Worktrees));
-                            }
-                        } else {
-                            props.on_event.call(UiEvent::SelectView(View::Worktrees));
-                        }
+                        props.on_event.call(UiEvent::SelectView(View::Worktrees));
                     }
                     Key::Character(ch) if ch.eq_ignore_ascii_case("f") => {
                         evt.prevent_default();

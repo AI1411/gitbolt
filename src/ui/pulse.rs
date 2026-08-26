@@ -114,7 +114,7 @@ pub fn PulseHeader(props: PulseHeaderProps) -> Element {
                     onclick: move |_| props.on_event.call(UiEvent::Push),
                     "Push"
                 }
-                span { "⌘I context" }
+                span { "{crate::platform::mod_key_label()}I context · ? help" }
             }
         }
     }

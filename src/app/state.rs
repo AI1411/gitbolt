@@ -194,6 +194,8 @@ pub enum Overlay {
         query: String,
         selected: usize,
     },
+    /// Keyboard shortcut cheat sheet (issue #84).
+    CheatSheet,
 }
 
 /// Presentational / editable UI state not derived from Git.
@@ -227,6 +229,8 @@ pub struct UiState {
     pub overlay: Overlay,
     /// Pending outdated branch cleanup selection (issue #78).
     pub branch_cleanup: Option<BranchCleanupState>,
+    /// True while a text field has focus — shell must not steal keys (issue #84).
+    pub typing: bool,
 }
 
 /// Multi-select cleanup panel state (issue #78).
@@ -253,6 +257,7 @@ impl Default for UiState {
             copy_feedback: None,
             overlay: Overlay::None,
             branch_cleanup: None,
+            typing: false,
         }
     }
 }
