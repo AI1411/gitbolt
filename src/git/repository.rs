@@ -1,4 +1,186 @@
-//! Repository open / recent / metadata (placeholder).
+//! gix-backed [`GitService`] implementation.
+//!
+//! Only `open`, `head`, and `status` are implemented here (issue #5); other
+//! operations use the trait's default `Unsupported` bodies until later issues
+//! wire them (some via gix, some via the [`super::cli`] fallback — see
+//! `docs/design/09-git-backend.md`).
 
-/// Placeholder for the Repository service.
-pub struct RepositoryService;
+use std::path::Path;
+
+use gix::bstr::BString;
+
+use super::error::GitError;
+use super::service::{ChangeStatus, FileChange, GitService, Head, RepoStatus};
+
+/// A repository opened through gitoxide.
+pub struct GixService {
+    repo: gix::Repository,
+}
+
+impl GixService {
+    /// The underlying gix repository.
+    #[must_use]
+    pub fn repo(&self) -> &gix::Repository {
+        &self.repo
+    }
+}
+
+impl GitService for GixService {
+    fn open(path: &Path) -> Result<Self, GitError> {
+        let repo = gix::discover(path).map_err(|_| GitError::NotARepository(path.to_path_buf()))?;
+        Ok(Self { repo })
+    }
+
+    fn head(&self) -> Result<Head, GitError> {
+        let head = self
+            .repo
+            .head()
+            .map_err(|e| GitError::Backend(e.to_string()))?;
+        let branch = head.referent_name().map(|name| name.shorten().to_string());
+        let detached = head.is_detached();
+        let oid = head.id().map(|id| id.detach().to_string());
+        Ok(Head {
+            branch,
+            oid,
+            detached,
+        })
+    }
+
+    fn status(&self) -> Result<RepoStatus, GitError> {
+        use gix::diff::index::Change as TreeChange;
+        use gix::status::plumbing::index_as_worktree::{Change as WtChange, EntryStatus};
+        use gix::status::{index_worktree, Item};
+
+        let platform = self
+            .repo
+            .status(gix::progress::Discard)
+            .map_err(|e| GitError::Backend(e.to_string()))?;
+        let iter = platform
+            .into_iter(Vec::<BString>::new())
+            .map_err(|e| GitError::Backend(e.to_string()))?;
+
+        let mut status = RepoStatus::default();
+        for item in iter {
+            let item = item.map_err(|e| GitError::Backend(e.to_string()))?;
+            let path = gix::path::from_bstr(item.location()).into_owned();
+
+            match item {
+                Item::TreeIndex(change) => {
+                    let kind = match change {
+                        TreeChange::Addition { .. } => ChangeStatus::Added,
+                        TreeChange::Deletion { .. } => ChangeStatus::Deleted,
+                        TreeChange::Modification { .. } => ChangeStatus::Modified,
+                        TreeChange::Rewrite { copy, .. } => {
+                            if copy {
+                                ChangeStatus::Copied
+                            } else {
+                                ChangeStatus::Renamed
+                            }
+                        }
+                    };
+                    status.staged.push(FileChange::new(path, kind));
+                }
+                Item::IndexWorktree(index_worktree::Item::Modification { status: st, .. }) => {
+                    match st {
+                        EntryStatus::Conflict { .. } => {
+                            status
+                                .conflicted
+                                .push(FileChange::new(path, ChangeStatus::Conflicted));
+                        }
+                        EntryStatus::Change(change) => {
+                            let kind = match change {
+                                WtChange::Removed => ChangeStatus::Deleted,
+                                WtChange::Type { .. } => ChangeStatus::TypeChange,
+                                WtChange::Modification { .. }
+                                | WtChange::SubmoduleModification(_) => ChangeStatus::Modified,
+                            };
+                            status.unstaged.push(FileChange::new(path, kind));
+                        }
+                        EntryStatus::NeedsUpdate(_) | EntryStatus::IntentToAdd => {}
+                    }
+                }
+                Item::IndexWorktree(index_worktree::Item::DirectoryContents { .. }) => {
+                    status
+                        .untracked
+                        .push(FileChange::new(path, ChangeStatus::Untracked));
+                }
+                Item::IndexWorktree(index_worktree::Item::Rewrite { .. }) => {
+                    status
+                        .unstaged
+                        .push(FileChange::new(path, ChangeStatus::Renamed));
+                }
+            }
+        }
+        Ok(status)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::git::fixture::TempRepo;
+
+    #[test]
+    fn open_non_repository_errors() {
+        let dir = tempfile::tempdir().expect("temp dir");
+        let result = GixService::open(dir.path());
+        assert!(matches!(result, Err(GitError::NotARepository(_))));
+    }
+
+    #[test]
+    fn open_and_head_report_current_branch() {
+        let repo = TempRepo::init();
+        repo.write("README.md", "# hello\n");
+        repo.stage("README.md");
+        repo.commit("initial");
+
+        let service = GixService::open(repo.path()).expect("open repo");
+        let head = service.head().expect("head");
+        assert_eq!(head.branch.as_deref(), Some("main"));
+        assert!(!head.detached);
+        assert!(head.oid.is_some());
+    }
+
+    #[test]
+    fn status_groups_staged_unstaged_and_untracked() {
+        let repo = TempRepo::init();
+        repo.write("tracked.txt", "one\n");
+        repo.stage("tracked.txt");
+        repo.commit("initial");
+
+        // Modify a tracked file (unstaged), stage a new file, add an untracked file.
+        repo.write("tracked.txt", "one\ntwo\n");
+        repo.write("staged_new.txt", "new\n");
+        repo.stage("staged_new.txt");
+        repo.write("untracked.txt", "loose\n");
+
+        let service = GixService::open(repo.path()).expect("open repo");
+        let status = service.status().expect("status");
+
+        assert!(
+            status
+                .staged
+                .iter()
+                .any(|f| f.path.ends_with("staged_new.txt") && f.status == ChangeStatus::Added),
+            "expected staged addition, got {:?}",
+            status.staged
+        );
+        assert!(
+            status
+                .unstaged
+                .iter()
+                .any(|f| f.path.ends_with("tracked.txt") && f.status == ChangeStatus::Modified),
+            "expected unstaged modification, got {:?}",
+            status.unstaged
+        );
+        assert!(
+            status
+                .untracked
+                .iter()
+                .any(|f| f.path.ends_with("untracked.txt")),
+            "expected untracked file, got {:?}",
+            status.untracked
+        );
+        assert!(!status.is_clean());
+    }
+}

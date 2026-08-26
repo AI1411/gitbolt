@@ -1,0 +1,781 @@
+//! The reducer: the single place where state transitions happen.
+//!
+//! Flow (see `docs/design/05-architecture.md` section 9):
+//!
+//! ```text
+//! UI -> UiEvent -> [reduce] -> (State mutation + Command[]) -> Worker
+//!    -> AppMessage -> [apply] -> (State mutation + Command[]) -> re-render
+//! ```
+//!
+//! [`reduce`] handles user events (optimistic updates + follow-up commands).
+//! [`apply`] handles worker results, discarding stale ones via [`Generation`].
+
+use std::path::Path;
+
+use super::command::Command;
+use super::event::UiEvent;
+use super::message::{AppMessage, RemoteOp};
+use super::model::{ChangeKind, DiffTarget, FileChange, Generation, Loadable, View};
+use super::state::{AppState, RepositoryState, RepositoryStatus};
+
+/// Number of commits fetched per history page.
+pub const HISTORY_PAGE: usize = 100;
+
+/// Applies a UI event to the state and returns commands to execute.
+#[allow(clippy::too_many_lines)]
+pub fn reduce(state: &mut AppState, event: UiEvent) -> Vec<Command> {
+    let gen = state.generation;
+    match event {
+        UiEvent::OpenRepository(path) => {
+            let recent = merge_recent(&state.repository, &path);
+            let generation = gen.next();
+            *state = AppState::new();
+            state.generation = generation;
+            state.repository.recent = recent;
+            state.repository.path = Some(path.clone());
+            state.repository.status = RepositoryStatus::Opening;
+            issue(state, vec![Command::OpenRepository { path, generation }])
+        }
+        UiEvent::CloseRepository => {
+            let recent = std::mem::take(&mut state.repository.recent);
+            let generation = gen.next();
+            *state = AppState::new();
+            state.generation = generation;
+            state.repository.recent = recent;
+            Vec::new()
+        }
+        UiEvent::SelectView(view) => {
+            if state.navigation.active_view != view {
+                state
+                    .navigation
+                    .back_stack
+                    .push(state.navigation.active_view);
+                state.navigation.active_view = view;
+            }
+            lazy_load_view(state, view)
+        }
+        UiEvent::ToggleContextPanel => {
+            state.navigation.context_panel_open = !state.navigation.context_panel_open;
+            Vec::new()
+        }
+        UiEvent::SelectFile(path) => {
+            state.selection.file = Some(path.clone());
+            let target = DiffTarget {
+                path,
+                staged: false,
+            };
+            state.diff.target = Some(target.clone());
+            state.diff.content = Loadable::Loading;
+            issue(
+                state,
+                vec![Command::LoadDiff {
+                    target,
+                    generation: gen,
+                }],
+            )
+        }
+        UiEvent::SelectCommit(oid) => {
+            state.selection.commit = Some(oid);
+            Vec::new()
+        }
+        UiEvent::SelectBranch(name) => {
+            state.selection.branch = Some(name);
+            Vec::new()
+        }
+        UiEvent::SetDiffView(view) => {
+            state.diff.view = view;
+            Vec::new()
+        }
+        UiEvent::StageFile(path) => {
+            stage_one(state, &path);
+            issue(
+                state,
+                vec![Command::Stage {
+                    path,
+                    generation: gen,
+                }],
+            )
+        }
+        UiEvent::UnstageFile(path) => {
+            unstage_one(state, &path);
+            issue(
+                state,
+                vec![Command::Unstage {
+                    path,
+                    generation: gen,
+                }],
+            )
+        }
+        UiEvent::StageAll => {
+            stage_all(state);
+            issue(state, vec![Command::StageAll { generation: gen }])
+        }
+        UiEvent::UnstageAll => {
+            unstage_all(state);
+            issue(state, vec![Command::UnstageAll { generation: gen }])
+        }
+        UiEvent::SetCommitMessage(message) => {
+            state.ui.commit_message = message;
+            Vec::new()
+        }
+        UiEvent::Commit => reduce_commit(state, gen),
+        UiEvent::CreateBranch(name) => issue(
+            state,
+            vec![Command::CreateBranch {
+                name,
+                generation: gen,
+            }],
+        ),
+        UiEvent::CheckoutBranch(name) => issue(
+            state,
+            vec![Command::Checkout {
+                name,
+                generation: gen,
+            }],
+        ),
+        UiEvent::DeleteBranch(name) => issue(
+            state,
+            vec![Command::DeleteBranch {
+                name,
+                generation: gen,
+            }],
+        ),
+        UiEvent::Fetch => issue(state, vec![Command::Fetch { generation: gen }]),
+        UiEvent::Pull => issue(state, vec![Command::Pull { generation: gen }]),
+        UiEvent::Push => issue(state, vec![Command::Push { generation: gen }]),
+        UiEvent::CreateWorktree { branch, path } => issue(
+            state,
+            vec![Command::CreateWorktree {
+                branch,
+                path,
+                generation: gen,
+            }],
+        ),
+        UiEvent::LoadMoreHistory => {
+            if state.history.loading || !state.history.has_more {
+                return Vec::new();
+            }
+            state.history.loading = true;
+            let offset = state.history.commits.len();
+            issue(
+                state,
+                vec![Command::LoadHistoryPage {
+                    offset,
+                    generation: gen,
+                }],
+            )
+        }
+        UiEvent::Search(query) => {
+            state.ui.searching = !query.is_empty();
+            state.ui.search_query = query;
+            Vec::new()
+        }
+        UiEvent::DismissError => {
+            state.ui.error_banner = None;
+            state.background.last_error = None;
+            Vec::new()
+        }
+    }
+}
+
+/// Applies a worker message to the state and returns follow-up commands.
+#[allow(clippy::too_many_lines)]
+pub fn apply(state: &mut AppState, message: AppMessage) -> Vec<Command> {
+    // Every message is terminal: it completes exactly one in-flight command.
+    state.background.inflight = state.background.inflight.saturating_sub(1);
+
+    // Discard results from a superseded repository context.
+    if message.generation() != state.generation {
+        return Vec::new();
+    }
+    let gen = state.generation;
+
+    match message {
+        AppMessage::RepositoryOpened { result, .. } => match result {
+            Ok(data) => {
+                state.repository.status = RepositoryStatus::Ready;
+                state.repository.head = data.head;
+                issue(
+                    state,
+                    vec![
+                        Command::LoadStatus { generation: gen },
+                        Command::LoadBranches { generation: gen },
+                        Command::LoadWorktrees { generation: gen },
+                        Command::LoadHistoryPage {
+                            offset: 0,
+                            generation: gen,
+                        },
+                    ],
+                )
+            }
+            Err(err) => {
+                state.repository.status = RepositoryStatus::Error(err.clone());
+                set_error(state, err);
+                Vec::new()
+            }
+        },
+        AppMessage::StatusLoaded { result, .. } => {
+            match result {
+                Ok(status) => {
+                    state.changes.staged = status.staged.into();
+                    state.changes.unstaged = status.unstaged.into();
+                    state.changes.untracked = status.untracked.into();
+                    state.changes.conflicted = status.conflicted.into();
+                    state.changes.loaded = true;
+                }
+                Err(err) => set_error(state, err),
+            }
+            Vec::new()
+        }
+        AppMessage::DiffLoaded { result, .. } => {
+            match result {
+                Ok(content) => {
+                    if state.diff.target.as_ref() == Some(&content.target) {
+                        state.diff.content = Loadable::Ready(content);
+                    }
+                }
+                Err(err) => {
+                    if state.diff.content.is_loading() {
+                        state.diff.content = Loadable::Failed(err);
+                    }
+                }
+            }
+            Vec::new()
+        }
+        AppMessage::HistoryPageLoaded { offset, result, .. } => {
+            state.history.loading = false;
+            match result {
+                Ok(commits) => {
+                    state.history.has_more = commits.len() >= HISTORY_PAGE;
+                    if offset == 0 {
+                        state.history.commits = commits;
+                    } else {
+                        state.history.commits.extend(commits);
+                    }
+                }
+                Err(err) => set_error(state, err),
+            }
+            Vec::new()
+        }
+        AppMessage::BranchesLoaded { result, .. } => {
+            match result {
+                Ok((branches, current)) => {
+                    state.branch.branches = branches.into();
+                    state.branch.current = current;
+                    state.branch.loaded = true;
+                }
+                Err(err) => set_error(state, err),
+            }
+            Vec::new()
+        }
+        AppMessage::WorktreesLoaded { result, .. } => {
+            match result {
+                Ok(worktrees) => {
+                    state.worktree.worktrees = worktrees.into();
+                    state.worktree.loaded = true;
+                }
+                Err(err) => set_error(state, err),
+            }
+            Vec::new()
+        }
+        AppMessage::StageCompleted {
+            result: Err(err), ..
+        }
+        | AppMessage::UnstageCompleted {
+            result: Err(err), ..
+        } => {
+            // Roll back the optimistic move by re-reading status.
+            set_error(state, err);
+            issue(state, vec![Command::LoadStatus { generation: gen }])
+        }
+        AppMessage::StageCompleted { result: Ok(()), .. }
+        | AppMessage::UnstageCompleted { result: Ok(()), .. } => Vec::new(),
+        AppMessage::CommitCompleted { result, .. } => match result {
+            Ok(_) => {
+                state.ui.commit_message.clear();
+                bump_after_head_change(state);
+                let gen = state.generation;
+                issue(
+                    state,
+                    vec![
+                        Command::LoadStatus { generation: gen },
+                        Command::LoadHistoryPage {
+                            offset: 0,
+                            generation: gen,
+                        },
+                        Command::LoadBranches { generation: gen },
+                    ],
+                )
+            }
+            Err(err) => {
+                // Preserve the commit message for retry.
+                set_error(state, err);
+                Vec::new()
+            }
+        },
+        AppMessage::CheckoutCompleted { result, .. } => match result {
+            Ok(head) => {
+                state.repository.head = head;
+                state.selection.file = None;
+                state.diff = super::state::DiffState::default();
+                bump_after_head_change(state);
+                let gen = state.generation;
+                issue(
+                    state,
+                    vec![
+                        Command::LoadStatus { generation: gen },
+                        Command::LoadBranches { generation: gen },
+                        Command::LoadHistoryPage {
+                            offset: 0,
+                            generation: gen,
+                        },
+                    ],
+                )
+            }
+            Err(err) => {
+                set_error(state, err);
+                Vec::new()
+            }
+        },
+        AppMessage::BranchCreated { result, .. } | AppMessage::BranchDeleted { result, .. } => {
+            match result {
+                Ok(()) => issue(state, vec![Command::LoadBranches { generation: gen }]),
+                Err(err) => {
+                    set_error(state, err);
+                    Vec::new()
+                }
+            }
+        }
+        AppMessage::WorktreeCreated { result, .. } => match result {
+            Ok(_) => issue(state, vec![Command::LoadWorktrees { generation: gen }]),
+            Err(err) => {
+                set_error(state, err);
+                Vec::new()
+            }
+        },
+        AppMessage::RemoteCompleted { op, result, .. } => match result {
+            Ok(()) => {
+                let mut cmds = vec![Command::LoadBranches { generation: gen }];
+                if matches!(op, RemoteOp::Fetch | RemoteOp::Pull) {
+                    cmds.push(Command::LoadStatus { generation: gen });
+                }
+                issue(state, cmds)
+            }
+            Err(err) => {
+                set_error(state, err);
+                Vec::new()
+            }
+        },
+    }
+}
+
+// --- helpers ---------------------------------------------------------------
+
+/// Registers the given number of commands as in-flight and returns them.
+fn issue(state: &mut AppState, commands: Vec<Command>) -> Vec<Command> {
+    let count = u32::try_from(commands.len()).unwrap_or(u32::MAX);
+    state.background.inflight = state.background.inflight.saturating_add(count);
+    commands
+}
+
+/// Sets both the error banner and the last background error.
+fn set_error(state: &mut AppState, message: String) {
+    state.ui.error_banner = Some(message.clone());
+    state.background.last_error = Some(message);
+}
+
+/// Bumps the generation and invalidates HEAD-dependent views.
+fn bump_after_head_change(state: &mut AppState) {
+    state.generation = state.generation.next();
+    state.diff.content = Loadable::Idle;
+}
+
+/// Builds the recent-repositories list with `path` moved to the front.
+fn merge_recent(repo: &RepositoryState, path: &Path) -> Vec<std::path::PathBuf> {
+    let mut recent = vec![path.to_path_buf()];
+    for existing in &repo.recent {
+        if existing != path {
+            recent.push(existing.clone());
+        }
+    }
+    recent.truncate(10);
+    recent
+}
+
+/// Validates and dispatches a commit.
+fn reduce_commit(state: &mut AppState, generation: Generation) -> Vec<Command> {
+    let message = state.ui.commit_message.trim().to_string();
+    if message.is_empty() {
+        set_error(state, "コミットメッセージが空です".to_string());
+        return Vec::new();
+    }
+    if state.changes.staged.is_empty() {
+        set_error(state, "ステージされた変更がありません".to_string());
+        return Vec::new();
+    }
+    issue(
+        state,
+        vec![Command::Commit {
+            message,
+            generation,
+        }],
+    )
+}
+
+/// Lazily loads data for a view the first time it is shown.
+fn lazy_load_view(state: &mut AppState, view: View) -> Vec<Command> {
+    let gen = state.generation;
+    match view {
+        View::History if state.history.commits.is_empty() && !state.history.loading => {
+            state.history.loading = true;
+            issue(
+                state,
+                vec![Command::LoadHistoryPage {
+                    offset: 0,
+                    generation: gen,
+                }],
+            )
+        }
+        View::Branches if !state.branch.loaded => {
+            issue(state, vec![Command::LoadBranches { generation: gen }])
+        }
+        View::Worktrees if !state.worktree.loaded => {
+            issue(state, vec![Command::LoadWorktrees { generation: gen }])
+        }
+        _ => Vec::new(),
+    }
+}
+
+fn stage_one(state: &mut AppState, path: &Path) {
+    let mut unstaged = state.changes.unstaged.to_vec();
+    let mut untracked = state.changes.untracked.to_vec();
+    let mut staged = state.changes.staged.to_vec();
+    if let Some(pos) = unstaged.iter().position(|f| f.path == path) {
+        staged.push(unstaged.remove(pos));
+    } else if let Some(pos) = untracked.iter().position(|f| f.path == path) {
+        let mut change = untracked.remove(pos);
+        change.kind = ChangeKind::Added;
+        staged.push(change);
+    } else {
+        return;
+    }
+    state.changes.unstaged = unstaged.into();
+    state.changes.untracked = untracked.into();
+    state.changes.staged = staged.into();
+}
+
+fn unstage_one(state: &mut AppState, path: &Path) {
+    let mut staged = state.changes.staged.to_vec();
+    let Some(pos) = staged.iter().position(|f| f.path == path) else {
+        return;
+    };
+    let change = staged.remove(pos);
+    let mut unstaged = state.changes.unstaged.to_vec();
+    unstaged.push(FileChange::new(change.path, ChangeKind::Modified));
+    state.changes.staged = staged.into();
+    state.changes.unstaged = unstaged.into();
+}
+
+fn stage_all(state: &mut AppState) {
+    let mut staged = state.changes.staged.to_vec();
+    staged.extend(state.changes.unstaged.iter().cloned());
+    staged.extend(
+        state
+            .changes
+            .untracked
+            .iter()
+            .map(|f| FileChange::new(f.path.clone(), ChangeKind::Added)),
+    );
+    state.changes.staged = staged.into();
+    state.changes.unstaged = Vec::new().into();
+    state.changes.untracked = Vec::new().into();
+}
+
+fn unstage_all(state: &mut AppState) {
+    let mut unstaged = state.changes.unstaged.to_vec();
+    unstaged.extend(
+        state
+            .changes
+            .staged
+            .iter()
+            .map(|f| FileChange::new(f.path.clone(), ChangeKind::Modified)),
+    );
+    state.changes.unstaged = unstaged.into();
+    state.changes.staged = Vec::new().into();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::app::message::RepositoryData;
+    use crate::app::model::{CommitSummary, DiffContent, DiffHunk, HeadInfo, Oid};
+    use std::path::PathBuf;
+    use std::sync::Arc;
+
+    fn staged_state() -> AppState {
+        let mut state = AppState::new();
+        state.changes.unstaged = vec![FileChange::new("a.rs", ChangeKind::Modified)].into();
+        state.changes.untracked = vec![FileChange::new("b.rs", ChangeKind::Untracked)].into();
+        state
+    }
+
+    #[test]
+    fn open_repository_bumps_generation_and_dispatches() {
+        let mut state = AppState::new();
+        let cmds = reduce(&mut state, UiEvent::OpenRepository(PathBuf::from("/repo")));
+        assert_eq!(state.generation, Generation(1));
+        assert_eq!(state.repository.status, RepositoryStatus::Opening);
+        assert_eq!(state.repository.recent, vec![PathBuf::from("/repo")]);
+        assert_eq!(state.background.inflight, 1);
+        assert!(matches!(cmds.as_slice(), [Command::OpenRepository { .. }]));
+    }
+
+    #[test]
+    fn repository_opened_fresh_triggers_loads_but_stale_is_dropped() {
+        let mut state = AppState::new();
+        reduce(&mut state, UiEvent::OpenRepository(PathBuf::from("/repo")));
+        let gen = state.generation;
+
+        // A stale message (older generation) is discarded.
+        let dropped = apply(
+            &mut state,
+            AppMessage::RepositoryOpened {
+                generation: Generation(0),
+                result: Ok(RepositoryData {
+                    head: HeadInfo::default(),
+                }),
+            },
+        );
+        assert!(dropped.is_empty());
+        assert_ne!(state.repository.status, RepositoryStatus::Ready);
+
+        // The fresh message is applied and fans out to load commands.
+        let cmds = apply(
+            &mut state,
+            AppMessage::RepositoryOpened {
+                generation: gen,
+                result: Ok(RepositoryData {
+                    head: HeadInfo {
+                        branch: Some("main".into()),
+                        oid: None,
+                        detached: false,
+                    },
+                }),
+            },
+        );
+        assert!(state.is_ready());
+        assert_eq!(state.repository.head.branch.as_deref(), Some("main"));
+        assert_eq!(cmds.len(), 4);
+    }
+
+    #[test]
+    fn select_file_requests_diff_and_only_matching_diff_is_applied() {
+        let mut state = AppState::new();
+        reduce(&mut state, UiEvent::SelectFile(PathBuf::from("a.rs")));
+        assert!(state.diff.content.is_loading());
+        let gen = state.generation;
+
+        // Diff for a different file is ignored.
+        let other = DiffContent {
+            target: DiffTarget {
+                path: "other.rs".into(),
+                staged: false,
+            },
+            hunks: Arc::from([] as [DiffHunk; 0]),
+        };
+        apply(
+            &mut state,
+            AppMessage::DiffLoaded {
+                generation: gen,
+                result: Ok(other),
+            },
+        );
+        assert!(state.diff.content.is_loading());
+
+        // Diff for the selected file is applied.
+        let content = DiffContent {
+            target: DiffTarget {
+                path: "a.rs".into(),
+                staged: false,
+            },
+            hunks: Arc::from([DiffHunk {
+                header: "@@".into(),
+                lines: vec![],
+            }]),
+        };
+        apply(
+            &mut state,
+            AppMessage::DiffLoaded {
+                generation: gen,
+                result: Ok(content),
+            },
+        );
+        assert!(state.diff.content.ready().is_some());
+    }
+
+    #[test]
+    fn optimistic_stage_moves_file_and_error_rolls_back_via_reload() {
+        let mut state = staged_state();
+        reduce(&mut state, UiEvent::StageFile(PathBuf::from("a.rs")));
+        assert_eq!(state.changes.staged.len(), 1);
+        assert_eq!(state.changes.unstaged.len(), 0);
+        let gen = state.generation;
+
+        let cmds = apply(
+            &mut state,
+            AppMessage::StageCompleted {
+                generation: gen,
+                path: PathBuf::from("a.rs"),
+                result: Err("boom".into()),
+            },
+        );
+        assert!(state.ui.error_banner.is_some());
+        assert!(matches!(cmds.as_slice(), [Command::LoadStatus { .. }]));
+    }
+
+    #[test]
+    fn stage_all_moves_everything() {
+        let mut state = staged_state();
+        reduce(&mut state, UiEvent::StageAll);
+        assert_eq!(state.changes.staged.len(), 2);
+        assert_eq!(state.changes.unstaged.len(), 0);
+        assert_eq!(state.changes.untracked.len(), 0);
+    }
+
+    #[test]
+    fn commit_validation_requires_message_and_staged_changes() {
+        let mut state = AppState::new();
+        // Empty message -> error, no command.
+        let cmds = reduce(&mut state, UiEvent::Commit);
+        assert!(cmds.is_empty());
+        assert!(state.ui.error_banner.is_some());
+
+        // Message but nothing staged -> error.
+        reduce(&mut state, UiEvent::SetCommitMessage("feat: x".into()));
+        let cmds = reduce(&mut state, UiEvent::Commit);
+        assert!(cmds.is_empty());
+
+        // Message + staged -> Commit command; message preserved until success.
+        state.changes.staged = vec![FileChange::new("a.rs", ChangeKind::Modified)].into();
+        let cmds = reduce(&mut state, UiEvent::Commit);
+        assert!(matches!(cmds.as_slice(), [Command::Commit { .. }]));
+        assert_eq!(state.ui.commit_message, "feat: x");
+    }
+
+    #[test]
+    fn commit_failure_preserves_message_success_clears_and_bumps() {
+        let mut state = AppState::new();
+        state.ui.commit_message = "feat: x".into();
+        let gen = state.generation;
+
+        apply(
+            &mut state,
+            AppMessage::CommitCompleted {
+                generation: gen,
+                result: Err("locked".into()),
+            },
+        );
+        assert_eq!(state.ui.commit_message, "feat: x");
+
+        let cmds = apply(
+            &mut state,
+            AppMessage::CommitCompleted {
+                generation: gen,
+                result: Ok(Oid("abc".into())),
+            },
+        );
+        assert_eq!(state.ui.commit_message, "");
+        assert_eq!(state.generation, gen.next());
+        assert_eq!(cmds.len(), 3);
+    }
+
+    #[test]
+    fn checkout_completion_bumps_generation_and_invalidates_diff() {
+        let mut state = AppState::new();
+        state.diff.content = Loadable::Ready(DiffContent {
+            target: DiffTarget {
+                path: "a.rs".into(),
+                staged: false,
+            },
+            hunks: Arc::from([] as [DiffHunk; 0]),
+        });
+        let gen = state.generation;
+        let cmds = apply(
+            &mut state,
+            AppMessage::CheckoutCompleted {
+                generation: gen,
+                result: Ok(HeadInfo {
+                    branch: Some("dev".into()),
+                    oid: None,
+                    detached: false,
+                }),
+            },
+        );
+        assert_eq!(state.generation, gen.next());
+        assert_eq!(state.diff.content, Loadable::Idle);
+        assert_eq!(state.repository.head.branch.as_deref(), Some("dev"));
+        assert_eq!(cmds.len(), 3);
+    }
+
+    #[test]
+    fn history_paging_appends_and_stops_when_short_page() {
+        let mut state = AppState::new();
+        state.history.has_more = true;
+        let gen = state.generation;
+        let full: Vec<CommitSummary> = (0..HISTORY_PAGE)
+            .map(|i| CommitSummary {
+                oid: Oid(format!("{i}")),
+                summary: String::new(),
+                author: String::new(),
+                timestamp: 0,
+            })
+            .collect();
+        apply(
+            &mut state,
+            AppMessage::HistoryPageLoaded {
+                generation: gen,
+                offset: 0,
+                result: Ok(full),
+            },
+        );
+        assert_eq!(state.history.commits.len(), HISTORY_PAGE);
+        assert!(state.history.has_more);
+
+        // A short next page appends and clears has_more.
+        state.history.loading = true;
+        apply(
+            &mut state,
+            AppMessage::HistoryPageLoaded {
+                generation: gen,
+                offset: HISTORY_PAGE,
+                result: Ok(vec![CommitSummary {
+                    oid: Oid("x".into()),
+                    summary: String::new(),
+                    author: String::new(),
+                    timestamp: 0,
+                }]),
+            },
+        );
+        assert_eq!(state.history.commits.len(), HISTORY_PAGE + 1);
+        assert!(!state.history.has_more);
+    }
+
+    #[test]
+    fn inflight_tracks_dispatch_and_completion() {
+        let mut state = AppState::new();
+        reduce(&mut state, UiEvent::OpenRepository(PathBuf::from("/repo")));
+        assert_eq!(state.background.inflight, 1);
+        let gen = state.generation;
+        apply(
+            &mut state,
+            AppMessage::RepositoryOpened {
+                generation: gen,
+                result: Ok(RepositoryData {
+                    head: HeadInfo::default(),
+                }),
+            },
+        );
+        // -1 for the completed open, +4 for the fan-out loads.
+        assert_eq!(state.background.inflight, 4);
+    }
+}
