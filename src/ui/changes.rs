@@ -31,7 +31,7 @@ pub fn ChangesView(props: ChangesViewProps) -> Element {
 
     rsx! {
         div {
-            style: "display:flex;flex-direction:column;gap:0.75rem;font-size:0.9rem;margin-top:0.75rem;",
+            style: "display:flex;flex-direction:column;gap:0.75rem;font-size:0.9rem;",
             if !loaded {
                 p { style: "margin:0;opacity:0.6;", "Loading status…" }
             }

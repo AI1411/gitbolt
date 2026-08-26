@@ -39,7 +39,7 @@ pub fn DiffPane(props: DiffViewProps) -> Element {
 
     rsx! {
         div {
-            style: "display:flex;flex-direction:column;gap:0.5rem;min-height:4rem;",
+            style: "display:flex;flex-direction:column;gap:0.5rem;min-height:0;height:100%;",
 
             div {
                 style: "display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;",
@@ -114,7 +114,7 @@ pub fn DiffPane(props: DiffViewProps) -> Element {
                     div {
                         style: "padding:0.5rem 0;border:1px solid #243044;border-radius:6px;\
                                 background:#151b24;font-family:ui-monospace,monospace;font-size:0.82rem;\
-                                overflow:auto;max-height:50vh;",
+                                overflow:visible;",
                         for (hi, hunk) in content.hunks.iter().enumerate() {
                             {
                                 let hunk_bg = if hi == focused { "#1a2740" } else { "transparent" };
