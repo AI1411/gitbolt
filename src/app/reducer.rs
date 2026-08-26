@@ -10,7 +10,7 @@
 //! [`reduce`] handles user events (optimistic updates + follow-up commands).
 //! [`apply`] handles worker results, discarding stale ones via [`Generation`].
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use super::command::Command;
 use super::event::UiEvent;
@@ -104,11 +104,19 @@ pub fn reduce(state: &mut AppState, event: UiEvent) -> Vec<Command> {
             reduce(state, UiEvent::SelectFile { path, staged })
         }
         UiEvent::SelectCommit(oid) => select_commit(state, oid, true),
+        UiEvent::SelectCommitFile(path) => select_commit_file(state, path),
+        UiEvent::ClearCommitFileDiff => {
+            state.context.selected_file = None;
+            state.context.file_diff = Loadable::Idle;
+            Vec::new()
+        }
         UiEvent::NavigateCommit { delta } => navigate_commit(state, delta),
         UiEvent::SelectBranch(name) => {
             state.selection.branch = Some(name);
             state.selection.commit = None;
             state.context.commit = Loadable::Idle;
+            state.context.selected_file = None;
+            state.context.file_diff = Loadable::Idle;
             state.navigation.commit_back.clear();
             state.navigation.commit_forward.clear();
             state.navigation.context_panel_open = true;
@@ -905,6 +913,19 @@ pub fn apply(state: &mut AppState, message: AppMessage) -> Vec<Command> {
             }
             Vec::new()
         }
+        AppMessage::CommitFileDiffLoaded {
+            oid, path, result, ..
+        } => {
+            if state.selection.commit.as_ref() == Some(&oid)
+                && state.context.selected_file.as_ref() == Some(&path)
+            {
+                match result {
+                    Ok(content) => state.context.file_diff = Loadable::Ready(content),
+                    Err(err) => state.context.file_diff = Loadable::Failed(err),
+                }
+            }
+            Vec::new()
+        }
         AppMessage::RemoteCompleted { op, result, .. } => {
             state.background.remote_label = None;
             match result {
@@ -1043,13 +1064,20 @@ fn reduce_escape(state: &mut AppState) -> Vec<Command> {
         state.branch.filter.clear();
         return Vec::new();
     }
-    // Commit trail Back (issue #32) — Esc clears or steps back before view stack.
+    // Commit file diff first, then commit trail, then view stack.
+    if state.context.selected_file.is_some() {
+        state.context.selected_file = None;
+        state.context.file_diff = Loadable::Idle;
+        return Vec::new();
+    }
     if state.selection.commit.is_some() {
         if !state.navigation.commit_back.is_empty() {
             return navigate_commit(state, -1);
         }
         state.selection.commit = None;
         state.context.commit = Loadable::Idle;
+        state.context.selected_file = None;
+        state.context.file_diff = Loadable::Idle;
         state.navigation.commit_forward.clear();
         return Vec::new();
     }
@@ -1074,10 +1102,30 @@ fn select_commit(state: &mut AppState, oid: Oid, record_history: bool) -> Vec<Co
     state.selection.commit = Some(oid.clone());
     state.navigation.context_panel_open = true;
     state.context.commit = Loadable::Loading;
+    state.context.selected_file = None;
+    state.context.file_diff = Loadable::Idle;
     issue(
         state,
         vec![Command::LoadCommitDetail {
             oid,
+            generation: gen,
+        }],
+    )
+}
+
+/// Loads the unified diff for one path inside the currently selected commit.
+fn select_commit_file(state: &mut AppState, path: PathBuf) -> Vec<Command> {
+    let Some(oid) = state.selection.commit.clone() else {
+        return Vec::new();
+    };
+    let gen = state.generation;
+    state.context.selected_file = Some(path.clone());
+    state.context.file_diff = Loadable::Loading;
+    issue(
+        state,
+        vec![Command::LoadCommitFileDiff {
+            oid,
+            path,
             generation: gen,
         }],
     )
@@ -1986,5 +2034,29 @@ mod tests {
         assert!(state.diff.heatmap_enabled);
         let _ = reduce(&mut state, UiEvent::ToggleHeatmap);
         assert!(!state.diff.heatmap_enabled);
+    }
+
+    #[test]
+    fn select_commit_file_loads_diff_and_escape_clears() {
+        let mut state = AppState::new();
+        let oid = Oid("abc".into());
+        let _ = reduce(&mut state, UiEvent::SelectCommit(oid.clone()));
+        let cmds = reduce(
+            &mut state,
+            UiEvent::SelectCommitFile(PathBuf::from("docs/a.md")),
+        );
+        assert_eq!(
+            state.context.selected_file,
+            Some(PathBuf::from("docs/a.md"))
+        );
+        assert!(state.context.file_diff.is_loading());
+        assert!(matches!(
+            cmds.as_slice(),
+            [Command::LoadCommitFileDiff { path, .. }] if path == Path::new("docs/a.md")
+        ));
+        let _ = reduce(&mut state, UiEvent::Escape);
+        assert!(state.context.selected_file.is_none());
+        assert!(matches!(state.context.file_diff, Loadable::Idle));
+        assert_eq!(state.selection.commit, Some(oid));
     }
 }

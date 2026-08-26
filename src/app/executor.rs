@@ -105,6 +105,16 @@ pub fn execute(cmd: &Command, repo_path: Option<&Path>) -> AppMessage {
             oid: oid.clone(),
             result: load_commit_detail(repo_path, oid),
         },
+        Command::LoadCommitFileDiff {
+            oid,
+            path,
+            generation,
+        } => AppMessage::CommitFileDiffLoaded {
+            generation: *generation,
+            oid: oid.clone(),
+            path: path.clone(),
+            result: load_commit_file_diff(repo_path, oid, path),
+        },
     }
 }
 
@@ -292,6 +302,23 @@ fn load_commit_detail(repo_path: Option<&Path>, oid: &Oid) -> Result<CommitDetai
             })
             .collect(),
     })
+}
+
+fn load_commit_file_diff(
+    repo_path: Option<&Path>,
+    oid: &Oid,
+    file: &Path,
+) -> Result<crate::app::model::DiffContent, String> {
+    let repo = repo_path.ok_or_else(|| "リポジトリが開かれていません".to_string())?;
+    let patch = crate::git::commit_detail::show_file_diff(repo, &oid.0, file)
+        .map_err(|e| e.user_message())?;
+    Ok(parse_diff_content(
+        DiffTarget {
+            path: file.to_path_buf(),
+            staged: false,
+        },
+        &patch,
+    ))
 }
 
 fn load_stashes(repo_path: Option<&Path>) -> Result<Vec<StashInfo>, String> {

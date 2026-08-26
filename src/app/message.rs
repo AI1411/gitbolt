@@ -5,6 +5,8 @@
 //! The reducer drops messages whose generation is older than the current one
 //! (stale results), while still reconciling background bookkeeping.
 
+use std::path::PathBuf;
+
 use super::model::{
     BranchHealth, BranchInfo, CommitDetail, CommitSummary, DiffContent, DiffTarget, FileChange,
     Generation, HeadInfo, Oid, StashInfo, WorktreeInfo,
@@ -185,6 +187,12 @@ pub enum AppMessage {
         oid: Oid,
         result: Result<CommitDetail, Failure>,
     },
+    CommitFileDiffLoaded {
+        generation: Generation,
+        oid: Oid,
+        path: PathBuf,
+        result: Result<DiffContent, Failure>,
+    },
     RemoteCompleted {
         generation: Generation,
         op: RemoteOp,
@@ -224,6 +232,7 @@ impl AppMessage {
             | Self::StashDropped { generation, .. }
             | Self::WorkerFault { generation, .. }
             | Self::CommitDetailLoaded { generation, .. }
+            | Self::CommitFileDiffLoaded { generation, .. }
             | Self::RemoteCompleted { generation, .. } => *generation,
         }
     }

@@ -27,6 +27,10 @@ pub enum UiEvent {
     NavigateChanges { delta: i32 },
     /// Select a commit (shows its detail).
     SelectCommit(Oid),
+    /// View one changed file's diff within the selected commit.
+    SelectCommitFile(PathBuf),
+    /// Clear the commit-file diff preview.
+    ClearCommitFileDiff,
     /// Select a branch.
     SelectBranch(String),
     /// Filter the branch list (Quick Open for branches).

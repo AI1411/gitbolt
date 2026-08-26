@@ -23,6 +23,19 @@ pub struct CommitFileChange {
     pub path: PathBuf,
 }
 
+/// Unified diff text for one path within a commit.
+///
+/// Uses `git show <oid> -- <path>` (works for root commits; no `oid^`).
+///
+/// # Errors
+/// Propagates CLI failures.
+pub fn show_file_diff(repo: &Path, oid: &str, path: &Path) -> Result<String, GitError> {
+    let cli = GitCli::new(repo)?;
+    let path_str = path.to_string_lossy();
+    // `--format=` suppresses the commit header so output is a bare unified diff.
+    cli.run(&["show", "--format=", "--patch", oid, "--", path_str.as_ref()])
+}
+
 /// Loads commit metadata and changed files for `oid`.
 ///
 /// # Errors
@@ -104,5 +117,10 @@ mod tests {
             .files
             .iter()
             .any(|f| f.path.ends_with("a.txt") && f.status == 'M'));
+
+        let patch =
+            show_file_diff(repo.path(), head.trim(), Path::new("a.txt")).expect("file diff");
+        assert!(patch.contains("+two") || patch.contains("two"), "{patch}");
+        assert!(patch.contains("@@"), "{patch}");
     }
 }

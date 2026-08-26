@@ -81,6 +81,7 @@ fn CommitDetailPanel(state: AppState, on_event: EventHandler<UiEvent>) -> Elemen
     let oid = state.selection.commit.clone();
     let can_back = !state.navigation.commit_back.is_empty();
     let can_forward = !state.navigation.commit_forward.is_empty();
+    let selected_file = state.context.selected_file.clone();
     match &state.context.commit {
         Loadable::Loading => rsx! {
             p { style: "margin:0;opacity:0.6;font-size:0.85rem;", "Loading commit…" }
@@ -97,6 +98,7 @@ fn CommitDetailPanel(state: AppState, on_event: EventHandler<UiEvent>) -> Elemen
                 oid: oid.clone(),
                 can_back: can_back,
                 can_forward: can_forward,
+                selected_file: selected_file,
                 on_event: on_event,
             }
         },
@@ -109,6 +111,7 @@ fn CommitDetailBody(
     oid: Option<crate::app::model::Oid>,
     can_back: bool,
     can_forward: bool,
+    selected_file: Option<std::path::PathBuf>,
     on_event: EventHandler<UiEvent>,
 ) -> Element {
     let now = std::time::SystemTime::now()
@@ -192,13 +195,38 @@ fn CommitDetailBody(
                         style: "font-size:0.72rem;letter-spacing:0.05em;text-transform:uppercase;opacity:0.55;",
                         "Changed files ({detail.files.len()})"
                     }
+                    p {
+                        style: "margin:0.2rem 0 0;font-size:0.72rem;opacity:0.5;",
+                        "Click a file to view its diff"
+                    }
                     ul {
                         style: "list-style:none;margin:0.25rem 0 0;padding:0;display:flex;flex-direction:column;gap:0.15rem;",
                         for f in detail.files.iter() {
-                            li {
-                                style: "font-family:ui-monospace,monospace;font-size:0.78rem;opacity:0.85;",
-                                span { style: "opacity:0.55;margin-right:0.35rem;", "{f.status}" }
-                                "{f.path.display()}"
+                            {
+                                let path = f.path.clone();
+                                let path_label = f.path.display().to_string();
+                                let status = f.status;
+                                let selected = selected_file.as_ref() == Some(&f.path);
+                                let bg = if selected { "#1e3a5f" } else { "transparent" };
+                                rsx! {
+                                    li {
+                                        key: "{path_label}",
+                                        button {
+                                            r#type: "button",
+                                            style: format!(
+                                                "display:flex;align-items:center;gap:0.35rem;width:100%;text-align:left;\
+                                                 border:0;border-radius:4px;padding:0.2rem 0.3rem;cursor:pointer;\
+                                                 background:{bg};color:#e2e8f0;font-family:ui-monospace,monospace;\
+                                                 font-size:0.78rem;"
+                                            ),
+                                            onclick: move |_| {
+                                                on_event.call(UiEvent::SelectCommitFile(path.clone()));
+                                            },
+                                            span { style: "opacity:0.55;flex:0 0 auto;", "{status}" }
+                                            span { style: "opacity:0.9;overflow:hidden;text-overflow:ellipsis;", "{path_label}" }
+                                        }
+                                    }
+                                }
                             }
                         }
                     }

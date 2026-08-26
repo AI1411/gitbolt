@@ -143,6 +143,12 @@ pub enum Command {
         oid: Oid,
         generation: Generation,
     },
+    /// Unified diff for one path inside a commit.
+    LoadCommitFileDiff {
+        oid: Oid,
+        path: PathBuf,
+        generation: Generation,
+    },
 }
 
 impl Command {
@@ -181,7 +187,8 @@ impl Command {
             | Self::StashApply { generation, .. }
             | Self::StashPop { generation, .. }
             | Self::StashDrop { generation, .. }
-            | Self::LoadCommitDetail { generation, .. } => *generation,
+            | Self::LoadCommitDetail { generation, .. }
+            | Self::LoadCommitFileDiff { generation, .. } => *generation,
         }
     }
 }

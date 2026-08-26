@@ -116,10 +116,14 @@ pub struct StashState {
     pub diff: Loadable<DiffContent>,
 }
 
-/// Context panel payloads (issue #25).
+/// Context panel payloads (issue #25) + commit file diff.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct ContextState {
     pub commit: Loadable<CommitDetail>,
+    /// File selected within the current commit's changed-files list.
+    pub selected_file: Option<PathBuf>,
+    /// Unified diff for [`Self::selected_file`] at the selected commit.
+    pub file_diff: Loadable<DiffContent>,
 }
 
 /// The user's current selection across panes.
