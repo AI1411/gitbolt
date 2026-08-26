@@ -12,6 +12,7 @@ use super::model::{
     Generation, HeadInfo, Oid, StashInfo, WorktreeInfo,
 };
 use super::state::HistoryFilter;
+use crate::git::remote_link::RemoteWeb;
 
 /// Error payload carried by failed operations.
 ///
@@ -59,6 +60,8 @@ pub struct StatusData {
     pub unstaged: Vec<FileChange>,
     pub untracked: Vec<FileChange>,
     pub conflicted: Vec<FileChange>,
+    /// Parsed `origin` remote for web links (issue #75).
+    pub origin_web: Option<RemoteWeb>,
 }
 
 /// Which network remote operation completed.

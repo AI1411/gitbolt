@@ -12,6 +12,7 @@ pub mod error;
 pub mod history;
 pub mod patch;
 pub mod remote;
+pub mod remote_link;
 pub mod repository;
 pub mod service;
 pub mod stage;

@@ -135,6 +135,8 @@ pub enum UiEvent {
 
     /// Copy text to the system clipboard.
     CopyText(String),
+    /// Open a URL in the system browser (issue #75).
+    OpenUrl(String),
 
     /// Open the Command Palette (⌘K).
     OpenCommandPalette,
