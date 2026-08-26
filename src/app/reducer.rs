@@ -392,13 +392,8 @@ fn bump_after_head_change(state: &mut AppState) {
 
 /// Builds the recent-repositories list with `path` moved to the front.
 fn merge_recent(repo: &RepositoryState, path: &Path) -> Vec<std::path::PathBuf> {
-    let mut recent = vec![path.to_path_buf()];
-    for existing in &repo.recent {
-        if existing != path {
-            recent.push(existing.clone());
-        }
-    }
-    recent.truncate(10);
+    let mut recent = repo.recent.clone();
+    crate::app::recent::push_recent(&mut recent, path.to_path_buf());
     recent
 }
 
