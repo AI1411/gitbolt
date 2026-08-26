@@ -8,6 +8,15 @@ use std::path::Path;
 use super::cli::GitCli;
 use super::error::GitError;
 
+/// Returns the configured URL for the `origin` remote.
+///
+/// # Errors
+/// Propagates CLI failures (including missing `origin`).
+pub fn origin_url(repo: &Path) -> Result<String, GitError> {
+    let cli = GitCli::new(repo)?;
+    cli.run(&["remote", "get-url", "origin"])
+}
+
 /// Fetches from all remotes (`git fetch --all --prune`).
 ///
 /// # Errors
