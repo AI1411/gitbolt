@@ -111,6 +111,7 @@ fn CommitDetailPanel(state: AppState, on_event: EventHandler<UiEvent>) -> Elemen
                     can_forward: can_forward,
                     selected_file: selected_file,
                     remote_commit_url: remote_commit_url,
+                    origin_web: state.repository.origin_web.clone(),
                     on_event: on_event,
                 }
             }
@@ -126,6 +127,7 @@ fn CommitDetailBody(
     can_forward: bool,
     selected_file: Option<std::path::PathBuf>,
     remote_commit_url: Option<String>,
+    origin_web: Option<crate::git::remote_link::RemoteWeb>,
     on_event: EventHandler<UiEvent>,
 ) -> Element {
     let now = std::time::SystemTime::now()
@@ -189,6 +191,11 @@ fn CommitDetailBody(
             }
             if let Some(url) = remote_commit_url {
                 RemoteLinkActions { url: url, on_event: on_event }
+            }
+            IssueLinkList {
+                text: format!("{}\n{}", detail.summary, detail.body),
+                origin_web: origin_web,
+                on_event: on_event,
             }
             div {
                 style: "font-weight:600;font-size:0.95rem;",
@@ -286,6 +293,11 @@ fn BranchContextPanel(state: AppState, on_event: EventHandler<UiEvent>) -> Eleme
                     text: name.clone(),
                     on_event: on_event,
                 }
+            }
+            IssueLinkList {
+                text: name.clone(),
+                origin_web: state.repository.origin_web.clone(),
+                on_event: on_event,
             }
             if let Some(b) = info {
                 BranchMeta { branch: b.clone() }
@@ -500,6 +512,46 @@ fn RemoteLinkActions(url: String, on_event: EventHandler<UiEvent>) -> Element {
                 label: "Copy link".to_string(),
                 text: url.clone(),
                 on_event: on_event,
+            }
+        }
+    }
+}
+
+#[component]
+fn IssueLinkList(
+    text: String,
+    origin_web: Option<crate::git::remote_link::RemoteWeb>,
+    on_event: EventHandler<UiEvent>,
+) -> Element {
+    let refs = crate::app::issue_link::detect_issue_refs(&text);
+    if refs.is_empty() {
+        return rsx! { Fragment {} };
+    }
+    let items: Vec<(String, Option<String>)> = refs
+        .into_iter()
+        .map(|r| {
+            let url = origin_web
+                .as_ref()
+                .and_then(|web| crate::app::issue_link::resolve_issue_url(web, &r));
+            (r.raw, url)
+        })
+        .collect();
+    rsx! {
+        div {
+            style: "display:flex;flex-direction:column;gap:0.3rem;",
+            div {
+                style: "font-size:0.72rem;letter-spacing:0.05em;text-transform:uppercase;opacity:0.55;",
+                "Issues / PRs"
+            }
+            for (label, url) in items {
+                div {
+                    key: "{label}",
+                    style: "display:flex;align-items:center;gap:0.4rem;flex-wrap:wrap;font-size:0.8rem;",
+                    span { style: "opacity:0.85;font-family:ui-monospace,monospace;", "{label}" }
+                    if let Some(url) = url {
+                        RemoteLinkActions { url: url, on_event: on_event }
+                    }
+                }
             }
         }
     }
