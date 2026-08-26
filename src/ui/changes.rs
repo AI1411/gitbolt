@@ -3,6 +3,7 @@
 use dioxus::prelude::*;
 
 use crate::app::event::UiEvent;
+use crate::app::layout_prefs::split_path_display;
 use crate::app::model::{ChangeKind, FileChange};
 use crate::app::state::AppState;
 use crate::ui::error_banner::ConfirmPanel;
@@ -156,7 +157,8 @@ fn FileSection(
                             let path = file.path.clone();
                             let path_stage = file.path.clone();
                             let mark = status_mark(file.kind);
-                            let label = path.display().to_string();
+                            let (parent, name) = split_path_display(&path);
+                            let is_conflict = title == "CONFLICTED";
                             let is_sel = selected.as_ref().is_some_and(|t| {
                                 t.path == path && t.staged == staged_area
                             });
@@ -177,7 +179,14 @@ fn FileSection(
                                             });
                                         },
                                         span { style: "opacity:0.7;margin-right:0.5rem;", "{mark}" }
-                                        "{label}"
+                                        span { style: "opacity:0.45;", "{parent}" }
+                                        span { "{name}" }
+                                    }
+                                    if is_conflict {
+                                        span {
+                                            style: "font-size:0.68rem;opacity:0.55;white-space:nowrap;",
+                                            "resolve in editor"
+                                        }
                                     }
                                     button {
                                         style: "border:1px solid #334155;background:transparent;color:#9fb0c7;\

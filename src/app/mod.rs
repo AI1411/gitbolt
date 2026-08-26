@@ -12,6 +12,7 @@ pub mod event;
 pub mod executor;
 pub mod heatmap;
 pub mod issue_link;
+pub mod layout_prefs;
 pub mod message;
 pub mod model;
 pub mod palette;
