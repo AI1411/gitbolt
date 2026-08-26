@@ -203,11 +203,11 @@ pub trait GitService: Sized {
         Err(GitError::unsupported("log"))
     }
 
-    /// Blame a file.
+    /// Blame a file at HEAD (1-based line → commit).
     ///
     /// # Errors
     /// Returns [`GitError::Unsupported`] until implemented.
-    fn blame(&self, _path: &Path) -> Result<Vec<CommitInfo>, GitError> {
+    fn blame(&self, _path: &Path) -> Result<std::collections::HashMap<u32, CommitInfo>, GitError> {
         Err(GitError::unsupported("blame"))
     }
 

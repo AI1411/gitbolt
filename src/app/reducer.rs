@@ -77,6 +77,7 @@ pub fn reduce(state: &mut AppState, event: UiEvent) -> Vec<Command> {
         }
         UiEvent::SelectCommit(oid) => {
             state.selection.commit = Some(oid);
+            state.navigation.context_panel_open = true;
             Vec::new()
         }
         UiEvent::SelectBranch(name) => {

@@ -9,6 +9,7 @@ use std::path::Path;
 
 use gix::bstr::BString;
 
+use super::blame;
 use super::branch;
 use super::diff::{self as diff_mod};
 use super::error::GitError;
@@ -172,6 +173,10 @@ impl GitService for GixService {
 
     fn set_upstream(&self, name: &str, upstream: &str) -> Result<(), GitError> {
         branch::set_upstream(self.workdir()?, name, upstream)
+    }
+
+    fn blame(&self, path: &Path) -> Result<std::collections::HashMap<u32, CommitInfo>, GitError> {
+        blame::blame_at_head(self.workdir()?, path)
     }
 }
 

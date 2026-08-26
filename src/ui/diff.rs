@@ -1,9 +1,9 @@
-//! Diff view with line selection for line-stage (issue #28).
+//! Diff view with line selection and Change Origin (issues #28 / #31).
 
 use dioxus::prelude::*;
 
 use crate::app::event::UiEvent;
-use crate::app::model::Loadable;
+use crate::app::model::{Loadable, Oid};
 use crate::app::state::AppState;
 
 /// Props for the interactive diff pane.
@@ -13,7 +13,7 @@ pub struct DiffViewProps {
     pub on_event: EventHandler<UiEvent>,
 }
 
-/// Diff content with clickable +/- lines and stage-selected action.
+/// Diff content with clickable +/- lines, stage-selected action, and origins.
 #[component]
 pub fn DiffView(props: DiffViewProps) -> Element {
     let selected = &props.state.diff.selected_lines;
@@ -51,7 +51,7 @@ pub fn DiffView(props: DiffViewProps) -> Element {
                 } else {
                     span {
                         style: "opacity:0.55;font-size:0.8rem;",
-                        "Click + / − lines to select for line stage"
+                        "Click + / − lines to select · origin chips show HEAD blame"
                     }
                 }
             }
@@ -87,11 +87,14 @@ pub fn DiffView(props: DiffViewProps) -> Element {
                                         _ => "#cbd5e1",
                                     };
                                     let display = format!("{}{}", line.origin, line.content);
+                                    let origin = line.change_origin.clone();
                                     rsx! {
                                         div {
                                             key: "{idx}",
                                             style: format!(
-                                                "padding:0.05rem 0.65rem;white-space:pre;cursor:{};background:{};color:{};",
+                                                "display:flex;align-items:baseline;gap:0.65rem;\
+                                                 padding:0.05rem 0.65rem;white-space:pre;cursor:{};\
+                                                 background:{};color:{};",
                                                 if stageable { "pointer" } else { "default" },
                                                 bg,
                                                 color,
@@ -101,7 +104,32 @@ pub fn DiffView(props: DiffViewProps) -> Element {
                                                     props.on_event.call(UiEvent::ToggleDiffLine(idx));
                                                 }
                                             },
-                                            "{display}"
+                                            span { style: "flex:1;min-width:0;", "{display}" }
+                                            if let Some(origin) = origin {
+                                                {
+                                                    let oid = Oid(origin.oid.0.clone());
+                                                    let short = if origin.oid.0.len() > 7 {
+                                                        origin.oid.0[..7].to_string()
+                                                    } else {
+                                                        origin.oid.0.clone()
+                                                    };
+                                                    let label = format!("{short} · {}", origin.summary);
+                                                    rsx! {
+                                                        button {
+                                                            style: "flex:0 0 auto;max-width:14rem;overflow:hidden;\
+                                                                    text-overflow:ellipsis;border:0;background:transparent;\
+                                                                    color:#7dd3fc;cursor:pointer;font-size:0.7rem;\
+                                                                    font-family:ui-monospace,monospace;padding:0;",
+                                                            title: "Change Origin — select commit",
+                                                            onclick: move |evt| {
+                                                                evt.stop_propagation();
+                                                                props.on_event.call(UiEvent::SelectCommit(oid.clone()));
+                                                            },
+                                                            "{label}"
+                                                        }
+                                                    }
+                                                }
+                                            }
                                         }
                                     }
                                 }

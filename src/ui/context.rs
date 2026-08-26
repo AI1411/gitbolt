@@ -41,15 +41,34 @@ pub fn ContextPane(props: ContextPaneProps) -> Element {
 }
 
 fn selection_summary(state: &AppState) -> String {
+    // Change Origin / commit selection takes precedence when set.
+    if let Some(oid) = state.selection.commit.as_ref() {
+        let short = if oid.0.len() > 7 { &oid.0[..7] } else { &oid.0 };
+        let detail = state
+            .diff
+            .content
+            .ready()
+            .and_then(|c| {
+                c.hunks.iter().flat_map(|h| h.lines.iter()).find_map(|l| {
+                    l.change_origin.as_ref().and_then(|o| {
+                        if o.oid == *oid {
+                            Some(format!("{} · {}", o.author, o.summary))
+                        } else {
+                            None
+                        }
+                    })
+                })
+            })
+            .unwrap_or_else(|| "Change Origin".into());
+        return format!("Commit {short} — {detail}");
+    }
+
     match state.navigation.active_view {
         View::Changes => state.selection.file.as_ref().map_or_else(
             || "No file selected".into(),
             |p| format!("File: {}", p.display()),
         ),
-        View::History => state.selection.commit.as_ref().map_or_else(
-            || "No commit selected".into(),
-            |oid| format!("Commit: {}", oid.0),
-        ),
+        View::History => "No commit selected".into(),
         View::Branches => state
             .selection
             .branch

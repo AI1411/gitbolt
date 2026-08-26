@@ -144,7 +144,7 @@ impl<V> HeadScoped<V> {
 }
 
 /// Value type held by the blame cache (commit info per file, refined later).
-pub type BlameValue = Vec<crate::git::CommitInfo>;
+pub type BlameValue = std::collections::HashMap<u32, crate::git::CommitInfo>;
 /// Ahead/behind counts per branch name.
 pub type AheadBehind = Vec<(String, u32, u32)>;
 
