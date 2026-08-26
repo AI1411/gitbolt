@@ -15,11 +15,9 @@ use super::recent::{load_recent, save_recent};
 use super::reducer::{apply, reduce};
 use super::state::{AppState, RepositoryStatus};
 use crate::cache::{CacheKey, RepoCaches};
+use crate::perf::workers::worker_count;
 use crate::task::{Outcome, Priority, TaskRunner};
 use crate::watcher::{RepoWatcher, WatchEvent};
-
-/// Number of worker threads for Git / IO work.
-const WORKERS: usize = 4;
 
 /// Owns application state and the background task pool.
 pub struct AppSession {
@@ -41,7 +39,7 @@ impl AppSession {
     /// Creates a session with Recent repositories loaded from disk.
     #[must_use]
     pub fn new() -> Self {
-        let (runner, rx) = TaskRunner::new(WORKERS);
+        let (runner, rx) = TaskRunner::new(worker_count());
         let mut state = AppState::new();
         state.repository.recent = load_recent();
         Self {

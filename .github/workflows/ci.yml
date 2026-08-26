@@ -30,5 +30,11 @@ jobs:
       - name: Test
         run: cargo test --all-targets
 
+      - name: Perf regression (warn)
+        run: >
+          cargo run --release --bin gitbolt-bench --
+          --files 40 --commits 12 --sweep-workers
+          --check-thresholds --warn-only
+
       - name: Build
         run: cargo build --release

@@ -3,6 +3,7 @@
 pub mod app;
 pub mod cache;
 pub mod git;
+pub mod perf;
 pub mod platform;
 pub mod task;
 pub mod ui;
