@@ -160,6 +160,21 @@ pub struct BackgroundTaskState {
     pub remote_label: Option<String>,
 }
 
+/// Overlay for Command Palette / Quick Open (issue #26).
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub enum Overlay {
+    #[default]
+    None,
+    CommandPalette {
+        query: String,
+        selected: usize,
+    },
+    QuickOpen {
+        query: String,
+        selected: usize,
+    },
+}
+
 /// Presentational / editable UI state not derived from Git.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UiState {
@@ -187,6 +202,8 @@ pub struct UiState {
     pub auto_fetch_secs: u64,
     /// Brief copy confirmation (issue #25).
     pub copy_feedback: Option<String>,
+    /// Command Palette / Quick Open overlay (issue #26).
+    pub overlay: Overlay,
 }
 
 impl Default for UiState {
@@ -205,6 +222,7 @@ impl Default for UiState {
             pending_open_worktree: None,
             auto_fetch_secs: 300,
             copy_feedback: None,
+            overlay: Overlay::None,
         }
     }
 }

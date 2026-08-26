@@ -1,0 +1,186 @@
+//! Command Palette actions and filtering (issue #26).
+
+use crate::app::event::UiEvent;
+use crate::app::model::View;
+
+/// A searchable command for the palette.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PaletteCommand {
+    pub id: &'static str,
+    pub label: &'static str,
+    pub keys: &'static str,
+    pub event: PaletteAction,
+}
+
+/// Actions the palette can trigger (mapped to [`UiEvent`] at run time).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PaletteAction {
+    GoChanges,
+    GoHistory,
+    GoBranches,
+    GoWorktrees,
+    GoStashes,
+    Fetch,
+    Pull,
+    Push,
+    StageAll,
+    UnstageAll,
+    FocusCommit,
+    Commit,
+    ToggleContext,
+    StashSave,
+    ToggleQuickOpen,
+}
+
+/// Built-in palette entries.
+#[must_use]
+pub fn all_commands() -> Vec<PaletteCommand> {
+    vec![
+        PaletteCommand {
+            id: "go.changes",
+            label: "Go to Changes",
+            keys: "",
+            event: PaletteAction::GoChanges,
+        },
+        PaletteCommand {
+            id: "go.history",
+            label: "Go to History",
+            keys: "H",
+            event: PaletteAction::GoHistory,
+        },
+        PaletteCommand {
+            id: "go.branches",
+            label: "Go to Branches",
+            keys: "B",
+            event: PaletteAction::GoBranches,
+        },
+        PaletteCommand {
+            id: "go.worktrees",
+            label: "Go to Worktrees",
+            keys: "W",
+            event: PaletteAction::GoWorktrees,
+        },
+        PaletteCommand {
+            id: "go.stashes",
+            label: "Go to Stashes",
+            keys: "",
+            event: PaletteAction::GoStashes,
+        },
+        PaletteCommand {
+            id: "remote.fetch",
+            label: "Fetch",
+            keys: "F",
+            event: PaletteAction::Fetch,
+        },
+        PaletteCommand {
+            id: "remote.pull",
+            label: "Pull",
+            keys: "",
+            event: PaletteAction::Pull,
+        },
+        PaletteCommand {
+            id: "remote.push",
+            label: "Push",
+            keys: "",
+            event: PaletteAction::Push,
+        },
+        PaletteCommand {
+            id: "stage.all",
+            label: "Stage All",
+            keys: "",
+            event: PaletteAction::StageAll,
+        },
+        PaletteCommand {
+            id: "unstage.all",
+            label: "Unstage All",
+            keys: "",
+            event: PaletteAction::UnstageAll,
+        },
+        PaletteCommand {
+            id: "commit.focus",
+            label: "Focus Commit Message",
+            keys: "C",
+            event: PaletteAction::FocusCommit,
+        },
+        PaletteCommand {
+            id: "commit.run",
+            label: "Commit",
+            keys: "⌘Enter",
+            event: PaletteAction::Commit,
+        },
+        PaletteCommand {
+            id: "panel.toggle",
+            label: "Toggle Context Panel",
+            keys: "⌘I",
+            event: PaletteAction::ToggleContext,
+        },
+        PaletteCommand {
+            id: "stash.save",
+            label: "Stash Changes",
+            keys: "",
+            event: PaletteAction::StashSave,
+        },
+        PaletteCommand {
+            id: "quick.open",
+            label: "Quick Open",
+            keys: "⌘P",
+            event: PaletteAction::ToggleQuickOpen,
+        },
+    ]
+}
+
+/// Case-insensitive substring filter on label/id/keys.
+#[must_use]
+pub fn filter_commands(query: &str) -> Vec<PaletteCommand> {
+    let needle = query.trim().to_lowercase();
+    all_commands()
+        .into_iter()
+        .filter(|c| {
+            if needle.is_empty() {
+                return true;
+            }
+            c.label.to_lowercase().contains(&needle)
+                || c.id.to_lowercase().contains(&needle)
+                || c.keys.to_lowercase().contains(&needle)
+        })
+        .collect()
+}
+
+/// Maps a palette action to a [`UiEvent`].
+#[must_use]
+pub fn action_to_event(action: PaletteAction) -> UiEvent {
+    match action {
+        PaletteAction::GoChanges => UiEvent::SelectView(View::Changes),
+        PaletteAction::GoHistory => UiEvent::SelectView(View::History),
+        PaletteAction::GoBranches => UiEvent::SelectView(View::Branches),
+        PaletteAction::GoWorktrees => UiEvent::SelectView(View::Worktrees),
+        PaletteAction::GoStashes => UiEvent::SelectView(View::Stashes),
+        PaletteAction::Fetch => UiEvent::Fetch,
+        PaletteAction::Pull => UiEvent::Pull,
+        PaletteAction::Push => UiEvent::Push,
+        PaletteAction::StageAll => UiEvent::StageAll,
+        PaletteAction::UnstageAll => UiEvent::UnstageAll,
+        PaletteAction::FocusCommit => UiEvent::FocusCommitInput,
+        PaletteAction::Commit => UiEvent::Commit,
+        PaletteAction::ToggleContext => UiEvent::ToggleContextPanel,
+        PaletteAction::StashSave => UiEvent::StashSave { message: None },
+        PaletteAction::ToggleQuickOpen => UiEvent::OpenQuickOpen,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn filter_matches_label_substring() {
+        let hits = filter_commands("fetch");
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0].id, "remote.fetch");
+    }
+
+    #[test]
+    fn empty_query_returns_all() {
+        assert_eq!(filter_commands("").len(), all_commands().len());
+    }
+}

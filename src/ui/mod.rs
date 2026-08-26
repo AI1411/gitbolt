@@ -12,6 +12,7 @@ pub mod history;
 pub mod layout_model;
 pub mod nav;
 pub mod open;
+pub mod overlay;
 pub mod pulse;
 pub mod shell;
 pub mod stashes;

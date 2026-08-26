@@ -130,6 +130,25 @@ pub enum UiEvent {
     /// Copy text to the system clipboard.
     CopyText(String),
 
+    /// Open the Command Palette (⌘K).
+    OpenCommandPalette,
+    /// Open Quick Open (⌘P).
+    OpenQuickOpen,
+    /// Close any overlay.
+    CloseOverlay,
+    /// Update overlay search query.
+    SetOverlayQuery(String),
+    /// Move overlay selection by `delta`.
+    NavigateOverlay { delta: i32 },
+    /// Set overlay selection to an absolute index (mouse click).
+    SelectOverlayItem(usize),
+    /// Confirm / run the currently selected overlay item.
+    ConfirmOverlay,
+    /// Escape: close overlay, cancel confirms, or go back.
+    Escape,
+    /// Navigate history commits by `delta` (−1 / +1).
+    NavigateHistory { delta: i32 },
+
     /// Update the search query.
     Search(String),
     /// Dismiss the current error banner.

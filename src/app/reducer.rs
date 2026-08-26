@@ -18,7 +18,7 @@ use super::message::{AppMessage, RemoteOp};
 use super::model::{
     ChangeKind, CommitSummary, DiffContent, DiffTarget, FileChange, Generation, Loadable, View,
 };
-use super::state::{AppState, HistoryFilter, RepositoryState, RepositoryStatus};
+use super::state::{AppState, HistoryFilter, Overlay, RepositoryState, RepositoryStatus};
 
 /// Number of commits fetched per history page.
 pub const HISTORY_PAGE: usize = 100;
@@ -473,9 +473,57 @@ pub fn reduce(state: &mut AppState, event: UiEvent) -> Vec<Command> {
         }
         UiEvent::Search(query) => {
             state.ui.searching = !query.is_empty();
-            state.ui.search_query = query;
+            state.ui.search_query = query.clone();
+            if state.navigation.active_view == View::Branches {
+                state.branch.filter = query;
+            }
             Vec::new()
         }
+        UiEvent::OpenCommandPalette => {
+            state.ui.overlay = Overlay::CommandPalette {
+                query: String::new(),
+                selected: 0,
+            };
+            Vec::new()
+        }
+        UiEvent::OpenQuickOpen => {
+            state.ui.overlay = Overlay::QuickOpen {
+                query: String::new(),
+                selected: 0,
+            };
+            Vec::new()
+        }
+        UiEvent::CloseOverlay => {
+            state.ui.overlay = Overlay::None;
+            Vec::new()
+        }
+        UiEvent::SetOverlayQuery(query) => {
+            match &mut state.ui.overlay {
+                Overlay::CommandPalette { query: q, selected }
+                | Overlay::QuickOpen { query: q, selected } => {
+                    *q = query;
+                    *selected = 0;
+                }
+                Overlay::None => {}
+            }
+            Vec::new()
+        }
+        UiEvent::NavigateOverlay { delta } => {
+            navigate_overlay(state, delta);
+            Vec::new()
+        }
+        UiEvent::SelectOverlayItem(index) => {
+            match &mut state.ui.overlay {
+                Overlay::CommandPalette { selected, .. } | Overlay::QuickOpen { selected, .. } => {
+                    *selected = index;
+                }
+                Overlay::None => {}
+            }
+            confirm_overlay(state)
+        }
+        UiEvent::ConfirmOverlay => confirm_overlay(state),
+        UiEvent::Escape => reduce_escape(state),
+        UiEvent::NavigateHistory { delta } => navigate_history(state, delta),
         UiEvent::CopyText(_text) => {
             state.ui.copy_feedback = Some("Copied to clipboard".into());
             Vec::new()
@@ -887,6 +935,138 @@ pub fn apply(state: &mut AppState, message: AppMessage) -> Vec<Command> {
 
 // --- helpers ---------------------------------------------------------------
 
+fn navigate_overlay(state: &mut AppState, delta: i32) {
+    let len = overlay_item_count(state);
+    if len == 0 {
+        return;
+    }
+    let len_i = i64::try_from(len).unwrap_or(1);
+    match &mut state.ui.overlay {
+        Overlay::CommandPalette { selected, .. } | Overlay::QuickOpen { selected, .. } => {
+            let cur = i64::try_from(*selected).unwrap_or(0);
+            let next = (cur + i64::from(delta)).rem_euclid(len_i);
+            *selected = usize::try_from(next).unwrap_or(0);
+        }
+        Overlay::None => {}
+    }
+}
+
+fn overlay_item_count(state: &AppState) -> usize {
+    match &state.ui.overlay {
+        Overlay::None => 0,
+        Overlay::CommandPalette { query, .. } => crate::app::palette::filter_commands(query).len(),
+        Overlay::QuickOpen { query, .. } => {
+            let items = crate::app::quick_open::collect_items(state);
+            crate::app::quick_open::filter_items(&items, query).len()
+        }
+    }
+}
+
+fn confirm_overlay(state: &mut AppState) -> Vec<Command> {
+    match state.ui.overlay.clone() {
+        Overlay::None => Vec::new(),
+        Overlay::CommandPalette { query, selected } => {
+            let cmds = crate::app::palette::filter_commands(&query);
+            let Some(cmd) = cmds.get(selected) else {
+                return Vec::new();
+            };
+            let action = cmd.event;
+            state.ui.overlay = Overlay::None;
+            let event = crate::app::palette::action_to_event(action);
+            reduce(state, event)
+        }
+        Overlay::QuickOpen { query, selected } => {
+            let items = crate::app::quick_open::collect_items(state);
+            let filtered = crate::app::quick_open::filter_items(&items, &query);
+            let Some(item) = filtered.get(selected).cloned() else {
+                return Vec::new();
+            };
+            state.ui.overlay = Overlay::None;
+            match item.event {
+                UiEvent::SelectFile { path, staged } => {
+                    let mut cmds = reduce(state, UiEvent::SelectView(View::Changes));
+                    cmds.extend(reduce(state, UiEvent::SelectFile { path, staged }));
+                    cmds
+                }
+                UiEvent::SelectBranch(name) => {
+                    let mut cmds = reduce(state, UiEvent::SelectView(View::Branches));
+                    cmds.extend(reduce(state, UiEvent::SelectBranch(name)));
+                    cmds
+                }
+                UiEvent::SelectCommit(oid) => {
+                    let mut cmds = reduce(state, UiEvent::SelectView(View::History));
+                    cmds.extend(reduce(state, UiEvent::SelectCommit(oid)));
+                    cmds
+                }
+                other => reduce(state, other),
+            }
+        }
+    }
+}
+
+fn reduce_escape(state: &mut AppState) -> Vec<Command> {
+    if !matches!(state.ui.overlay, Overlay::None) {
+        state.ui.overlay = Overlay::None;
+        return Vec::new();
+    }
+    if state.ui.confirm_delete_branch.is_some() {
+        state.ui.confirm_delete_branch = None;
+        return Vec::new();
+    }
+    if state.ui.confirm_remove_worktree.is_some() {
+        state.ui.confirm_remove_worktree = None;
+        return Vec::new();
+    }
+    if state.ui.confirm_drop_stash.is_some() {
+        state.ui.confirm_drop_stash = None;
+        return Vec::new();
+    }
+    if state.ui.error_banner.is_some() {
+        state.ui.error_banner = None;
+        state.background.last_error = None;
+        return Vec::new();
+    }
+    if state.ui.searching {
+        state.ui.searching = false;
+        state.ui.search_query.clear();
+        state.branch.filter.clear();
+        return Vec::new();
+    }
+    if let Some(prev) = state.navigation.back_stack.pop() {
+        state.navigation.active_view = prev;
+        return lazy_load_view(state, prev);
+    }
+    Vec::new()
+}
+
+fn navigate_history(state: &mut AppState, delta: i32) -> Vec<Command> {
+    let commits = &state.history.commits;
+    if commits.is_empty() {
+        return Vec::new();
+    }
+    let current = state
+        .selection
+        .commit
+        .as_ref()
+        .and_then(|oid| commits.iter().position(|c| c.oid == *oid));
+    let len = i64::try_from(commits.len()).unwrap_or(1);
+    let next = match current {
+        Some(i) => {
+            let i = i64::try_from(i).unwrap_or(0);
+            usize::try_from((i + i64::from(delta)).rem_euclid(len)).unwrap_or(0)
+        }
+        None => {
+            if delta >= 0 {
+                0
+            } else {
+                commits.len() - 1
+            }
+        }
+    };
+    let oid = commits[next].oid.clone();
+    reduce(state, UiEvent::SelectCommit(oid))
+}
+
 /// Registers the given number of commands as in-flight and returns them.
 fn issue(state: &mut AppState, commands: Vec<Command>) -> Vec<Command> {
     let count = u32::try_from(commands.len()).unwrap_or(u32::MAX);
@@ -1179,7 +1359,7 @@ mod tests {
     use super::*;
     use crate::app::message::RepositoryData;
     use crate::app::model::{CommitSummary, DiffContent, DiffHunk, HeadInfo, Oid};
-    use crate::app::state::HistoryFilter;
+    use crate::app::state::{HistoryFilter, Overlay};
     use std::path::{Path, PathBuf};
     use std::sync::Arc;
 
@@ -1640,5 +1820,24 @@ mod tests {
             cmds.as_slice(),
             [Command::LoadCommitDetail { .. }]
         ));
+    }
+
+    #[test]
+    fn command_palette_opens_and_escape_closes() {
+        let mut state = AppState::new();
+        let _ = reduce(&mut state, UiEvent::OpenCommandPalette);
+        assert!(matches!(state.ui.overlay, Overlay::CommandPalette { .. }));
+        let _ = reduce(&mut state, UiEvent::Escape);
+        assert!(matches!(state.ui.overlay, Overlay::None));
+    }
+
+    #[test]
+    fn confirm_palette_fetch_dispatches() {
+        let mut state = AppState::new();
+        let _ = reduce(&mut state, UiEvent::OpenCommandPalette);
+        let _ = reduce(&mut state, UiEvent::SetOverlayQuery("fetch".into()));
+        let cmds = reduce(&mut state, UiEvent::ConfirmOverlay);
+        assert!(matches!(state.ui.overlay, Overlay::None));
+        assert!(matches!(cmds.as_slice(), [Command::Fetch { .. }]));
     }
 }

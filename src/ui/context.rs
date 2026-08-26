@@ -359,6 +359,9 @@ fn CommitBox(
                     if shortcut && matches!(evt.data().key(), Key::Enter) {
                         evt.prevent_default();
                         on_event.call(UiEvent::Commit);
+                    } else if !shortcut {
+                        // Keep typing local — don't let shell keybinds steal characters.
+                        evt.stop_propagation();
                     }
                 },
             }
