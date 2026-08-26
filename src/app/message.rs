@@ -138,6 +138,10 @@ pub enum AppMessage {
         generation: Generation,
         result: Result<WorktreeInfo, Failure>,
     },
+    WorktreeRemoved {
+        generation: Generation,
+        result: Result<(), Failure>,
+    },
     RemoteCompleted {
         generation: Generation,
         op: RemoteOp,
@@ -167,6 +171,7 @@ impl AppMessage {
             | Self::BranchDeleted { generation, .. }
             | Self::UpstreamSet { generation, .. }
             | Self::WorktreeCreated { generation, .. }
+            | Self::WorktreeRemoved { generation, .. }
             | Self::RemoteCompleted { generation, .. } => *generation,
         }
     }

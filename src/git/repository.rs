@@ -231,6 +231,14 @@ impl GitService for GixService {
         worktree::list_worktrees(self.workdir()?)
     }
 
+    fn create_worktree(&self, branch: &str, path: &Path) -> Result<WorktreeRef, GitError> {
+        worktree::create_worktree(self.workdir()?, branch, path)
+    }
+
+    fn remove_worktree(&self, path: &Path) -> Result<(), GitError> {
+        worktree::remove_worktree(self.workdir()?, path)
+    }
+
     fn blame(&self, path: &Path) -> Result<std::collections::HashMap<u32, CommitInfo>, GitError> {
         blame::blame_at_head(self.workdir()?, path)
     }

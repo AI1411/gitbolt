@@ -92,6 +92,12 @@ pub enum UiEvent {
 
     /// Create a worktree for a branch at a path.
     CreateWorktree { branch: String, path: PathBuf },
+    /// Request remove confirmation for a worktree path.
+    RequestRemoveWorktree(PathBuf),
+    /// Confirm pending worktree removal.
+    ConfirmRemoveWorktree,
+    /// Cancel pending worktree removal.
+    CancelRemoveWorktree,
 
     /// Load the next page of history.
     LoadMoreHistory,

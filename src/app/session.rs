@@ -331,7 +331,8 @@ fn command_priority(cmd: &Command) -> Priority {
         | Command::CreateBranch { .. }
         | Command::DeleteBranch { .. }
         | Command::AutoFetch { .. }
-        | Command::CreateWorktree { .. } => Priority::P3,
+        | Command::CreateWorktree { .. }
+        | Command::RemoveWorktree { .. } => Priority::P3,
     }
 }
 

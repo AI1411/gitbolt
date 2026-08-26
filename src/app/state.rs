@@ -145,6 +145,8 @@ pub struct UiState {
     pub new_branch_name: String,
     /// Pending destructive delete confirmation (local branch name).
     pub confirm_delete_branch: Option<String>,
+    /// Pending worktree removal path (issue #20).
+    pub confirm_remove_worktree: Option<PathBuf>,
     /// Auto-fetch interval in seconds (issue #19). `0` disables.
     pub auto_fetch_secs: u64,
 }
@@ -159,6 +161,7 @@ impl Default for UiState {
             commit_focus_token: 0,
             new_branch_name: String::new(),
             confirm_delete_branch: None,
+            confirm_remove_worktree: None,
             auto_fetch_secs: 300,
         }
     }

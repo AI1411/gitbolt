@@ -103,6 +103,10 @@ pub enum Command {
         path: PathBuf,
         generation: Generation,
     },
+    RemoveWorktree {
+        path: PathBuf,
+        generation: Generation,
+    },
 }
 
 impl Command {
@@ -132,7 +136,8 @@ impl Command {
             | Self::AutoFetch { generation }
             | Self::Pull { generation }
             | Self::Push { generation }
-            | Self::CreateWorktree { generation, .. } => *generation,
+            | Self::CreateWorktree { generation, .. }
+            | Self::RemoveWorktree { generation, .. } => *generation,
         }
     }
 }
