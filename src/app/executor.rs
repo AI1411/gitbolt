@@ -51,7 +51,7 @@ pub fn execute(cmd: &Command, repo_path: Option<&Path>) -> AppMessage {
         Command::LoadHistoryPage { offset, generation } => AppMessage::HistoryPageLoaded {
             generation: *generation,
             offset: *offset,
-            result: Ok(Vec::new()),
+            result: load_history(repo_path, *offset),
         },
         Command::LoadBranches { generation } => AppMessage::BranchesLoaded {
             generation: *generation,
@@ -98,6 +98,18 @@ pub fn execute(cmd: &Command, repo_path: Option<&Path>) -> AppMessage {
         },
         other => unsupported(other),
     }
+}
+
+fn load_history(
+    repo_path: Option<&Path>,
+    offset: usize,
+) -> Result<Vec<crate::app::model::CommitSummary>, String> {
+    let path = repo_path.ok_or_else(|| "リポジトリが開かれていません".to_string())?;
+    let service = GixService::open(path).map_err(|e| e.user_message())?;
+    let page = service
+        .log_page(offset, crate::app::reducer::HISTORY_PAGE)
+        .map_err(|e| e.user_message())?;
+    Ok(page.into_iter().map(to_summary).collect())
 }
 
 fn load_worktrees(

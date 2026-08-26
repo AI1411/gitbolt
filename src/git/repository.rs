@@ -14,6 +14,7 @@ use super::branch;
 use super::commit;
 use super::diff::{self as diff_mod};
 use super::error::GitError;
+use super::history;
 use super::service::{
     BranchRef, ChangeStatus, CommitInfo, FileChange, GitService, Head, RepoStatus, WorktreeRef,
 };
@@ -154,6 +155,14 @@ impl GitService for GixService {
 
     fn commit(&self, message: &str) -> Result<String, GitError> {
         commit::commit(self.workdir()?, message)
+    }
+
+    fn log(&self, limit: usize) -> Result<Vec<CommitInfo>, GitError> {
+        history::log_page(self.workdir()?, 0, limit)
+    }
+
+    fn log_page(&self, skip: usize, limit: usize) -> Result<Vec<CommitInfo>, GitError> {
+        history::log_page(self.workdir()?, skip, limit)
     }
 
     fn branches(&self) -> Result<Vec<BranchRef>, GitError> {
