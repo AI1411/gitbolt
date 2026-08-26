@@ -5,6 +5,7 @@ use dioxus::prelude::*;
 use crate::app::event::UiEvent;
 use crate::app::model::{ChangeKind, FileChange};
 use crate::app::state::AppState;
+use crate::ui::error_banner::ConfirmPanel;
 use crate::ui::list_search::{matches_query, ListSearchBar};
 #[derive(Props, Clone, PartialEq)]
 pub struct ChangesViewProps {
@@ -50,6 +51,24 @@ pub fn ChangesView(props: ChangesViewProps) -> Element {
                 state: props.state.clone(),
                 on_event: props.on_event,
                 placeholder: "Filter files…".to_string(),
+            }
+            if let Some(kind) = props.state.ui.confirm_bulk {
+                ConfirmPanel {
+                    message: match kind {
+                        crate::app::state::BulkConfirm::StageAll => {
+                            "Stage all files?".to_string()
+                        }
+                        crate::app::state::BulkConfirm::UnstageAll => {
+                            "Unstage all files?".to_string()
+                        }
+                        crate::app::state::BulkConfirm::StashSave => {
+                            "Stash working tree changes?".to_string()
+                        }
+                    },
+                    confirm_label: "Confirm".to_string(),
+                    on_confirm: move |()| props.on_event.call(UiEvent::ConfirmBulk),
+                    on_cancel: move |()| props.on_event.call(UiEvent::CancelBulk),
+                }
             }
             if !loaded {
                 p { style: "margin:0;opacity:0.6;", "Loading status…" }

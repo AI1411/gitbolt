@@ -180,6 +180,13 @@ pub enum UiEvent {
     /// Browser-like commit trail: −1 Back / +1 Forward (issue #32).
     NavigateCommit { delta: i32 },
 
+    /// Request confirmation before Stage all / Unstage all / Stash save.
+    RequestBulkConfirm(crate::app::state::BulkConfirm),
+    /// Confirm pending bulk action.
+    ConfirmBulk,
+    /// Cancel pending bulk action.
+    CancelBulk,
+
     /// Update the search query.
     Search(String),
     /// Enter in-view list search mode (`/`).

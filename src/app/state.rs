@@ -233,6 +233,18 @@ pub struct UiState {
     pub typing: bool,
     /// Bumped to focus the in-view list search field (issue #85).
     pub search_focus_token: u64,
+    /// Brief remote success status for Pulse (issue #89).
+    pub remote_status: Option<String>,
+    /// Pending confirmation for bulk stage/unstage/stash (issue #89).
+    pub confirm_bulk: Option<BulkConfirm>,
+}
+
+/// Bulk action awaiting confirmation (issue #89).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BulkConfirm {
+    StageAll,
+    UnstageAll,
+    StashSave,
 }
 
 /// Multi-select cleanup panel state (issue #78).
@@ -261,6 +273,8 @@ impl Default for UiState {
             branch_cleanup: None,
             typing: false,
             search_focus_token: 0,
+            remote_status: None,
+            confirm_bulk: None,
         }
     }
 }
