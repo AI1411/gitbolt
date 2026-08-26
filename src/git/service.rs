@@ -97,6 +97,8 @@ pub struct BranchRef {
     pub name: String,
     pub is_head: bool,
     pub upstream: Option<String>,
+    /// True when this is a remote-tracking ref (`origin/…`).
+    pub is_remote: bool,
 }
 
 /// A worktree reference.
@@ -297,12 +299,20 @@ pub trait GitService: Sized {
         Err(GitError::unsupported("set_upstream"))
     }
 
-    /// Create a branch.
+    /// Create a branch at HEAD (does not switch).
     ///
     /// # Errors
     /// Returns [`GitError::Unsupported`] until implemented.
     fn create_branch(&self, _name: &str) -> Result<(), GitError> {
         Err(GitError::unsupported("create_branch"))
+    }
+
+    /// Preflight for checkout: fails when local changes would conflict with `name`.
+    ///
+    /// # Errors
+    /// Returns [`GitError::Conflict`] when dirty paths overlap the switch delta.
+    fn checkout_preflight(&self, _name: &str) -> Result<(), GitError> {
+        Err(GitError::unsupported("checkout_preflight"))
     }
 
     /// Checkout / switch to a branch.
@@ -313,7 +323,7 @@ pub trait GitService: Sized {
         Err(GitError::unsupported("checkout"))
     }
 
-    /// Delete a branch.
+    /// Delete a local branch (`git branch -d`).
     ///
     /// # Errors
     /// Returns [`GitError::Unsupported`] until implemented.

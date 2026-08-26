@@ -150,6 +150,7 @@ mod tests {
             ahead: 3,
             behind: 1,
             last_commit: None,
+            is_remote: false,
         }]);
         state.changes.staged = Arc::from([change("a"), change("b"), change("c"), change("d")]);
         state.changes.unstaged = Arc::from([change("e"), change("f")]);
@@ -204,6 +205,7 @@ mod tests {
             ahead: 0,
             behind: 0,
             last_commit: None,
+            is_remote: false,
         }]);
         let p = summary(&state);
         assert!(!p.has_upstream);

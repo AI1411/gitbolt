@@ -1,20 +1,23 @@
-//! Branch listing, merge-base, and divergence commit walks (issue #29).
+//! Branch listing, create / checkout / delete, and divergence helpers.
 
+use std::collections::HashSet;
 use std::path::Path;
 
 use super::cli::GitCli;
 use super::error::GitError;
-use super::service::{BranchRef, CommitInfo};
+use super::service::{BranchRef, CommitInfo, Head};
 
-/// Lists local branches (`git branch --format`).
+/// Lists local and remote-tracking branches.
 ///
 /// # Errors
 /// Propagates CLI failures.
 pub fn list_branches(repo: &Path) -> Result<Vec<BranchRef>, GitError> {
     let cli = GitCli::new(repo)?;
     let out = cli.run(&[
-        "branch",
-        "--format=%(refname:short)%09%(HEAD)%09%(upstream:short)",
+        "for-each-ref",
+        "--format=%(refname)%09%(refname:short)%09%(HEAD)%09%(upstream:short)",
+        "refs/heads",
+        "refs/remotes",
     ])?;
     let mut branches = Vec::new();
     for line in out.lines() {
@@ -22,19 +25,190 @@ pub fn list_branches(repo: &Path) -> Result<Vec<BranchRef>, GitError> {
             continue;
         }
         let mut parts = line.split('\t');
+        let full = parts.next().unwrap_or("");
         let name = parts.next().unwrap_or("").to_string();
         let is_head = parts.next() == Some("*");
         let upstream = parts
             .next()
             .filter(|s| !s.is_empty())
             .map(std::string::ToString::to_string);
+        let is_remote = full.starts_with("refs/remotes/");
+        // Skip remote symbolic HEAD (origin/HEAD).
+        if is_remote && (name.ends_with("/HEAD") || name == "HEAD") {
+            continue;
+        }
         branches.push(BranchRef {
             name,
             is_head,
             upstream,
+            is_remote,
         });
     }
     Ok(branches)
+}
+
+/// Creates a new local branch at HEAD without switching.
+///
+/// # Errors
+/// Propagates CLI failures or rejects empty / invalid names.
+pub fn create_branch(repo: &Path, name: &str) -> Result<(), GitError> {
+    let name = validate_branch_name(name)?;
+    let cli = GitCli::new(repo)?;
+    cli.run(&["branch", name])?;
+    Ok(())
+}
+
+/// Preflight for checkout: dirty paths that also differ between HEAD and `target`
+/// are treated as conflicts.
+///
+/// # Errors
+/// Returns [`GitError::Conflict`] when a switch would overwrite local work.
+pub fn checkout_preflight(repo: &Path, target: &str) -> Result<(), GitError> {
+    let cli = GitCli::new(repo)?;
+    let porcelain = cli.run(&["status", "--porcelain", "-uall"])?;
+    if porcelain.trim().is_empty() {
+        return Ok(());
+    }
+
+    let dirty = dirty_paths_from_porcelain(&porcelain);
+    if dirty.is_empty() {
+        return Ok(());
+    }
+
+    let delta = cli.run(&["diff", "--name-only", "HEAD", target])?;
+    let mut conflicting: Vec<String> = delta
+        .lines()
+        .map(str::trim)
+        .filter(|p| !p.is_empty() && dirty.contains(*p))
+        .map(std::string::ToString::to_string)
+        .collect();
+
+    // Untracked paths that already exist in the target tree would be overwritten.
+    let tree = cli.run(&["ls-tree", "-r", "--name-only", target])?;
+    let in_target: HashSet<&str> = tree.lines().filter(|l| !l.is_empty()).collect();
+    for path in &dirty {
+        if in_target.contains(path.as_str()) && !conflicting.iter().any(|c| c == path) {
+            // Only untracked/new paths that aren't already in the HEAD..target delta
+            // but exist at the destination tip can still block checkout.
+            let is_untracked = porcelain.lines().any(|line| {
+                line.len() >= 3 && &line[..2] == "??" && line[3..].trim() == path.as_str()
+            });
+            if is_untracked {
+                conflicting.push(path.clone());
+            }
+        }
+    }
+
+    if conflicting.is_empty() {
+        return Ok(());
+    }
+    conflicting.sort();
+    conflicting.dedup();
+    Err(GitError::Conflict(format!(
+        "local changes would be overwritten by checkout: {}",
+        conflicting.join(", ")
+    )))
+}
+
+/// Switches to `name` (`git switch`). Remote-tracking names use `--track`.
+///
+/// # Errors
+/// Propagates CLI failures after preflight.
+pub fn checkout(repo: &Path, name: &str) -> Result<Head, GitError> {
+    let name = name.trim();
+    if name.is_empty() {
+        return Err(GitError::Backend("branch name is empty".into()));
+    }
+    checkout_preflight(repo, name)?;
+    let cli = GitCli::new(repo)?;
+    if name.contains('/') {
+        // Remote-tracking ref: create/update local branch with tracking.
+        // `git switch -c <short> --track <remote>` when short does not exist,
+        // else `git switch <short>`.
+        let short = name.rsplit('/').next().unwrap_or(name);
+        let locals = list_branches(repo)?;
+        let has_local = locals.iter().any(|b| !b.is_remote && b.name == short);
+        if has_local {
+            cli.run(&["switch", short])?;
+        } else {
+            cli.run(&["switch", "-c", short, "--track", name])?;
+        }
+    } else {
+        cli.run(&["switch", name])?;
+    }
+    read_head(repo)
+}
+
+/// Deletes a local branch with `git branch -d` (refuses unmerged).
+///
+/// # Errors
+/// Propagates CLI failures; refuses deleting the current branch.
+pub fn delete_branch(repo: &Path, name: &str) -> Result<(), GitError> {
+    let name = validate_branch_name(name)?;
+    let head = read_head(repo)?;
+    if head.branch.as_deref() == Some(name) {
+        return Err(GitError::Backend(
+            "cannot delete the branch currently checked out".into(),
+        ));
+    }
+    let cli = GitCli::new(repo)?;
+    cli.run(&["branch", "-d", name])?;
+    Ok(())
+}
+
+/// Returns the current HEAD summary via porcelain.
+///
+/// # Errors
+/// Propagates CLI failures.
+pub fn read_head(repo: &Path) -> Result<Head, GitError> {
+    let cli = GitCli::new(repo)?;
+    let oid = cli.run(&["rev-parse", "HEAD"])?;
+    let symbolic = cli.run(&["symbolic-ref", "-q", "--short", "HEAD"]);
+    match symbolic {
+        Ok(branch) if !branch.is_empty() => Ok(Head {
+            branch: Some(branch),
+            oid: Some(oid),
+            detached: false,
+        }),
+        _ => Ok(Head {
+            branch: None,
+            oid: Some(oid),
+            detached: true,
+        }),
+    }
+}
+
+fn validate_branch_name(name: &str) -> Result<&str, GitError> {
+    let name = name.trim();
+    if name.is_empty() {
+        return Err(GitError::Backend("branch name is empty".into()));
+    }
+    if name.contains(char::is_whitespace)
+        || name.contains("..")
+        || name.starts_with('-')
+        || name.contains('\0')
+    {
+        return Err(GitError::Backend(format!("invalid branch name: {name}")));
+    }
+    Ok(name)
+}
+
+fn dirty_paths_from_porcelain(porcelain: &str) -> HashSet<String> {
+    let mut paths = HashSet::new();
+    for line in porcelain.lines() {
+        if line.len() < 4 {
+            continue;
+        }
+        // XY<space>path  or  XY<space>old -> new
+        let rest = line[3..].trim();
+        if let Some((from, to)) = rest.split_once(" -> ") {
+            paths.insert(from.to_string());
+            paths.insert(to.to_string());
+        } else if !rest.is_empty() {
+            paths.insert(rest.to_string());
+        }
+    }
+    paths
 }
 
 /// Returns the merge-base OID hex of `a` and `b`.
@@ -206,8 +380,12 @@ mod tests {
     fn list_branches_marks_head() {
         let repo = diverged_repo();
         let branches = list_branches(repo.path()).expect("branches");
-        assert!(branches.iter().any(|b| b.name == "main" && b.is_head));
-        assert!(branches.iter().any(|b| b.name == "feature" && !b.is_head));
+        assert!(branches
+            .iter()
+            .any(|b| b.name == "main" && b.is_head && !b.is_remote));
+        assert!(branches
+            .iter()
+            .any(|b| b.name == "feature" && !b.is_head && !b.is_remote));
     }
 
     #[test]
@@ -254,5 +432,57 @@ mod tests {
         let branches = list_branches(local.path()).expect("list");
         let main = branches.iter().find(|b| b.name == "main").expect("main");
         assert_eq!(main.upstream.as_deref(), Some("origin/main"));
+        assert!(branches
+            .iter()
+            .any(|b| b.is_remote && b.name == "origin/main"));
+    }
+
+    #[test]
+    fn create_checkout_delete_roundtrip() {
+        let repo = TempRepo::init();
+        repo.write("f.txt", "one\n");
+        repo.stage("f.txt");
+        repo.commit("first");
+
+        create_branch(repo.path(), "topic").expect("create");
+        let head = checkout(repo.path(), "topic").expect("checkout");
+        assert_eq!(head.branch.as_deref(), Some("topic"));
+
+        checkout(repo.path(), "main").expect("back");
+        delete_branch(repo.path(), "topic").expect("delete");
+        let names: Vec<_> = list_branches(repo.path())
+            .expect("list")
+            .into_iter()
+            .map(|b| b.name)
+            .collect();
+        assert!(!names.iter().any(|n| n == "topic"));
+    }
+
+    #[test]
+    fn checkout_preflight_blocks_overlapping_dirty_file() {
+        let repo = diverged_repo();
+        // On main; dirty a.txt which also differs on feature.
+        repo.write("a.txt", "base\nmain\nlocal edit\n");
+        let err = checkout_preflight(repo.path(), "feature").expect_err("conflict");
+        assert!(matches!(err, GitError::Conflict(_)));
+    }
+
+    #[test]
+    fn checkout_preflight_allows_unrelated_dirty_file() {
+        let repo = diverged_repo();
+        repo.write("only-local.txt", "scratch\n");
+        checkout_preflight(repo.path(), "feature").expect("ok");
+        let head = checkout(repo.path(), "feature").expect("switch");
+        assert_eq!(head.branch.as_deref(), Some("feature"));
+    }
+
+    #[test]
+    fn delete_refuses_current_branch() {
+        let repo = TempRepo::init();
+        repo.write("f.txt", "x\n");
+        repo.stage("f.txt");
+        repo.commit("c");
+        let err = delete_branch(repo.path(), "main").expect_err("current");
+        assert!(matches!(err, GitError::Backend(_)));
     }
 }

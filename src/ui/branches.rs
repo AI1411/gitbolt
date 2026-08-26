@@ -1,4 +1,4 @@
-//! Branch list with Recent, last commit, tracking, and Quick Open (issue #30).
+//! Branch list with create / checkout / delete, Recent, and Quick Open (issues #17 / #30).
 
 use dioxus::prelude::*;
 
@@ -19,6 +19,7 @@ pub struct BranchesViewProps {
 pub fn BranchesView(props: BranchesViewProps) -> Element {
     let mut upstream_draft = use_signal(String::new);
     let mut upstream_target = use_signal(|| None::<String>);
+    let mut create_draft = use_signal(String::new);
     // Local filter avoids controlled-input races with AppState round-trips
     // (Quick Open must keep matching rows visible while typing).
     let mut filter_text = use_signal(|| props.state.branch.filter.clone());
@@ -38,11 +39,45 @@ pub fn BranchesView(props: BranchesViewProps) -> Element {
         .collect();
     let loaded = props.state.branch.loaded;
     let total = props.state.branch.branches.len();
+    let pending_delete = props.state.ui.confirm_delete_branch.clone();
 
     rsx! {
         div {
             style: "font-size:0.9rem;opacity:0.95;display:flex;flex-direction:column;gap:0.75rem;",
             p { style: "margin:0;opacity:0.75;", "Current: {current}" }
+
+            // Create branch
+            div {
+                style: "display:flex;gap:0.4rem;align-items:center;flex-wrap:wrap;",
+                input {
+                    style: "flex:1;min-width:8rem;padding:0.35rem 0.5rem;border-radius:4px;\
+                            border:1px solid #334155;background:#0f1419;color:#e8eef7;font-size:0.85rem;",
+                    placeholder: "New branch name",
+                    value: "{create_draft()}",
+                    oninput: move |evt| create_draft.set(evt.value()),
+                    onkeydown: move |evt| {
+                        if evt.data().key() == Key::Enter {
+                            let name = create_draft().trim().to_string();
+                            if !name.is_empty() {
+                                props.on_event.call(UiEvent::CreateBranch(name));
+                                create_draft.set(String::new());
+                            }
+                        }
+                    },
+                }
+                button {
+                    style: "border:0;background:#3d8bfd;color:white;border-radius:4px;\
+                            padding:0.35rem 0.7rem;cursor:pointer;font-size:0.8rem;",
+                    onclick: move |_| {
+                        let name = create_draft().trim().to_string();
+                        if !name.is_empty() {
+                            props.on_event.call(UiEvent::CreateBranch(name));
+                            create_draft.set(String::new());
+                        }
+                    },
+                    "Create"
+                }
+            }
 
             // Quick Open filter for branches
             input {
@@ -69,13 +104,19 @@ pub fn BranchesView(props: BranchesViewProps) -> Element {
                         for name in props.state.branch.recent.iter().cloned() {
                             {
                                 let n = name.clone();
+                                let checkout = name.clone();
                                 rsx! {
                                     li {
                                         button {
                                             style: "border:1px solid #334155;background:#151b24;color:#cbd5e1;\
                                                     border-radius:4px;padding:0.2rem 0.5rem;cursor:pointer;\
                                                     font-family:ui-monospace,monospace;font-size:0.75rem;",
+                                            title: "Checkout",
                                             onclick: move |_| {
+                                                props.on_event.call(UiEvent::CheckoutBranch(checkout.clone()));
+                                            },
+                                            oncontextmenu: move |evt| {
+                                                evt.prevent_default();
                                                 props.on_event.call(UiEvent::SelectBranch(n.clone()));
                                             },
                                             "{name}"
@@ -83,6 +124,34 @@ pub fn BranchesView(props: BranchesViewProps) -> Element {
                                     }
                                 }
                             }
+                        }
+                    }
+                }
+            }
+
+            if let Some(name) = pending_delete.clone() {
+                div {
+                    style: "padding:0.55rem 0.65rem;border:1px solid #7f1d1d;background:#1c1212;\
+                            border-radius:4px;display:flex;flex-direction:column;gap:0.4rem;",
+                    p {
+                        style: "margin:0;font-size:0.85rem;",
+                        "Delete local branch "
+                        span { style: "font-family:ui-monospace,monospace;", "{name}" }
+                        "? Unmerged branches will be refused."
+                    }
+                    div {
+                        style: "display:flex;gap:0.4rem;",
+                        button {
+                            style: "border:0;background:#b91c1c;color:white;border-radius:4px;\
+                                    padding:0.3rem 0.65rem;cursor:pointer;font-size:0.78rem;",
+                            onclick: move |_| props.on_event.call(UiEvent::ConfirmDeleteBranch),
+                            "Delete"
+                        }
+                        button {
+                            style: "border:1px solid #334155;background:transparent;color:#9fb0c7;\
+                                    border-radius:4px;padding:0.3rem 0.55rem;cursor:pointer;font-size:0.78rem;",
+                            onclick: move |_| props.on_event.call(UiEvent::CancelDeleteBranch),
+                            "Cancel"
                         }
                     }
                 }
@@ -109,6 +178,7 @@ pub fn BranchesView(props: BranchesViewProps) -> Element {
                                 BranchRow {
                                     key: "{key}",
                                     branch: b,
+                                    current: current.clone(),
                                     on_event: props.on_event,
                                     on_track: move |name| {
                                         upstream_target.set(Some(name));
@@ -169,13 +239,18 @@ pub fn BranchesView(props: BranchesViewProps) -> Element {
 #[component]
 fn BranchRow(
     branch: BranchInfo,
+    current: String,
     on_event: EventHandler<UiEvent>,
     on_track: EventHandler<String>,
 ) -> Element {
     let badge = health_badge(&branch);
     let name = branch.name.clone();
+    let checkout_name = branch.name.clone();
     let other = branch.name.clone();
     let track_name = branch.name.clone();
+    let delete_name = branch.name.clone();
+    let is_remote = branch.is_remote;
+    let is_current = !is_remote && branch.name == current;
     let last = branch.last_commit.as_ref().map_or_else(String::new, |c| {
         let short = if c.oid.0.len() > 7 {
             c.oid.0[..7].to_string()
@@ -184,39 +259,73 @@ fn BranchRow(
         };
         format!("{short} · {}", c.summary)
     });
-    let upstream = branch
-        .upstream
-        .clone()
-        .unwrap_or_else(|| "no upstream".into());
+    let upstream = if is_remote {
+        "remote".into()
+    } else {
+        branch
+            .upstream
+            .clone()
+            .unwrap_or_else(|| "no upstream".into())
+    };
 
     rsx! {
         li {
             style: "display:flex;flex-direction:column;gap:0.15rem;padding:0.3rem 0.35rem;\
                     border-radius:4px;border:1px solid #1e293b;",
             div {
-                style: "display:flex;align-items:center;gap:0.5rem;",
+                style: "display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;",
                 button {
-                    style: "flex:1;text-align:left;border:0;background:transparent;color:#e8eef7;\
+                    style: "flex:1;min-width:6rem;text-align:left;border:0;background:transparent;color:#e8eef7;\
                             cursor:pointer;font-family:ui-monospace,monospace;font-size:0.85rem;",
                     onclick: move |_| on_event.call(UiEvent::SelectBranch(name.clone())),
+                    if is_remote {
+                        span { style: "opacity:0.55;margin-right:0.25rem;", "remote" }
+                    }
                     "{branch.name}"
+                    if is_current {
+                        span { style: "opacity:0.55;margin-left:0.35rem;", "(current)" }
+                    }
                 }
-                span { style: "opacity:0.7;font-size:0.8rem;min-width:3.5rem;", "{badge}" }
-                button {
-                    style: "border:1px solid #334155;background:transparent;color:#9fb0c7;\
-                            border-radius:4px;padding:0.15rem 0.45rem;cursor:pointer;font-size:0.72rem;",
-                    onclick: move |_| on_track.call(track_name.clone()),
-                    "Track"
+                if !is_remote {
+                    span { style: "opacity:0.7;font-size:0.8rem;min-width:3.5rem;", "{badge}" }
                 }
-                button {
-                    style: "border:1px solid #334155;background:transparent;color:#9fb0c7;\
-                            border-radius:4px;padding:0.15rem 0.45rem;cursor:pointer;font-size:0.72rem;",
-                    onclick: move |_| {
-                        on_event.call(UiEvent::ShowDivergence {
-                            other: other.clone(),
-                        });
-                    },
-                    "Divergence"
+                if !is_current {
+                    button {
+                        style: "border:1px solid #334155;background:transparent;color:#9fb0c7;\
+                                border-radius:4px;padding:0.15rem 0.45rem;cursor:pointer;font-size:0.72rem;",
+                        onclick: move |_| {
+                            on_event.call(UiEvent::CheckoutBranch(checkout_name.clone()));
+                        },
+                        "Checkout"
+                    }
+                }
+                if !is_remote {
+                    button {
+                        style: "border:1px solid #334155;background:transparent;color:#9fb0c7;\
+                                border-radius:4px;padding:0.15rem 0.45rem;cursor:pointer;font-size:0.72rem;",
+                        onclick: move |_| on_track.call(track_name.clone()),
+                        "Track"
+                    }
+                    button {
+                        style: "border:1px solid #334155;background:transparent;color:#9fb0c7;\
+                                border-radius:4px;padding:0.15rem 0.45rem;cursor:pointer;font-size:0.72rem;",
+                        onclick: move |_| {
+                            on_event.call(UiEvent::ShowDivergence {
+                                other: other.clone(),
+                            });
+                        },
+                        "Divergence"
+                    }
+                    if !is_current {
+                        button {
+                            style: "border:1px solid #7f1d1d;background:transparent;color:#fca5a5;\
+                                    border-radius:4px;padding:0.15rem 0.45rem;cursor:pointer;font-size:0.72rem;",
+                            onclick: move |_| {
+                                on_event.call(UiEvent::RequestDeleteBranch(delete_name.clone()));
+                            },
+                            "Delete"
+                        }
+                    }
                 }
             }
             div {
@@ -264,6 +373,7 @@ mod tests {
             ahead: 0,
             behind: 0,
             last_commit: None,
+            is_remote: false,
         }
     }
 

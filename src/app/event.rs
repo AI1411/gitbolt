@@ -74,10 +74,14 @@ pub enum UiEvent {
 
     /// Create a branch with the given name.
     CreateBranch(String),
-    /// Checkout / switch to a branch.
+    /// Checkout / switch to a branch (runs Preflight then switch).
     CheckoutBranch(String),
-    /// Delete a branch.
-    DeleteBranch(String),
+    /// Request delete confirmation for a local branch (destructive).
+    RequestDeleteBranch(String),
+    /// Confirm the pending branch delete.
+    ConfirmDeleteBranch,
+    /// Cancel the pending branch delete.
+    CancelDeleteBranch,
 
     /// Fetch from the default remote.
     Fetch,

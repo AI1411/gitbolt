@@ -86,6 +86,13 @@ impl AppSession {
         let mut changed = false;
         while let Ok(outcome) = self.rx.try_recv() {
             self.cache_diff_result(&outcome.message);
+            if matches!(
+                &outcome.message,
+                AppMessage::CheckoutCompleted { result: Ok(_), .. }
+                    | AppMessage::CommitCompleted { result: Ok(_), .. }
+            ) {
+                self.caches.on_head_change();
+            }
             let follow = apply(&mut self.state, outcome.message);
             self.submit_commands(follow);
             changed = true;
@@ -105,6 +112,13 @@ impl AppSession {
         match self.rx.recv_timeout(timeout) {
             Ok(outcome) => {
                 self.cache_diff_result(&outcome.message);
+                if matches!(
+                    &outcome.message,
+                    AppMessage::CheckoutCompleted { result: Ok(_), .. }
+                        | AppMessage::CommitCompleted { result: Ok(_), .. }
+                ) {
+                    self.caches.on_head_change();
+                }
                 let follow = apply(&mut self.state, outcome.message);
                 self.submit_commands(follow);
                 let _ = self.poll();

@@ -96,7 +96,34 @@ pub fn execute(cmd: &Command, repo_path: Option<&Path>) -> AppMessage {
             generation: *generation,
             result: with_service(repo_path, |svc| svc.commit(message).map(Oid)),
         },
+        Command::CreateBranch { .. } | Command::Checkout { .. } | Command::DeleteBranch { .. } => {
+            execute_branch_mutation(cmd, repo_path)
+        }
         other => unsupported(other),
+    }
+}
+
+fn execute_branch_mutation(cmd: &Command, repo_path: Option<&Path>) -> AppMessage {
+    match cmd {
+        Command::CreateBranch { name, generation } => AppMessage::BranchCreated {
+            generation: *generation,
+            result: with_service(repo_path, |svc| svc.create_branch(name)),
+        },
+        Command::Checkout { name, generation } => AppMessage::CheckoutCompleted {
+            generation: *generation,
+            result: with_service(repo_path, |svc| {
+                svc.checkout(name).map(|head| HeadInfo {
+                    branch: head.branch,
+                    oid: head.oid.map(Oid),
+                    detached: head.detached,
+                })
+            }),
+        },
+        Command::DeleteBranch { name, generation } => AppMessage::BranchDeleted {
+            generation: *generation,
+            result: with_service(repo_path, |svc| svc.delete_branch(name)),
+        },
+        _ => unreachable!("branch mutation only"),
     }
 }
 
@@ -165,11 +192,16 @@ fn load_branches(repo_path: Option<&Path>) -> Result<BranchesData, String> {
     let path = repo_path.ok_or_else(|| "リポジトリが開かれていません".to_string())?;
     let service = GixService::open(path).map_err(|e| e.user_message())?;
     let refs = service.branches().map_err(|e| e.user_message())?;
-    let current = refs.iter().find(|b| b.is_head).map(|b| b.name.clone());
+    let current = refs
+        .iter()
+        .find(|b| b.is_head && !b.is_remote)
+        .map(|b| b.name.clone());
     let recent = service.recent_branches(10).map_err(|e| e.user_message())?;
     let mut infos = Vec::new();
     for b in refs {
-        let (ahead, behind, health) = if let Some(up) = b.upstream.as_deref() {
+        let (ahead, behind, health) = if b.is_remote {
+            (0, 0, BranchHealth::Local)
+        } else if let Some(up) = b.upstream.as_deref() {
             match service.ahead_behind(&b.name, up) {
                 Ok((a, be)) => {
                     let health = match (a, be) {
@@ -197,6 +229,7 @@ fn load_branches(repo_path: Option<&Path>) -> Result<BranchesData, String> {
             ahead,
             behind,
             last_commit,
+            is_remote: b.is_remote,
         });
     }
     Ok(BranchesData {
@@ -299,19 +332,10 @@ fn unsupported(cmd: &Command) -> AppMessage {
         | Command::LoadWorktrees { .. }
         | Command::StageAll { .. }
         | Command::UnstageAll { .. }
-        | Command::Commit { .. } => unreachable!("handled in execute"),
-        Command::CreateBranch { .. } => AppMessage::BranchCreated {
-            generation,
-            result: Err(err),
-        },
-        Command::Checkout { .. } => AppMessage::CheckoutCompleted {
-            generation,
-            result: Err(err),
-        },
-        Command::DeleteBranch { .. } => AppMessage::BranchDeleted {
-            generation,
-            result: Err(err),
-        },
+        | Command::Commit { .. }
+        | Command::CreateBranch { .. }
+        | Command::Checkout { .. }
+        | Command::DeleteBranch { .. } => unreachable!("handled in execute"),
         Command::Fetch { .. } => AppMessage::RemoteCompleted {
             generation,
             op: RemoteOp::Fetch,

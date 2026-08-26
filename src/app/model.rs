@@ -166,6 +166,8 @@ pub struct BranchInfo {
     pub ahead: u32,
     pub behind: u32,
     pub last_commit: Option<CommitSummary>,
+    /// Remote-tracking ref (`origin/…`), not a local branch.
+    pub is_remote: bool,
 }
 
 /// A linked or primary worktree.
