@@ -158,6 +158,7 @@ fn FileSection(
                             let path = file.path.clone();
                             let path_stage = file.path.clone();
                             let mark = status_mark(file.kind);
+                            let mark_color = crate::ui::theme::status_fg(file.kind);
                             let (parent, name) = split_path_display(&path);
                             let is_conflict = title == "CONFLICTED";
                             let is_sel = selected.as_ref().is_some_and(|t| {
@@ -179,7 +180,7 @@ fn FileSection(
                                                 staged: staged_area,
                                             });
                                         },
-                                        span { style: "opacity:0.7;margin-right:0.5rem;", "{mark}" }
+                                        span { style: "margin-right:0.5rem;font-weight:700;color:{mark_color};", "{mark}" }
                                         span { style: "opacity:0.45;", "{parent}" }
                                         span { "{name}" }
                                     }
