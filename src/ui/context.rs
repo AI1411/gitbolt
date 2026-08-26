@@ -120,9 +120,7 @@ fn CommitDetailBody(
         .and_then(|d| i64::try_from(d.as_secs()).ok())
         .unwrap_or(0);
     let rel = relative_time(detail.timestamp, now);
-    let full_oid = oid
-        .as_ref()
-        .map_or(detail.oid.0.as_str(), |o| o.0.as_str());
+    let full_oid = oid.as_ref().map_or(detail.oid.0.as_str(), |o| o.0.as_str());
     let short = if full_oid.len() > 12 {
         &full_oid[..12]
     } else {
