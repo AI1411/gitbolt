@@ -77,7 +77,6 @@ pub fn HistoryView(props: HistoryViewProps) -> Element {
                         {
                             let oid = Oid(c.oid.0.clone());
                             let is_sel = selected.as_ref() == Some(&oid);
-                            let bg = if is_sel { "var(--gb-selected)" } else { "transparent" };
                             let short = if c.oid.0.len() > 7 {
                                 c.oid.0[..7].to_string()
                             } else {
@@ -89,11 +88,13 @@ pub fn HistoryView(props: HistoryViewProps) -> Element {
                                 li {
                                     key: "{c.oid.0}",
                                     button {
+                                        class: "gb-selectable",
                                         style: format!(
                                             "width:100%;display:grid;grid-template-columns:1.2rem 1fr;\
-                                             gap:0.55rem;text-align:left;border:0;background:{bg};\
+                                             gap:0.55rem;text-align:left;border:0;{};\
                                              color:var(--gb-text);cursor:pointer;padding:0.35rem 0.45rem;\
-                                             border-radius:var(--gb-radius);"
+                                             border-radius:var(--gb-radius);",
+                                            crate::ui::theme::row_style(is_sel)
                                         ),
                                         onclick: move |_| {
                                             props.on_event.call(UiEvent::SelectCommit(oid.clone()));

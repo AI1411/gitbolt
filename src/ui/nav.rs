@@ -31,12 +31,12 @@ pub fn NavPane(props: NavPaneProps) -> Element {
                     rsx! {
                         button {
                             key: "{label}",
-                            class: if selected { "nav-item active" } else { "nav-item" },
+                            class: if selected { "nav-item active gb-selectable" } else { "nav-item gb-selectable" },
                             style: format!(
                                 "text-align:left;border:0;border-radius:var(--gb-radius);padding:0.45rem 0.65rem;\
-                                 cursor:pointer;font-size:var(--gb-size-body);background:{};color:{};font-weight:{};\
+                                 cursor:pointer;font-size:var(--gb-size-body);{};color:{};font-weight:{};\
                                  display:flex;align-items:center;justify-content:space-between;gap:0.4rem;",
-                                if selected { "var(--gb-selected)" } else { "transparent" },
+                                crate::ui::theme::row_style(selected),
                                 if selected { "var(--gb-text)" } else { "var(--gb-text-muted)" },
                                 if selected { "600" } else { "500" },
                             ),

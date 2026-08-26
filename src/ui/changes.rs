@@ -164,15 +164,16 @@ fn FileSection(
                             let is_sel = selected.as_ref().is_some_and(|t| {
                                 t.path == path && t.staged == staged_area
                             });
-                            let bg = if is_sel { "var(--gb-selected)" } else { "transparent" };
                             rsx! {
                                 li {
                                     style: "display:flex;align-items:center;gap:0.35rem;",
                                     button {
+                                        class: "gb-selectable",
                                         style: format!(
-                                            "flex:1;text-align:left;border:0;background:{bg};\
+                                            "flex:1;text-align:left;border:0;{};\
                                              color:var(--gb-text);cursor:pointer;font-family:var(--gb-mono);\
-                                             font-size:0.82rem;padding:0.2rem 0.35rem;border-radius:var(--gb-radius-sm);"
+                                             font-size:0.82rem;padding:0.2rem 0.35rem;border-radius:var(--gb-radius-sm);",
+                                            crate::ui::theme::row_style(is_sel)
                                         ),
                                         onclick: move |_| {
                                             on_event.call(UiEvent::SelectFile {
