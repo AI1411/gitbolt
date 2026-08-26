@@ -111,7 +111,9 @@ fn load_diff(
     let diff = service
         .diff(&target.path, target.staged)
         .map_err(|e| e.user_message())?;
-    Ok(parse_diff_content(target.clone(), &diff.text))
+    let content = parse_diff_content(target.clone(), &diff.text);
+    let blame = service.blame(&target.path).unwrap_or_default();
+    Ok(super::diff_parse::attach_change_origins(content, &blame))
 }
 
 fn load_branches(repo_path: Option<&Path>) -> Result<BranchesData, String> {
@@ -444,5 +446,44 @@ mod tests {
             msg,
             AppMessage::StageCompleted { result: Ok(()), .. }
         ));
+    }
+
+    #[test]
+    fn load_diff_attaches_change_origin_from_head_blame() {
+        let repo = TempRepo::init();
+        repo.write("f.txt", "alpha\nbeta\ngamma\n");
+        repo.stage("f.txt");
+        repo.commit("seed lines");
+        let seed = repo.run(&["rev-parse", "HEAD"]);
+        repo.write("f.txt", "alpha\nBETA\ngamma\n");
+
+        let msg = execute(
+            &Command::LoadDiff {
+                target: DiffTarget {
+                    path: Path::new("f.txt").to_path_buf(),
+                    staged: false,
+                },
+                generation: Generation(5),
+            },
+            Some(repo.path()),
+        );
+
+        match msg {
+            AppMessage::DiffLoaded {
+                result: Ok(content),
+                ..
+            } => {
+                let deleted = content
+                    .hunks
+                    .iter()
+                    .flat_map(|h| h.lines.iter())
+                    .find(|l| l.origin == '-' && l.content == "beta")
+                    .expect("deleted beta");
+                let origin = deleted.change_origin.as_ref().expect("origin");
+                assert_eq!(origin.oid.0, seed);
+                assert!(origin.summary.contains("seed"));
+            }
+            other => panic!("unexpected: {other:?}"),
+        }
     }
 }
