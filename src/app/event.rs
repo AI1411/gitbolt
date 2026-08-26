@@ -31,6 +31,15 @@ pub enum UiEvent {
     /// Change the diff presentation.
     SetDiffView(DiffView),
 
+    /// Toggle selection of a diff body line for line-stage.
+    ToggleDiffLine(usize),
+    /// Clear diff line selection.
+    ClearDiffLineSelection,
+    /// Stage currently selected diff lines.
+    StageSelectedLines,
+    /// Unstage currently selected diff lines (from staged diff).
+    UnstageSelectedLines,
+
     /// Stage a single file (optimistic).
     StageFile(PathBuf),
     /// Unstage a single file (optimistic).

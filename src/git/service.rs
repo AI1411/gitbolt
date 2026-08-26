@@ -171,6 +171,22 @@ pub trait GitService: Sized {
         Err(GitError::unsupported("unstage"))
     }
 
+    /// Stage only selected lines from a file's unified diff.
+    ///
+    /// `selected` are body-line indices (see [`super::patch`]). When
+    /// `from_staged` is true, those lines are unstaged via a reverse apply.
+    ///
+    /// # Errors
+    /// Returns a backend error when the patch cannot be applied.
+    fn stage_lines(
+        &self,
+        _path: &Path,
+        _from_staged: bool,
+        _selected: &[usize],
+    ) -> Result<(), GitError> {
+        Err(GitError::unsupported("stage_lines"))
+    }
+
     /// Create a commit from the staged changes.
     ///
     /// # Errors

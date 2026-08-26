@@ -120,6 +120,7 @@ fn command_priority(cmd: &Command) -> Priority {
         Command::OpenRepository { .. }
         | Command::Stage { .. }
         | Command::Unstage { .. }
+        | Command::StageLines { .. }
         | Command::StageAll { .. }
         | Command::UnstageAll { .. }
         | Command::Commit { .. }

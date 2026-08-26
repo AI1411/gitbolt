@@ -111,6 +111,8 @@ pub struct DiffLine {
     /// ` `, `+`, or `-`.
     pub origin: char,
     pub content: String,
+    /// Index into the unified-diff body (after `+++`), for line-stage patches.
+    pub body_index: usize,
 }
 
 /// A diff hunk with its `@@` header and lines.

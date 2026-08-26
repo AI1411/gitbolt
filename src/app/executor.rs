@@ -1,14 +1,11 @@
 //! Executes [`Command`]s against the Git Service and returns [`AppMessage`]s.
-//!
-//! Issue #9 implements `OpenRepository` (and `LoadStatus` so the Ready follow-up
-//! does not surface Unsupported errors). Other ops return empty success or
-//! Unsupported until later MVP issues.
 
 use std::path::Path;
 
 use super::command::Command;
+use super::diff_parse::parse_diff_content;
 use super::message::{AppMessage, RemoteOp, RepositoryData, StatusData};
-use super::model::{ChangeKind, FileChange, HeadInfo, Oid};
+use super::model::{ChangeKind, DiffTarget, FileChange, HeadInfo, Oid};
 use crate::git::{ChangeStatus, GitError, GitService, GixService, RepoStatus};
 
 /// Runs a single command and returns the corresponding worker message.
@@ -22,6 +19,30 @@ pub fn execute(cmd: &Command, repo_path: Option<&Path>) -> AppMessage {
         Command::LoadStatus { generation } => AppMessage::StatusLoaded {
             generation: *generation,
             result: load_status(repo_path),
+        },
+        Command::LoadDiff { target, generation } => AppMessage::DiffLoaded {
+            generation: *generation,
+            result: load_diff(repo_path, target),
+        },
+        Command::Stage { path, generation } => AppMessage::StageCompleted {
+            generation: *generation,
+            path: path.clone(),
+            result: with_service(repo_path, |svc| svc.stage(path)),
+        },
+        Command::Unstage { path, generation } => AppMessage::UnstageCompleted {
+            generation: *generation,
+            path: path.clone(),
+            result: with_service(repo_path, |svc| svc.unstage(path)),
+        },
+        Command::StageLines {
+            path,
+            from_staged,
+            lines,
+            generation,
+        } => AppMessage::StageCompleted {
+            generation: *generation,
+            path: path.clone(),
+            result: with_service(repo_path, |svc| svc.stage_lines(path, *from_staged, lines)),
         },
         Command::LoadHistoryPage { offset, generation } => AppMessage::HistoryPageLoaded {
             generation: *generation,
@@ -59,6 +80,27 @@ fn load_status(repo_path: Option<&Path>) -> Result<StatusData, String> {
     Ok(status_data(status))
 }
 
+fn load_diff(
+    repo_path: Option<&Path>,
+    target: &DiffTarget,
+) -> Result<crate::app::model::DiffContent, String> {
+    let path = repo_path.ok_or_else(|| "リポジトリが開かれていません".to_string())?;
+    let service = GixService::open(path).map_err(|e| e.user_message())?;
+    let diff = service
+        .diff(&target.path, target.staged)
+        .map_err(|e| e.user_message())?;
+    Ok(parse_diff_content(target.clone(), &diff.text))
+}
+
+fn with_service<T, F>(repo_path: Option<&Path>, f: F) -> Result<T, String>
+where
+    F: FnOnce(&GixService) -> Result<T, GitError>,
+{
+    let path = repo_path.ok_or_else(|| "リポジトリが開かれていません".to_string())?;
+    let service = GixService::open(path).map_err(|e| e.user_message())?;
+    f(&service).map_err(|e| e.user_message())
+}
+
 fn status_data(status: RepoStatus) -> StatusData {
     StatusData {
         staged: map_changes(status.staged),
@@ -94,25 +136,13 @@ fn unsupported(cmd: &Command) -> AppMessage {
     match cmd {
         Command::OpenRepository { .. }
         | Command::LoadStatus { .. }
+        | Command::LoadDiff { .. }
+        | Command::Stage { .. }
+        | Command::Unstage { .. }
+        | Command::StageLines { .. }
         | Command::LoadHistoryPage { .. }
         | Command::LoadBranches { .. }
-        | Command::LoadWorktrees { .. } => {
-            unreachable!("handled in execute")
-        }
-        Command::LoadDiff { .. } => AppMessage::DiffLoaded {
-            generation,
-            result: Err(err),
-        },
-        Command::Stage { path, .. } => AppMessage::StageCompleted {
-            generation,
-            path: path.clone(),
-            result: Err(err),
-        },
-        Command::Unstage { path, .. } => AppMessage::UnstageCompleted {
-            generation,
-            path: path.clone(),
-            result: Err(err),
-        },
+        | Command::LoadWorktrees { .. } => unreachable!("handled in execute"),
         Command::StageAll { .. } => AppMessage::StageCompleted {
             generation,
             path: Path::new(".").to_path_buf(),
@@ -169,7 +199,7 @@ fn command_name(cmd: &Command) -> &'static str {
         Command::LoadHistoryPage { .. } => "log",
         Command::LoadBranches { .. } => "branches",
         Command::LoadWorktrees { .. } => "worktrees",
-        Command::Stage { .. } | Command::StageAll { .. } => "stage",
+        Command::Stage { .. } | Command::StageAll { .. } | Command::StageLines { .. } => "stage",
         Command::Unstage { .. } | Command::UnstageAll { .. } => "unstage",
         Command::Commit { .. } => "commit",
         Command::CreateBranch { .. } => "create_branch",
@@ -272,5 +302,38 @@ mod tests {
             }
             other => panic!("unexpected message: {other:?}"),
         }
+    }
+
+    #[test]
+    fn stage_lines_command_stages_partial_file() {
+        let repo = TempRepo::init();
+        repo.write("f.txt", "a\n");
+        repo.stage("f.txt");
+        repo.commit("initial");
+        repo.write("f.txt", "a\nb\nc\n");
+
+        let diff =
+            crate::git::diff::unified_diff(repo.path(), Path::new("f.txt"), false).expect("diff");
+        let body: Vec<_> = diff
+            .text
+            .lines()
+            .skip_while(|l| !l.starts_with("+++ "))
+            .skip(1)
+            .collect();
+        let b_idx = body.iter().position(|l| *l == "+b").expect("+b");
+
+        let msg = execute(
+            &Command::StageLines {
+                path: Path::new("f.txt").to_path_buf(),
+                from_staged: false,
+                lines: vec![b_idx],
+                generation: Generation(4),
+            },
+            Some(repo.path()),
+        );
+        assert!(matches!(
+            msg,
+            AppMessage::StageCompleted { result: Ok(()), .. }
+        ));
     }
 }

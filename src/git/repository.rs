@@ -9,8 +9,10 @@ use std::path::Path;
 
 use gix::bstr::BString;
 
+use super::diff::{self as diff_mod};
 use super::error::GitError;
 use super::service::{ChangeStatus, FileChange, GitService, Head, RepoStatus};
+use super::stage;
 
 /// A repository opened through gitoxide.
 pub struct GixService {
@@ -112,6 +114,36 @@ impl GitService for GixService {
             }
         }
         Ok(status)
+    }
+
+    fn diff(&self, path: &Path, staged: bool) -> Result<super::service::DiffText, GitError> {
+        let root = self.workdir()?;
+        diff_mod::unified_diff(root, path, staged)
+    }
+
+    fn stage(&self, path: &Path) -> Result<(), GitError> {
+        stage::stage_file(self.workdir()?, path)
+    }
+
+    fn unstage(&self, path: &Path) -> Result<(), GitError> {
+        stage::unstage_file(self.workdir()?, path)
+    }
+
+    fn stage_lines(
+        &self,
+        path: &Path,
+        from_staged: bool,
+        selected: &[usize],
+    ) -> Result<(), GitError> {
+        stage::stage_lines(self.workdir()?, path, from_staged, selected)
+    }
+}
+
+impl GixService {
+    fn workdir(&self) -> Result<&Path, GitError> {
+        self.repo
+            .workdir()
+            .ok_or_else(|| GitError::Backend("bare repository has no worktree".into()))
     }
 }
 
