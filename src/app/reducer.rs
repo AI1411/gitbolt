@@ -296,9 +296,18 @@ pub fn reduce(state: &mut AppState, event: UiEvent) -> Vec<Command> {
             state.ui.confirm_delete_branch = None;
             Vec::new()
         }
-        UiEvent::Fetch => issue(state, vec![Command::Fetch { generation: gen }]),
-        UiEvent::Pull => issue(state, vec![Command::Pull { generation: gen }]),
-        UiEvent::Push => issue(state, vec![Command::Push { generation: gen }]),
+        UiEvent::Fetch => {
+            state.background.remote_label = Some("fetching…".into());
+            issue(state, vec![Command::Fetch { generation: gen }])
+        }
+        UiEvent::Pull => {
+            state.background.remote_label = Some("pulling…".into());
+            issue(state, vec![Command::Pull { generation: gen }])
+        }
+        UiEvent::Push => {
+            state.background.remote_label = Some("pushing…".into());
+            issue(state, vec![Command::Push { generation: gen }])
+        }
         UiEvent::CreateWorktree { branch, path } => issue(
             state,
             vec![Command::CreateWorktree {
@@ -572,19 +581,37 @@ pub fn apply(state: &mut AppState, message: AppMessage) -> Vec<Command> {
                 Vec::new()
             }
         },
-        AppMessage::RemoteCompleted { op, result, .. } => match result {
-            Ok(()) => {
-                let mut cmds = vec![Command::LoadBranches { generation: gen }];
-                if matches!(op, RemoteOp::Fetch | RemoteOp::Pull) {
-                    cmds.push(Command::LoadStatus { generation: gen });
+        AppMessage::RemoteCompleted { op, result, .. } => {
+            state.background.remote_label = None;
+            match result {
+                Ok(head) => {
+                    let mut cmds = vec![Command::LoadBranches { generation: gen }];
+                    if matches!(op, RemoteOp::Fetch | RemoteOp::Pull) {
+                        cmds.push(Command::LoadStatus { generation: gen });
+                    }
+                    if matches!(op, RemoteOp::Pull) {
+                        if let Some(head) = head {
+                            state.repository.head = head;
+                        }
+                        bump_after_head_change(state);
+                        let gen = state.generation;
+                        cmds = vec![
+                            Command::LoadStatus { generation: gen },
+                            Command::LoadBranches { generation: gen },
+                            Command::LoadHistoryPage {
+                                offset: 0,
+                                generation: gen,
+                            },
+                        ];
+                    }
+                    issue(state, cmds)
                 }
-                issue(state, cmds)
+                Err(err) => {
+                    set_error(state, err);
+                    Vec::new()
+                }
             }
-            Err(err) => {
-                set_error(state, err);
-                Vec::new()
-            }
-        },
+        }
     }
 }
 

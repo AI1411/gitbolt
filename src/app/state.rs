@@ -126,10 +126,12 @@ pub struct BackgroundTaskState {
     /// Number of dispatched commands that have not yet reported completion.
     pub inflight: u32,
     pub last_error: Option<String>,
+    /// Active remote operation label for Pulse (`fetch` / `pull` / `push`).
+    pub remote_label: Option<String>,
 }
 
 /// Presentational / editable UI state not derived from Git.
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UiState {
     /// The in-progress commit message. Preserved across failed commits
     /// (see `docs/design/07-runtime.md` section 13).
@@ -143,6 +145,23 @@ pub struct UiState {
     pub new_branch_name: String,
     /// Pending destructive delete confirmation (local branch name).
     pub confirm_delete_branch: Option<String>,
+    /// Auto-fetch interval in seconds (issue #19). `0` disables.
+    pub auto_fetch_secs: u64,
+}
+
+impl Default for UiState {
+    fn default() -> Self {
+        Self {
+            commit_message: String::new(),
+            error_banner: None,
+            search_query: String::new(),
+            searching: false,
+            commit_focus_token: 0,
+            new_branch_name: String::new(),
+            confirm_delete_branch: None,
+            auto_fetch_secs: 300,
+        }
+    }
 }
 
 /// The whole application state.

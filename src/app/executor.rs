@@ -105,7 +105,48 @@ pub fn execute(cmd: &Command, repo_path: Option<&Path>) -> AppMessage {
         Command::CreateBranch { .. } | Command::Checkout { .. } | Command::DeleteBranch { .. } => {
             execute_branch_mutation(cmd, repo_path)
         }
-        other => unsupported(other),
+        Command::Fetch { .. }
+        | Command::AutoFetch { .. }
+        | Command::Pull { .. }
+        | Command::Push { .. } => execute_remote(cmd, repo_path),
+        other @ Command::CreateWorktree { .. } => unsupported(other),
+    }
+}
+
+fn execute_remote(cmd: &Command, repo_path: Option<&Path>) -> AppMessage {
+    match cmd {
+        Command::Fetch { generation } | Command::AutoFetch { generation } => {
+            AppMessage::RemoteCompleted {
+                generation: *generation,
+                op: RemoteOp::Fetch,
+                result: with_service(repo_path, |svc| {
+                    svc.fetch()?;
+                    Ok(None)
+                }),
+            }
+        }
+        Command::Pull { generation } => AppMessage::RemoteCompleted {
+            generation: *generation,
+            op: RemoteOp::Pull,
+            result: with_service(repo_path, |svc| {
+                svc.pull()?;
+                let head = svc.head()?;
+                Ok(Some(HeadInfo {
+                    branch: head.branch,
+                    oid: head.oid.map(Oid),
+                    detached: head.detached,
+                }))
+            }),
+        },
+        Command::Push { generation } => AppMessage::RemoteCompleted {
+            generation: *generation,
+            op: RemoteOp::Push,
+            result: with_service(repo_path, |svc| {
+                svc.push()?;
+                Ok(None)
+            }),
+        },
+        _ => unreachable!("remote only"),
     }
 }
 
@@ -414,22 +455,11 @@ fn unsupported(cmd: &Command) -> AppMessage {
         | Command::Commit { .. }
         | Command::CreateBranch { .. }
         | Command::Checkout { .. }
-        | Command::DeleteBranch { .. } => unreachable!("handled in execute"),
-        Command::Fetch { .. } => AppMessage::RemoteCompleted {
-            generation,
-            op: RemoteOp::Fetch,
-            result: Err(err),
-        },
-        Command::Pull { .. } => AppMessage::RemoteCompleted {
-            generation,
-            op: RemoteOp::Pull,
-            result: Err(err),
-        },
-        Command::Push { .. } => AppMessage::RemoteCompleted {
-            generation,
-            op: RemoteOp::Push,
-            result: Err(err),
-        },
+        | Command::DeleteBranch { .. }
+        | Command::Fetch { .. }
+        | Command::AutoFetch { .. }
+        | Command::Pull { .. }
+        | Command::Push { .. } => unreachable!("handled in execute"),
         Command::CreateWorktree { .. } => AppMessage::WorktreeCreated {
             generation,
             result: Err(err),
@@ -454,7 +484,7 @@ fn command_name(cmd: &Command) -> &'static str {
         Command::CreateBranch { .. } => "create_branch",
         Command::Checkout { .. } => "checkout",
         Command::DeleteBranch { .. } => "delete_branch",
-        Command::Fetch { .. } => "fetch",
+        Command::Fetch { .. } | Command::AutoFetch { .. } => "fetch",
         Command::Pull { .. } => "pull",
         Command::Push { .. } => "push",
         Command::CreateWorktree { .. } => "create_worktree",

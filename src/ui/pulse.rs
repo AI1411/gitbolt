@@ -89,8 +89,32 @@ pub fn PulseHeader(props: PulseHeaderProps) -> Element {
                 "{worktrees_label}"
             }
             span {
-                style: "opacity:0.45;font-weight:500;font-size:0.8rem;margin-left:auto;",
-                "⌘I context"
+                style: "opacity:0.45;font-weight:500;font-size:0.8rem;margin-left:auto;\
+                        display:flex;gap:0.45rem;align-items:center;",
+                if let Some(label) = props.state.background.remote_label.clone() {
+                    span { style: "opacity:0.8;", "{label}" }
+                } else if props.state.background.inflight > 0 {
+                    span { style: "opacity:0.7;", "working…" }
+                }
+                button {
+                    style: "{muted}",
+                    title: "Fetch (F)",
+                    onclick: move |_| props.on_event.call(UiEvent::Fetch),
+                    "Fetch"
+                }
+                button {
+                    style: "{muted}",
+                    title: "Pull",
+                    onclick: move |_| props.on_event.call(UiEvent::Pull),
+                    "Pull"
+                }
+                button {
+                    style: "{muted}",
+                    title: "Push",
+                    onclick: move |_| props.on_event.call(UiEvent::Push),
+                    "Push"
+                }
+                span { "⌘I context" }
             }
         }
     }

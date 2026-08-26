@@ -141,7 +141,8 @@ pub enum AppMessage {
     RemoteCompleted {
         generation: Generation,
         op: RemoteOp,
-        result: Result<(), Failure>,
+        /// On pull success, the refreshed HEAD; otherwise `None`.
+        result: Result<Option<HeadInfo>, Failure>,
     },
 }
 

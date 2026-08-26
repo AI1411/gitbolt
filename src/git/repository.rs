@@ -15,6 +15,7 @@ use super::commit;
 use super::diff::{self as diff_mod};
 use super::error::GitError;
 use super::history;
+use super::remote;
 use super::service::{
     BranchRef, ChangeStatus, CommitInfo, FileChange, GitService, Head, RepoStatus, WorktreeRef,
 };
@@ -212,6 +213,18 @@ impl GitService for GixService {
 
     fn delete_branch(&self, name: &str) -> Result<(), GitError> {
         branch::delete_branch(self.workdir()?, name)
+    }
+
+    fn fetch(&self) -> Result<(), GitError> {
+        remote::fetch(self.workdir()?)
+    }
+
+    fn pull(&self) -> Result<(), GitError> {
+        remote::pull(self.workdir()?)
+    }
+
+    fn push(&self) -> Result<(), GitError> {
+        remote::push(self.workdir()?)
     }
 
     fn worktrees(&self) -> Result<Vec<WorktreeRef>, GitError> {
