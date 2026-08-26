@@ -139,6 +139,22 @@ pub fn checkout(repo: &Path, name: &str) -> Result<Head, GitError> {
     read_head(repo)
 }
 
+/// Lists local branch names already merged into `base` (`git branch --merged`).
+///
+/// # Errors
+/// Propagates CLI failures.
+pub fn merged_into(repo: &Path, base: &str) -> Result<Vec<String>, GitError> {
+    let base = validate_branch_name(base)?;
+    let cli = GitCli::new(repo)?;
+    let out = cli.run(&["branch", "--merged", base, "--format=%(refname:short)"])?;
+    Ok(out
+        .lines()
+        .map(str::trim)
+        .filter(|l| !l.is_empty() && *l != base)
+        .map(str::to_string)
+        .collect())
+}
+
 /// Deletes a local branch with `git branch -d` (refuses unmerged).
 ///
 /// # Errors

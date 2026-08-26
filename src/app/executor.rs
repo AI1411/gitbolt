@@ -543,11 +543,19 @@ fn load_branches(repo_path: Option<&Path>) -> Result<BranchesData, String> {
             stale_days,
         });
     }
+
+    let base = ["main", "master", "develop", "trunk"]
+        .into_iter()
+        .find(|name| infos.iter().any(|b| !b.is_remote && b.name == *name))
+        .unwrap_or("main");
+    let merged_into_base = crate::git::branch::merged_into(path, base).unwrap_or_default();
+
     Ok(BranchesData {
         branches: infos,
         current,
         recent,
         pending_health,
+        merged_into_base,
     })
 }
 

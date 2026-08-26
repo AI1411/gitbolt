@@ -90,6 +90,8 @@ pub struct BranchState {
     pub recent: Vec<String>,
     /// Quick Open filter for branch names.
     pub filter: String,
+    /// Names merged into default base (`main`/`master`) for cleanup (issue #78).
+    pub merged_into_base: Vec<String>,
 }
 
 /// Divergence between two tips (issue #29).
@@ -219,6 +221,14 @@ pub struct UiState {
     pub copy_feedback: Option<String>,
     /// Command Palette / Quick Open overlay (issue #26).
     pub overlay: Overlay,
+    /// Pending outdated branch cleanup selection (issue #78).
+    pub branch_cleanup: Option<BranchCleanupState>,
+}
+
+/// Multi-select cleanup panel state (issue #78).
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct BranchCleanupState {
+    pub selected: Vec<String>,
 }
 
 impl Default for UiState {
@@ -238,6 +248,7 @@ impl Default for UiState {
             auto_fetch_secs: 300,
             copy_feedback: None,
             overlay: Overlay::None,
+            branch_cleanup: None,
         }
     }
 }

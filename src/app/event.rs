@@ -89,6 +89,15 @@ pub enum UiEvent {
     /// Cancel the pending branch delete.
     CancelDeleteBranch,
 
+    /// Open outdated branch cleanup panel (issue #78).
+    OpenBranchCleanup,
+    /// Toggle a branch in the cleanup selection.
+    ToggleCleanupBranch(String),
+    /// Confirm deleting all selected cleanup branches.
+    ConfirmBranchCleanup,
+    /// Cancel cleanup panel.
+    CancelBranchCleanup,
+
     /// Fetch from the default remote.
     Fetch,
     /// Pull from the upstream.

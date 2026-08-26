@@ -42,6 +42,8 @@ pub struct BranchesData {
     pub recent: Vec<String>,
     /// Local branch names still needing ahead/behind (P3 enrichment).
     pub pending_health: Vec<String>,
+    /// Local branches already merged into the default base (issue #78).
+    pub merged_into_base: Vec<String>,
 }
 
 /// Ahead/behind enrichment for deferred Branch Health (issue #18).
