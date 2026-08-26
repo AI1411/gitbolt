@@ -5,6 +5,7 @@ use dioxus::prelude::*;
 use crate::app::event::UiEvent;
 use crate::app::model::View;
 use crate::app::state::AppState;
+use crate::app::state::Overlay;
 use crate::ui::branches::BranchesView;
 use crate::ui::changes::ChangesView;
 use crate::ui::context::ContextPane;
@@ -13,6 +14,7 @@ use crate::ui::history::HistoryView;
 use crate::ui::layout_model::content_heading;
 use crate::ui::layout_model::history_title;
 use crate::ui::nav::NavPane;
+use crate::ui::overlay::OverlayHost;
 use crate::ui::pulse::PulseHeader;
 use crate::ui::stashes::StashesView;
 use crate::ui::worktrees::WorktreesView;
@@ -68,11 +70,21 @@ pub fn Shell(props: ShellProps) -> Element {
             onkeydown: move |evt| {
                 let mods = evt.data().modifiers();
                 let shortcut = mods.contains(Modifiers::META) || mods.contains(Modifiers::CONTROL);
+                let overlay_open = !matches!(props.state.ui.overlay, Overlay::None);
+
                 if shortcut {
                     match evt.data().key() {
                         Key::Character(ch) if ch.eq_ignore_ascii_case("i") => {
                             evt.prevent_default();
                             props.on_event.call(UiEvent::ToggleContextPanel);
+                        }
+                        Key::Character(ch) if ch.eq_ignore_ascii_case("k") => {
+                            evt.prevent_default();
+                            props.on_event.call(UiEvent::OpenCommandPalette);
+                        }
+                        Key::Character(ch) if ch.eq_ignore_ascii_case("p") => {
+                            evt.prevent_default();
+                            props.on_event.call(UiEvent::OpenQuickOpen);
                         }
                         Key::Enter => {
                             evt.prevent_default();
@@ -80,11 +92,65 @@ pub fn Shell(props: ShellProps) -> Element {
                         }
                         _ => {}
                     }
-                } else if let Key::Character(ch) = evt.data().key() {
-                    if ch.eq_ignore_ascii_case("f") {
+                    return;
+                }
+
+                if matches!(evt.data().key(), Key::Escape) {
+                    evt.prevent_default();
+                    props.on_event.call(UiEvent::Escape);
+                    return;
+                }
+
+                if overlay_open {
+                    match evt.data().key() {
+                        Key::ArrowDown => {
+                            evt.prevent_default();
+                            props.on_event.call(UiEvent::NavigateOverlay { delta: 1 });
+                        }
+                        Key::ArrowUp => {
+                            evt.prevent_default();
+                            props.on_event.call(UiEvent::NavigateOverlay { delta: -1 });
+                        }
+                        Key::Enter => {
+                            evt.prevent_default();
+                            props.on_event.call(UiEvent::ConfirmOverlay);
+                        }
+                        _ => {}
+                    }
+                    return;
+                }
+
+                match evt.data().key() {
+                    Key::Character(ch) if ch == "/" => {
                         evt.prevent_default();
-                        props.on_event.call(UiEvent::Fetch);
-                    } else if ch.eq_ignore_ascii_case("w") {
+                        props.on_event.call(UiEvent::OpenQuickOpen);
+                    }
+                    Key::Character(ch) if ch.eq_ignore_ascii_case("b") => {
+                        evt.prevent_default();
+                        props.on_event.call(UiEvent::SelectView(View::Branches));
+                    }
+                    Key::Character(ch) if ch.eq_ignore_ascii_case("h") => {
+                        if props.state.navigation.active_view == View::Changes {
+                            if let Some(path) = props
+                                .state
+                                .diff
+                                .target
+                                .as_ref()
+                                .map(|t| t.path.clone())
+                                .or_else(|| props.state.selection.file.clone())
+                            {
+                                evt.prevent_default();
+                                props.on_event.call(UiEvent::ShowFileHistory { path });
+                            } else {
+                                evt.prevent_default();
+                                props.on_event.call(UiEvent::SelectView(View::History));
+                            }
+                        } else {
+                            evt.prevent_default();
+                            props.on_event.call(UiEvent::SelectView(View::History));
+                        }
+                    }
+                    Key::Character(ch) if ch.eq_ignore_ascii_case("w") => {
                         evt.prevent_default();
                         if props.state.navigation.active_view == View::Branches {
                             if let Some(branch) = props.state.selection.branch.clone() {
@@ -95,65 +161,88 @@ pub fn Shell(props: ShellProps) -> Element {
                         } else {
                             props.on_event.call(UiEvent::SelectView(View::Worktrees));
                         }
-                    } else if ch.eq_ignore_ascii_case("h")
-                        && props.state.navigation.active_view == View::Changes
+                    }
+                    Key::Character(ch) if ch.eq_ignore_ascii_case("f") => {
+                        evt.prevent_default();
+                        props.on_event.call(UiEvent::Fetch);
+                    }
+                    Key::Character(ch)
+                        if ch.eq_ignore_ascii_case("c")
+                            && props.state.navigation.active_view == View::Changes =>
                     {
-                        if let Some(path) = props
-                            .state
-                            .diff
-                            .target
-                            .as_ref()
-                            .map(|t| t.path.clone())
-                            .or_else(|| props.state.selection.file.clone())
-                        {
-                            evt.prevent_default();
-                            props.on_event.call(UiEvent::ShowFileHistory { path });
-                        }
-                    } else if ch.eq_ignore_ascii_case("c")
-                        && props.state.navigation.active_view == View::Changes
-                    {
-                        // Don't steal typing from inputs — only when not in an editable.
-                        // Shell-level C focuses commit; inputs stop propagation themselves.
                         evt.prevent_default();
                         props.on_event.call(UiEvent::FocusCommitInput);
                     }
-                }
-                if !shortcut && props.state.navigation.active_view == View::Changes {
-                    match evt.data().key() {
-                        Key::Character(ch) if ch == "j" || ch == "J" => {
-                            evt.prevent_default();
-                            props.on_event.call(UiEvent::NavigateChanges { delta: 1 });
-                        }
-                        Key::Character(ch) if ch == "k" || ch == "K" => {
-                            evt.prevent_default();
-                            props.on_event.call(UiEvent::NavigateChanges { delta: -1 });
-                        }
-                        Key::ArrowDown => {
-                            evt.prevent_default();
-                            props.on_event.call(UiEvent::NavigateChanges { delta: 1 });
-                        }
-                        Key::ArrowUp => {
-                            evt.prevent_default();
-                            props.on_event.call(UiEvent::NavigateChanges { delta: -1 });
-                        }
-                        Key::Character(ch) if ch == "]" => {
-                            evt.prevent_default();
-                            props.on_event.call(UiEvent::NavigateHunk { delta: 1 });
-                        }
-                        Key::Character(ch) if ch == "[" => {
-                            evt.prevent_default();
-                            props.on_event.call(UiEvent::NavigateHunk { delta: -1 });
-                        }
-                        Key::Character(ch) if ch == " " => {
-                            evt.prevent_default();
-                            props.on_event.call(UiEvent::ToggleStageSelection);
-                        }
-                        Key::Character(ch) if ch == "s" || ch == "S" => {
-                            evt.prevent_default();
-                            props.on_event.call(UiEvent::StageFocusedHunk);
-                        }
-                        _ => {}
+                    Key::Character(ch)
+                        if (ch == "j" || ch == "J")
+                            && props.state.navigation.active_view == View::Changes =>
+                    {
+                        evt.prevent_default();
+                        props.on_event.call(UiEvent::NavigateChanges { delta: 1 });
                     }
+                    Key::Character(ch)
+                        if (ch == "k" || ch == "K")
+                            && props.state.navigation.active_view == View::Changes =>
+                    {
+                        evt.prevent_default();
+                        props.on_event.call(UiEvent::NavigateChanges { delta: -1 });
+                    }
+                    Key::Character(ch)
+                        if (ch == "j" || ch == "J")
+                            && props.state.navigation.active_view == View::History =>
+                    {
+                        evt.prevent_default();
+                        props.on_event.call(UiEvent::NavigateHistory { delta: 1 });
+                    }
+                    Key::Character(ch)
+                        if (ch == "k" || ch == "K")
+                            && props.state.navigation.active_view == View::History =>
+                    {
+                        evt.prevent_default();
+                        props.on_event.call(UiEvent::NavigateHistory { delta: -1 });
+                    }
+                    Key::ArrowDown if props.state.navigation.active_view == View::Changes => {
+                        evt.prevent_default();
+                        props.on_event.call(UiEvent::NavigateChanges { delta: 1 });
+                    }
+                    Key::ArrowUp if props.state.navigation.active_view == View::Changes => {
+                        evt.prevent_default();
+                        props.on_event.call(UiEvent::NavigateChanges { delta: -1 });
+                    }
+                    Key::ArrowDown if props.state.navigation.active_view == View::History => {
+                        evt.prevent_default();
+                        props.on_event.call(UiEvent::NavigateHistory { delta: 1 });
+                    }
+                    Key::ArrowUp if props.state.navigation.active_view == View::History => {
+                        evt.prevent_default();
+                        props.on_event.call(UiEvent::NavigateHistory { delta: -1 });
+                    }
+                    Key::Character(ch)
+                        if ch == "]" && props.state.navigation.active_view == View::Changes =>
+                    {
+                        evt.prevent_default();
+                        props.on_event.call(UiEvent::NavigateHunk { delta: 1 });
+                    }
+                    Key::Character(ch)
+                        if ch == "[" && props.state.navigation.active_view == View::Changes =>
+                    {
+                        evt.prevent_default();
+                        props.on_event.call(UiEvent::NavigateHunk { delta: -1 });
+                    }
+                    Key::Character(ch)
+                        if ch == " " && props.state.navigation.active_view == View::Changes =>
+                    {
+                        evt.prevent_default();
+                        props.on_event.call(UiEvent::ToggleStageSelection);
+                    }
+                    Key::Character(ch)
+                        if (ch == "s" || ch == "S")
+                            && props.state.navigation.active_view == View::Changes =>
+                    {
+                        evt.prevent_default();
+                        props.on_event.call(UiEvent::StageFocusedHunk);
+                    }
+                    _ => {}
                 }
             },
             onmousemove: move |evt| {
@@ -173,6 +262,11 @@ pub fn Shell(props: ShellProps) -> Element {
             },
             onmouseup: move |_| drag.set(None),
             onmouseleave: move |_| drag.set(None),
+
+            OverlayHost {
+                state: props.state.clone(),
+                on_event: props.on_event,
+            }
 
             PulseHeader {
                 state: props.state.clone(),
