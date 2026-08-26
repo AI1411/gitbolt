@@ -1,0 +1,15 @@
+# Project-specific identifiers that are allowed to appear unquoted in doc
+# comments (extends Clippy's default allow-list via the ".." sentinel).
+doc-valid-idents = [
+    "GitBolt",
+    "GitToolBox",
+    "PoC",
+    "Dioxus",
+    "WebView",
+    "WebKitGTK",
+    "gitoxide",
+    "gix",
+    "rayon",
+    "notify",
+    "..",
+]
