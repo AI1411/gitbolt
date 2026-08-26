@@ -61,6 +61,8 @@ pub const ROOT_VARS: &str = "\
 pub const GLOBAL_CSS: &str = r"
 .gb-selectable:focus-visible{outline:2px solid var(--gb-accent);outline-offset:-2px;}
 .gb-selectable{border-radius:var(--gb-radius);}
+.nav-item{position:relative;}
+.nav-item.active{box-shadow:inset 3px 0 0 var(--gb-accent);}
 ";
 
 /// Inline style for the application root (`:root` equivalent for the window).
@@ -125,6 +127,7 @@ mod tests {
         ] {
             assert!(css.contains(token), "missing {token}");
         }
+        assert!(GLOBAL_CSS.contains(".nav-item.active"));
     }
 
     #[test]

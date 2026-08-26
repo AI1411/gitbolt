@@ -33,10 +33,11 @@ pub fn NavPane(props: NavPaneProps) -> Element {
                             key: "{label}",
                             class: if selected { "nav-item active gb-selectable" } else { "nav-item gb-selectable" },
                             style: format!(
-                                "text-align:left;border:0;border-radius:var(--gb-radius);padding:0.45rem 0.65rem;\
-                                 cursor:pointer;font-size:var(--gb-size-body);{};color:{};font-weight:{};\
+                                "text-align:left;border:0;border-radius:0 var(--gb-radius) var(--gb-radius) 0;\
+                                 padding:0.5rem 0.65rem 0.5rem 0.85rem;cursor:pointer;font-size:var(--gb-size-body);\
+                                 background:{};color:{};font-weight:{};\
                                  display:flex;align-items:center;justify-content:space-between;gap:0.4rem;",
-                                crate::ui::theme::row_style(selected),
+                                crate::ui::theme::selected_bg(selected),
                                 if selected { "var(--gb-text)" } else { "var(--gb-text-muted)" },
                                 if selected { "600" } else { "500" },
                             ),
