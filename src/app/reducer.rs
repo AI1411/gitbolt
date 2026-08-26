@@ -312,6 +312,51 @@ pub fn reduce(state: &mut AppState, event: UiEvent) -> Vec<Command> {
             state.ui.confirm_delete_branch = None;
             Vec::new()
         }
+        UiEvent::OpenBranchCleanup => {
+            let current = state
+                .branch
+                .current
+                .clone()
+                .or_else(|| state.repository.head.branch.clone());
+            let list = crate::app::branch_cleanup::candidates(
+                &state.branch.branches,
+                current.as_deref(),
+                &state.branch.merged_into_base,
+            );
+            state.ui.branch_cleanup = Some(crate::app::state::BranchCleanupState {
+                selected: list.into_iter().map(|c| c.name).collect(),
+            });
+            Vec::new()
+        }
+        UiEvent::ToggleCleanupBranch(name) => {
+            if let Some(cleanup) = state.ui.branch_cleanup.as_mut() {
+                if let Some(pos) = cleanup.selected.iter().position(|n| n == &name) {
+                    cleanup.selected.remove(pos);
+                } else {
+                    cleanup.selected.push(name);
+                }
+            }
+            Vec::new()
+        }
+        UiEvent::ConfirmBranchCleanup => {
+            let Some(cleanup) = state.ui.branch_cleanup.take() else {
+                return Vec::new();
+            };
+            let gen = state.generation;
+            let cmds: Vec<Command> = cleanup
+                .selected
+                .into_iter()
+                .map(|name| Command::DeleteBranch {
+                    name,
+                    generation: gen,
+                })
+                .collect();
+            issue(state, cmds)
+        }
+        UiEvent::CancelBranchCleanup => {
+            state.ui.branch_cleanup = None;
+            Vec::new()
+        }
         UiEvent::Fetch => {
             state.background.remote_label = Some("fetching…".into());
             issue(state, vec![Command::Fetch { generation: gen }])
@@ -684,6 +729,7 @@ pub fn apply(state: &mut AppState, message: AppMessage) -> Vec<Command> {
                 state.branch.branches = data.branches.into();
                 state.branch.current = data.current;
                 state.branch.recent = data.recent;
+                state.branch.merged_into_base = data.merged_into_base;
                 state.branch.loaded = true;
                 if pending.is_empty() {
                     Vec::new()
@@ -1051,6 +1097,10 @@ fn reduce_escape(state: &mut AppState) -> Vec<Command> {
     }
     if state.ui.confirm_delete_branch.is_some() {
         state.ui.confirm_delete_branch = None;
+        return Vec::new();
+    }
+    if state.ui.branch_cleanup.is_some() {
+        state.ui.branch_cleanup = None;
         return Vec::new();
     }
     if state.ui.confirm_remove_worktree.is_some() {

@@ -42,11 +42,47 @@ pub fn BranchesView(props: BranchesViewProps) -> Element {
     let loaded = props.state.branch.loaded;
     let total = props.state.branch.branches.len();
     let pending_delete = props.state.ui.confirm_delete_branch.clone();
+    let cleanup = props.state.ui.branch_cleanup.clone();
+    let current_opt = props
+        .state
+        .branch
+        .current
+        .clone()
+        .or_else(|| props.state.repository.head.branch.clone());
+    let cleanup_candidates = crate::app::branch_cleanup::candidates(
+        &props.state.branch.branches,
+        current_opt.as_deref(),
+        &props.state.branch.merged_into_base,
+    );
 
     rsx! {
         div {
             style: "font-size:0.9rem;opacity:0.95;display:flex;flex-direction:column;gap:0.75rem;",
             p { style: "margin:0;opacity:0.75;", "Current: {current}" }
+
+            div {
+                style: "display:flex;gap:0.4rem;flex-wrap:wrap;align-items:center;",
+                button {
+                    r#type: "button",
+                    style: "border:1px solid #334155;background:#1e293b;color:#e2e8f0;border-radius:4px;\
+                            padding:0.3rem 0.65rem;cursor:pointer;font-size:0.78rem;",
+                    disabled: cleanup_candidates.is_empty(),
+                    onclick: move |_| props.on_event.call(UiEvent::OpenBranchCleanup),
+                    "Cleanup outdated…"
+                }
+                span {
+                    style: "font-size:0.75rem;opacity:0.55;",
+                    "{cleanup_candidates.len()} candidate(s)"
+                }
+            }
+
+            if let Some(cleanup_state) = cleanup.clone() {
+                CleanupPanel {
+                    candidates: cleanup_candidates.clone(),
+                    selected: cleanup_state.selected.clone(),
+                    on_event: props.on_event,
+                }
+            }
 
             label {
                 style: "display:flex;align-items:center;gap:0.4rem;font-size:0.8rem;opacity:0.8;",
@@ -360,6 +396,75 @@ pub fn filter_branches<'a>(branches: &'a [BranchInfo], needle: &str) -> Vec<&'a 
         .iter()
         .filter(|b| needle.is_empty() || b.name.to_ascii_lowercase().contains(&needle))
         .collect()
+}
+
+#[component]
+fn CleanupPanel(
+    candidates: Vec<crate::app::branch_cleanup::CleanupCandidate>,
+    selected: Vec<String>,
+    on_event: EventHandler<UiEvent>,
+) -> Element {
+    let selected_n = selected.len();
+    rsx! {
+        div {
+            style: "border:1px solid #7f1d1d;background:#1c1212;border-radius:6px;padding:0.65rem;\
+                    display:flex;flex-direction:column;gap:0.45rem;",
+            p {
+                style: "margin:0;font-size:0.85rem;font-weight:600;",
+                "Delete outdated branches?"
+            }
+            p {
+                style: "margin:0;font-size:0.75rem;opacity:0.7;",
+                "Merged into base and/or stale (≥30d). Current and protected branches are excluded. Uses safe delete (-d)."
+            }
+            ul {
+                style: "list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:0.25rem;max-height:12rem;overflow:auto;",
+                for c in candidates {
+                    {
+                        let name = c.name.clone();
+                        let name_cb = c.name.clone();
+                        let checked = selected.iter().any(|s| s == &c.name);
+                        let reason = crate::app::branch_cleanup::reason_label(c.reason);
+                        rsx! {
+                            li {
+                                key: "{name}",
+                                label {
+                                    style: "display:flex;align-items:center;gap:0.4rem;font-size:0.8rem;cursor:pointer;",
+                                    input {
+                                        r#type: "checkbox",
+                                        checked: checked,
+                                        onchange: move |_| {
+                                            on_event.call(UiEvent::ToggleCleanupBranch(name_cb.clone()));
+                                        },
+                                    }
+                                    span { style: "font-family:ui-monospace,monospace;", "{name}" }
+                                    span { style: "opacity:0.55;", "({reason})" }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            div {
+                style: "display:flex;gap:0.4rem;align-items:center;",
+                button {
+                    r#type: "button",
+                    style: "border:0;background:#b91c1c;color:white;border-radius:4px;\
+                            padding:0.3rem 0.7rem;cursor:pointer;font-size:0.78rem;font-weight:600;",
+                    disabled: selected_n == 0,
+                    onclick: move |_| on_event.call(UiEvent::ConfirmBranchCleanup),
+                    "Delete {selected_n}"
+                }
+                button {
+                    r#type: "button",
+                    style: "border:1px solid #334155;background:transparent;color:#cbd5e1;border-radius:4px;\
+                            padding:0.3rem 0.7rem;cursor:pointer;font-size:0.78rem;",
+                    onclick: move |_| on_event.call(UiEvent::CancelBranchCleanup),
+                    "Cancel"
+                }
+            }
+        }
+    }
 }
 
 #[cfg(test)]
