@@ -35,6 +35,8 @@ pub enum PaletteAction {
     ToggleHeatmap,
     /// Insert a conventional commit type prefix (issue #77).
     ConventionalType(&'static str),
+    /// Return to the welcome / open screen (issue #87).
+    SwitchRepository,
 }
 
 /// Built-in palette entries.
@@ -186,6 +188,12 @@ pub fn all_commands() -> Vec<PaletteCommand> {
             keys: "",
             event: PaletteAction::ConventionalType("test"),
         },
+        PaletteCommand {
+            id: "repo.switch",
+            label: "Switch Repository",
+            keys: "",
+            event: PaletteAction::SwitchRepository,
+        },
     ]
 }
 
@@ -232,6 +240,7 @@ pub fn action_to_event(action: PaletteAction) -> UiEvent {
             // Placeholder — confirm_overlay applies against current message.
             UiEvent::SetCommitMessage(format!("{ty}: "))
         }
+        PaletteAction::SwitchRepository => UiEvent::CloseRepository,
     }
 }
 

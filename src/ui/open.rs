@@ -1,11 +1,13 @@
 //! Welcome / Open Repository screen.
 //!
-//! Paths: dialog Open, Recent list, Drag&Drop (issue #9).
+//! Paths: dialog Open, Recent list, Drag&Drop (issue #9 / #87).
 
 use std::path::PathBuf;
 
 use dioxus::html::HasFileData;
 use dioxus::prelude::*;
+
+use crate::app::recent::display_name;
 
 /// Props for the open screen.
 #[derive(Props, Clone, PartialEq)]
@@ -14,6 +16,9 @@ pub struct OpenScreenProps {
     pub error: Option<String>,
     pub opening: bool,
     pub on_open: EventHandler<PathBuf>,
+    pub on_remove_recent: EventHandler<PathBuf>,
+    pub on_pin_recent: EventHandler<PathBuf>,
+    pub on_prune_recent: EventHandler<()>,
 }
 
 /// Renders the repository open / welcome surface.
@@ -75,22 +80,72 @@ pub fn OpenScreen(props: OpenScreenProps) -> Element {
             if !props.recent.is_empty() {
                 div {
                     style: "min-width:min(28rem,90vw);",
-                    h2 { style: "font-size:0.85rem;opacity:0.7;margin:0 0 0.5rem;font-weight:600;\
-                                 text-transform:uppercase;letter-spacing:0.06em;",
-                        "Recent"
+                    div {
+                        style: "display:flex;align-items:center;justify-content:space-between;gap:0.5rem;\
+                                margin:0 0 0.5rem;",
+                        h2 { style: "font-size:0.85rem;opacity:0.7;margin:0;font-weight:600;\
+                                     text-transform:uppercase;letter-spacing:0.06em;",
+                            "Recent"
+                        }
+                        button {
+                            r#type: "button",
+                            style: "border:0;background:transparent;color:#94a3b8;cursor:pointer;font-size:0.72rem;",
+                            onclick: move |_| props.on_prune_recent.call(()),
+                            "Remove missing"
+                        }
                     }
                     ul {
                         style: "list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:0.35rem;",
                         for path in props.recent.iter().cloned() {
-                            li {
-                                button {
-                                    style: "width:100%;text-align:left;padding:0.5rem 0.75rem;\
-                                            border:1px solid #334155;border-radius:6px;background:#111827;\
-                                            color:#e8eef7;cursor:pointer;font-family:ui-monospace,monospace;\
-                                            font-size:0.85rem;",
-                                    disabled: props.opening,
-                                    onclick: move |_| props.on_open.call(path.clone()),
-                                    "{path.display()}"
+                            {
+                                let name = display_name(&path);
+                                let missing = !path.exists();
+                                let path_label = path.display().to_string();
+                                let open_path = path.clone();
+                                let pin_path = path.clone();
+                                let remove_path = path.clone();
+                                rsx! {
+                                    li {
+                                        key: "{path_label}",
+                                        div {
+                                            style: "display:flex;align-items:stretch;gap:0.35rem;",
+                                            button {
+                                                style: format!(
+                                                    "flex:1;text-align:left;padding:0.45rem 0.75rem;\
+                                                     border:1px solid #334155;border-radius:6px;background:#111827;\
+                                                     color:#e8eef7;cursor:pointer;opacity:{};",
+                                                    if missing { "0.55" } else { "1" }
+                                                ),
+                                                disabled: props.opening || missing,
+                                                onclick: move |_| props.on_open.call(open_path.clone()),
+                                                div {
+                                                    style: "font-size:0.95rem;font-weight:600;",
+                                                    "{name}"
+                                                }
+                                                div {
+                                                    style: "font-size:0.72rem;opacity:0.55;font-family:ui-monospace,monospace;\
+                                                            overflow:hidden;text-overflow:ellipsis;",
+                                                    if missing { "Missing · {path_label}" } else { "{path_label}" }
+                                                }
+                                            }
+                                            button {
+                                                r#type: "button",
+                                                title: "Pin to top",
+                                                style: "border:1px solid #334155;background:transparent;color:#9fb0c7;\
+                                                        border-radius:6px;padding:0 0.55rem;cursor:pointer;font-size:0.75rem;",
+                                                onclick: move |_| props.on_pin_recent.call(pin_path.clone()),
+                                                "Pin"
+                                            }
+                                            button {
+                                                r#type: "button",
+                                                title: "Remove from Recent",
+                                                style: "border:1px solid #334155;background:transparent;color:#fca5a5;\
+                                                        border-radius:6px;padding:0 0.55rem;cursor:pointer;font-size:0.75rem;",
+                                                onclick: move |_| props.on_remove_recent.call(remove_path.clone()),
+                                                "×"
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }

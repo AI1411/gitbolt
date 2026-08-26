@@ -110,6 +110,15 @@ pub fn App() -> Element {
                             on_open: move |path| {
                                 dispatch(&open_session, UiEvent::OpenRepository(path), &mut snapshot);
                             },
+                            on_remove_recent: move |path| {
+                                dispatch(&open_session, UiEvent::RemoveRecent(path), &mut snapshot);
+                            },
+                            on_pin_recent: move |path| {
+                                dispatch(&open_session, UiEvent::PinRecent(path), &mut snapshot);
+                            },
+                            on_prune_recent: move |_| {
+                                dispatch(&open_session, UiEvent::PruneRecent, &mut snapshot);
+                            },
                         }
                     }
                 }
@@ -125,6 +134,15 @@ pub fn App() -> Element {
                             opening: false,
                             on_open: move |path| {
                                 dispatch(&open_session, UiEvent::OpenRepository(path), &mut snapshot);
+                            },
+                            on_remove_recent: move |path| {
+                                dispatch(&open_session, UiEvent::RemoveRecent(path), &mut snapshot);
+                            },
+                            on_pin_recent: move |path| {
+                                dispatch(&open_session, UiEvent::PinRecent(path), &mut snapshot);
+                            },
+                            on_prune_recent: move |_| {
+                                dispatch(&open_session, UiEvent::PruneRecent, &mut snapshot);
                             },
                         }
                     }

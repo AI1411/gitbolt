@@ -60,6 +60,30 @@ pub fn save_recent_to(path: &Path, paths: &[PathBuf]) -> std::io::Result<()> {
     std::fs::write(path, json)
 }
 
+/// Folder name for display (last path component).
+#[must_use]
+pub fn display_name(path: &Path) -> String {
+    path.file_name()
+        .map(|s| s.to_string_lossy().into_owned())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| path.display().to_string())
+}
+
+/// Drops paths that no longer exist on disk.
+pub fn prune_missing(recent: &mut Vec<PathBuf>) {
+    recent.retain(|p| p.exists());
+}
+
+/// Pins `path` to the front (same as push).
+pub fn pin_recent(recent: &mut Vec<PathBuf>, path: PathBuf) {
+    push_recent(recent, path);
+}
+
+/// Removes one recent entry.
+pub fn remove_recent(recent: &mut Vec<PathBuf>, path: &Path) {
+    recent.retain(|p| p != path);
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
