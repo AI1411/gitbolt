@@ -318,7 +318,7 @@ pub fn Shell(props: ShellProps) -> Element {
                         NAV_MAX
                     ),
                     NavPane {
-                        active: active,
+                        state: props.state.clone(),
                         on_event: props.on_event,
                     }
                 }
