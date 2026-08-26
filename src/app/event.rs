@@ -27,6 +27,10 @@ pub enum UiEvent {
     SelectCommit(Oid),
     /// Select a branch.
     SelectBranch(String),
+    /// Open divergence view comparing `other` against the current HEAD branch.
+    ShowDivergence { other: String },
+    /// Clear the divergence panel.
+    ClearDivergence,
 
     /// Change the diff presentation.
     SetDiffView(DiffView),

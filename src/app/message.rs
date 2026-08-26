@@ -21,6 +21,14 @@ pub struct RepositoryData {
     pub head: HeadInfo,
 }
 
+/// Divergence payload between two tips.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DivergenceData {
+    pub merge_base: Option<Oid>,
+    pub left_only: Vec<CommitSummary>,
+    pub right_only: Vec<CommitSummary>,
+}
+
 /// A full working-tree status snapshot.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct StatusData {
@@ -61,6 +69,12 @@ pub enum AppMessage {
     BranchesLoaded {
         generation: Generation,
         result: Result<(Vec<BranchInfo>, Option<String>), Failure>,
+    },
+    DivergenceLoaded {
+        generation: Generation,
+        left: String,
+        right: String,
+        result: Result<DivergenceData, Failure>,
     },
     WorktreesLoaded {
         generation: Generation,
@@ -113,6 +127,7 @@ impl AppMessage {
             | Self::DiffLoaded { generation, .. }
             | Self::HistoryPageLoaded { generation, .. }
             | Self::BranchesLoaded { generation, .. }
+            | Self::DivergenceLoaded { generation, .. }
             | Self::WorktreesLoaded { generation, .. }
             | Self::StageCompleted { generation, .. }
             | Self::UnstageCompleted { generation, .. }

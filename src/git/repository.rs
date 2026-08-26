@@ -9,9 +9,12 @@ use std::path::Path;
 
 use gix::bstr::BString;
 
+use super::branch;
 use super::diff::{self as diff_mod};
 use super::error::GitError;
-use super::service::{ChangeStatus, FileChange, GitService, Head, RepoStatus};
+use super::service::{
+    BranchRef, ChangeStatus, CommitInfo, FileChange, GitService, Head, RepoStatus,
+};
 use super::stage;
 
 /// A repository opened through gitoxide.
@@ -136,6 +139,27 @@ impl GitService for GixService {
         selected: &[usize],
     ) -> Result<(), GitError> {
         stage::stage_lines(self.workdir()?, path, from_staged, selected)
+    }
+
+    fn branches(&self) -> Result<Vec<BranchRef>, GitError> {
+        branch::list_branches(self.workdir()?)
+    }
+
+    fn merge_base(&self, a: &str, b: &str) -> Result<String, GitError> {
+        branch::merge_base(self.workdir()?, a, b)
+    }
+
+    fn commits_not_in(
+        &self,
+        tip: &str,
+        base: &str,
+        limit: usize,
+    ) -> Result<Vec<CommitInfo>, GitError> {
+        branch::commits_not_in(self.workdir()?, tip, base, limit)
+    }
+
+    fn ahead_behind(&self, tip: &str, other: &str) -> Result<(u32, u32), GitError> {
+        branch::ahead_behind(self.workdir()?, tip, other)
     }
 }
 

@@ -4,8 +4,10 @@ use std::path::Path;
 
 use super::command::Command;
 use super::diff_parse::parse_diff_content;
-use super::message::{AppMessage, RemoteOp, RepositoryData, StatusData};
-use super::model::{ChangeKind, DiffTarget, FileChange, HeadInfo, Oid};
+use super::message::{AppMessage, DivergenceData, RemoteOp, RepositoryData, StatusData};
+use super::model::{
+    BranchHealth, BranchInfo, ChangeKind, CommitSummary, DiffTarget, FileChange, HeadInfo, Oid,
+};
 use crate::git::{ChangeStatus, GitError, GitService, GixService, RepoStatus};
 
 /// Runs a single command and returns the corresponding worker message.
@@ -51,7 +53,17 @@ pub fn execute(cmd: &Command, repo_path: Option<&Path>) -> AppMessage {
         },
         Command::LoadBranches { generation } => AppMessage::BranchesLoaded {
             generation: *generation,
-            result: Ok((Vec::new(), None)),
+            result: load_branches(repo_path),
+        },
+        Command::LoadDivergence {
+            left,
+            right,
+            generation,
+        } => AppMessage::DivergenceLoaded {
+            generation: *generation,
+            left: left.clone(),
+            right: right.clone(),
+            result: load_divergence(repo_path, left, right),
         },
         Command::LoadWorktrees { generation } => AppMessage::WorktreesLoaded {
             generation: *generation,
@@ -90,6 +102,79 @@ fn load_diff(
         .diff(&target.path, target.staged)
         .map_err(|e| e.user_message())?;
     Ok(parse_diff_content(target.clone(), &diff.text))
+}
+
+fn load_branches(repo_path: Option<&Path>) -> Result<(Vec<BranchInfo>, Option<String>), String> {
+    let path = repo_path.ok_or_else(|| "リポジトリが開かれていません".to_string())?;
+    let service = GixService::open(path).map_err(|e| e.user_message())?;
+    let refs = service.branches().map_err(|e| e.user_message())?;
+    let current = refs.iter().find(|b| b.is_head).map(|b| b.name.clone());
+    let mut infos = Vec::new();
+    for b in refs {
+        let (ahead, behind, health) = if let Some(up) = b.upstream.as_deref() {
+            match service.ahead_behind(&b.name, up) {
+                Ok((a, be)) => {
+                    let health = match (a, be) {
+                        (0, 0) => BranchHealth::Synced,
+                        (_, 0) => BranchHealth::Ahead,
+                        (0, _) => BranchHealth::Behind,
+                        _ => BranchHealth::Diverged,
+                    };
+                    (a, be, health)
+                }
+                Err(_) => (0, 0, BranchHealth::Local),
+            }
+        } else {
+            (0, 0, BranchHealth::Local)
+        };
+        infos.push(BranchInfo {
+            name: b.name,
+            upstream: b.upstream,
+            health,
+            ahead,
+            behind,
+            last_commit: None,
+        });
+    }
+    Ok((infos, current))
+}
+
+fn load_divergence(
+    repo_path: Option<&Path>,
+    left: &str,
+    right: &str,
+) -> Result<DivergenceData, String> {
+    let path = repo_path.ok_or_else(|| "リポジトリが開かれていません".to_string())?;
+    let service = GixService::open(path).map_err(|e| e.user_message())?;
+    let base = service
+        .merge_base(left, right)
+        .map_err(|e| e.user_message())?;
+    let left_only = service
+        .commits_not_in(left, &base, 100)
+        .map_err(|e| e.user_message())?
+        .into_iter()
+        .map(to_summary)
+        .collect();
+    let right_only = service
+        .commits_not_in(right, &base, 100)
+        .map_err(|e| e.user_message())?
+        .into_iter()
+        .map(to_summary)
+        .collect();
+    Ok(DivergenceData {
+        merge_base: Some(Oid(base)),
+        left_only,
+        right_only,
+    })
+}
+
+fn to_summary(c: crate::git::CommitInfo) -> CommitSummary {
+    CommitSummary {
+        oid: Oid(c.oid),
+        summary: c.summary,
+        author: c.author,
+        timestamp: c.time,
+    }
 }
 
 fn with_service<T, F>(repo_path: Option<&Path>, f: F) -> Result<T, String>
@@ -142,6 +227,7 @@ fn unsupported(cmd: &Command) -> AppMessage {
         | Command::StageLines { .. }
         | Command::LoadHistoryPage { .. }
         | Command::LoadBranches { .. }
+        | Command::LoadDivergence { .. }
         | Command::LoadWorktrees { .. } => unreachable!("handled in execute"),
         Command::StageAll { .. } => AppMessage::StageCompleted {
             generation,
@@ -198,6 +284,7 @@ fn command_name(cmd: &Command) -> &'static str {
         Command::LoadDiff { .. } => "diff",
         Command::LoadHistoryPage { .. } => "log",
         Command::LoadBranches { .. } => "branches",
+        Command::LoadDivergence { .. } => "divergence",
         Command::LoadWorktrees { .. } => "worktrees",
         Command::Stage { .. } | Command::StageAll { .. } | Command::StageLines { .. } => "stage",
         Command::Unstage { .. } | Command::UnstageAll { .. } => "unstage",
