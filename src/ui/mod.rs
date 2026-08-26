@@ -132,6 +132,9 @@ pub fn App() -> Element {
 }
 
 fn dispatch(session: &SharedSession, event: UiEvent, snapshot: &mut Signal<AppState>) {
+    if let UiEvent::CopyText(text) = &event {
+        let _ = arboard::Clipboard::new().and_then(|mut cb| cb.set_text(text.clone()));
+    }
     let mut guard = session
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);

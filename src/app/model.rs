@@ -145,6 +145,24 @@ pub struct CommitSummary {
     pub timestamp: i64,
 }
 
+/// Full commit detail for the Context Panel (issue #25).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CommitDetail {
+    pub oid: Oid,
+    pub summary: String,
+    pub author: String,
+    pub timestamp: i64,
+    pub body: String,
+    pub files: Vec<CommitFileEntry>,
+}
+
+/// A file changed in a commit.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CommitFileEntry {
+    pub status: char,
+    pub path: PathBuf,
+}
+
 /// Health of a branch relative to its upstream (GitBolt Branch Health).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BranchHealth {

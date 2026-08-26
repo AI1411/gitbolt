@@ -127,6 +127,9 @@ pub enum UiEvent {
     /// Cancel pending stash drop.
     CancelDropStash,
 
+    /// Copy text to the system clipboard.
+    CopyText(String),
+
     /// Update the search query.
     Search(String),
     /// Dismiss the current error banner.
