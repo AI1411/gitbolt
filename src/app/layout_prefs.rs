@@ -52,8 +52,7 @@ pub fn save_layout_prefs(prefs: &LayoutPrefs) {
 pub fn split_path_display(path: &std::path::Path) -> (String, String) {
     let name = path
         .file_name()
-        .map(|s| s.to_string_lossy().into_owned())
-        .unwrap_or_else(|| path.display().to_string());
+        .map_or_else(|| path.display().to_string(), |s| s.to_string_lossy().into_owned());
     let parent = path
         .parent()
         .filter(|p| !p.as_os_str().is_empty())
