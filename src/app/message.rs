@@ -44,6 +44,8 @@ pub struct BranchesData {
     pub pending_health: Vec<String>,
     /// Local branches already merged into the default base (issue #78).
     pub merged_into_base: Vec<String>,
+    /// Local branches whose patches are already on base via squash (issue #79).
+    pub squashed_into_base: Vec<String>,
 }
 
 /// Ahead/behind enrichment for deferred Branch Health (issue #18).

@@ -92,6 +92,10 @@ pub struct BranchState {
     pub filter: String,
     /// Names merged into default base (`main`/`master`) for cleanup (issue #78).
     pub merged_into_base: Vec<String>,
+    /// Squash-merged local branches (issue #79).
+    pub squashed_into_base: Vec<String>,
+    /// Session exclude list for false-positive cleanup candidates (issue #79).
+    pub cleanup_excluded: Vec<String>,
 }
 
 /// Divergence between two tips (issue #29).

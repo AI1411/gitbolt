@@ -155,6 +155,34 @@ pub fn merged_into(repo: &Path, base: &str) -> Result<Vec<String>, GitError> {
         .collect())
 }
 
+/// Returns `true` when every commit unique to `branch` has a patch-equivalent
+/// commit already on `base` (`git cherry`), i.e. squash / cherry-pick merged.
+///
+/// Branches that are true ancestors of `base` are reported by [`merged_into`]
+/// instead; this helper returns `false` when `git cherry` prints nothing.
+///
+/// # Errors
+/// Propagates CLI failures.
+pub fn is_squash_merged(repo: &Path, branch: &str, base: &str) -> Result<bool, GitError> {
+    let branch = validate_branch_name(branch)?;
+    let base = validate_branch_name(base)?;
+    let cli = GitCli::new(repo)?;
+    let out = cli.run(&["cherry", base, branch])?;
+    let mut saw = false;
+    for line in out.lines() {
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        saw = true;
+        // `+` = unique patch still missing from base; `-` = equivalent exists.
+        if line.starts_with('+') {
+            return Ok(false);
+        }
+    }
+    Ok(saw)
+}
+
 /// Deletes a local branch with `git branch -d` (refuses unmerged).
 ///
 /// # Errors
@@ -472,6 +500,38 @@ mod tests {
             .map(|b| b.name)
             .collect();
         assert!(!names.iter().any(|n| n == "topic"));
+    }
+
+    #[test]
+    fn detects_squash_merged_via_cherry() {
+        let repo = TempRepo::init();
+        repo.write("a.txt", "base\n");
+        repo.stage("a.txt");
+        repo.commit("base");
+
+        create_branch(repo.path(), "feature").expect("create");
+        checkout(repo.path(), "feature").expect("co");
+        repo.write("a.txt", "base\nfeature\n");
+        repo.stage("a.txt");
+        repo.commit("feature work");
+
+        checkout(repo.path(), "main").expect("back");
+        // Squash: apply same tree change as a single commit on main.
+        repo.write("a.txt", "base\nfeature\n");
+        repo.stage("a.txt");
+        repo.commit("squash feature (#1)");
+
+        assert!(
+            is_squash_merged(repo.path(), "feature", "main").expect("cherry"),
+            "feature patches should be equivalent on main"
+        );
+        assert!(
+            !merged_into(repo.path(), "main")
+                .expect("merged")
+                .iter()
+                .any(|n| n == "feature"),
+            "regular merge detection should miss squash"
+        );
     }
 
     #[test]

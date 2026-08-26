@@ -322,6 +322,8 @@ pub fn reduce(state: &mut AppState, event: UiEvent) -> Vec<Command> {
                 &state.branch.branches,
                 current.as_deref(),
                 &state.branch.merged_into_base,
+                &state.branch.squashed_into_base,
+                &state.branch.cleanup_excluded,
             );
             state.ui.branch_cleanup = Some(crate::app::state::BranchCleanupState {
                 selected: list.into_iter().map(|c| c.name).collect(),
@@ -355,6 +357,15 @@ pub fn reduce(state: &mut AppState, event: UiEvent) -> Vec<Command> {
         }
         UiEvent::CancelBranchCleanup => {
             state.ui.branch_cleanup = None;
+            Vec::new()
+        }
+        UiEvent::ExcludeCleanupBranch(name) => {
+            if !state.branch.cleanup_excluded.iter().any(|n| n == &name) {
+                state.branch.cleanup_excluded.push(name.clone());
+            }
+            if let Some(cleanup) = state.ui.branch_cleanup.as_mut() {
+                cleanup.selected.retain(|n| n != &name);
+            }
             Vec::new()
         }
         UiEvent::Fetch => {
@@ -730,6 +741,7 @@ pub fn apply(state: &mut AppState, message: AppMessage) -> Vec<Command> {
                 state.branch.current = data.current;
                 state.branch.recent = data.recent;
                 state.branch.merged_into_base = data.merged_into_base;
+                state.branch.squashed_into_base = data.squashed_into_base;
                 state.branch.loaded = true;
                 if pending.is_empty() {
                     Vec::new()

@@ -549,6 +549,15 @@ fn load_branches(repo_path: Option<&Path>) -> Result<BranchesData, String> {
         .find(|name| infos.iter().any(|b| !b.is_remote && b.name == *name))
         .unwrap_or("main");
     let merged_into_base = crate::git::branch::merged_into(path, base).unwrap_or_default();
+    let mut squashed_into_base = Vec::new();
+    for b in infos.iter().filter(|b| !b.is_remote) {
+        if b.name == base || merged_into_base.iter().any(|m| m == &b.name) {
+            continue;
+        }
+        if crate::git::branch::is_squash_merged(path, &b.name, base).unwrap_or(false) {
+            squashed_into_base.push(b.name.clone());
+        }
+    }
 
     Ok(BranchesData {
         branches: infos,
@@ -556,6 +565,7 @@ fn load_branches(repo_path: Option<&Path>) -> Result<BranchesData, String> {
         recent,
         pending_health,
         merged_into_base,
+        squashed_into_base,
     })
 }
 
