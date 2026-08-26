@@ -219,6 +219,15 @@ pub trait GitService: Sized {
         Err(GitError::unsupported("log"))
     }
 
+    /// Read `limit` commits starting at `skip` (newest-first).
+    ///
+    /// # Errors
+    /// Returns [`GitError::Unsupported`] until implemented.
+    fn log_page(&self, skip: usize, limit: usize) -> Result<Vec<CommitInfo>, GitError> {
+        let _ = (skip, limit);
+        Err(GitError::unsupported("log_page"))
+    }
+
     /// Blame a file at HEAD (1-based line → commit).
     ///
     /// # Errors

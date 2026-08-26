@@ -121,7 +121,19 @@ fn selection_summary(state: &AppState) -> String {
             || "No file selected".into(),
             |p| format!("File: {}", p.display()),
         ),
-        View::History => "No commit selected".into(),
+        View::History => {
+            if let Some(oid) = state.selection.commit.as_ref() {
+                if let Some(c) = state.history.commits.iter().find(|c| c.oid == *oid) {
+                    return format!(
+                        "{}\n{}\n{}",
+                        &c.oid.0[..c.oid.0.len().min(12)],
+                        c.author,
+                        c.summary
+                    );
+                }
+            }
+            "No commit selected".into()
+        }
         View::Branches => state
             .selection
             .branch

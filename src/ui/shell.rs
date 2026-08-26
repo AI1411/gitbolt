@@ -231,7 +231,12 @@ fn ContentBody(state: AppState, on_event: EventHandler<UiEvent>) -> Element {
                 on_event: on_event,
             }
         },
-        View::History => rsx! { HistoryView { state: state } },
+        View::History => rsx! {
+            HistoryView {
+                state: state,
+                on_event: on_event,
+            }
+        },
         View::Branches => rsx! {
             BranchesView {
                 state: state,
