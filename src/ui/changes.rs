@@ -119,7 +119,16 @@ fn FileSection(
                 "{title} ({files.len()})"
             }
             if files.is_empty() {
-                p { style: "margin:0;opacity:0.45;font-size:0.8rem;", "—" }
+                p {
+                    style: "margin:0;opacity:0.55;font-size:0.8rem;line-height:1.4;",
+                    if title == "STAGED" {
+                        "Stage したファイルがここに出ます。Space で移動"
+                    } else if title == "UNSTAGED" {
+                        "未 stage の変更がここに出ます。Space で STAGED へ"
+                    } else {
+                        "—"
+                    }
+                }
             } else {
                 ul {
                     style: "list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:0.2rem;",
