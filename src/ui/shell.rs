@@ -147,7 +147,10 @@ pub fn Shell(props: ShellProps) -> Element {
                         style: "margin:0 0 0.75rem;font-size:1.05rem;font-weight:600;",
                         "{heading}"
                     }
-                    ContentBody { state: props.state.clone() }
+                    ContentBody {
+                        state: props.state.clone(),
+                        on_event: props.on_event,
+                    }
                 }
 
                 if context_open {
@@ -179,11 +182,17 @@ pub fn Shell(props: ShellProps) -> Element {
 }
 
 #[component]
-fn ContentBody(state: AppState) -> Element {
+fn ContentBody(state: AppState, on_event: EventHandler<UiEvent>) -> Element {
     match state.navigation.active_view {
         View::Changes => rsx! {
-            DiffView { state: state.clone() }
-            ChangesView { state: state }
+            DiffView {
+                state: state.clone(),
+                on_event: on_event,
+            }
+            ChangesView {
+                state: state,
+                on_event: on_event,
+            }
         },
         View::History => rsx! { HistoryView { state: state } },
         View::Branches => rsx! { BranchesView { state: state } },

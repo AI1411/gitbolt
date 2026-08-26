@@ -3,6 +3,7 @@
 //! See `docs/design/05-architecture.md` sections 8–9.
 
 pub mod command;
+pub mod diff_parse;
 pub mod event;
 pub mod executor;
 pub mod message;

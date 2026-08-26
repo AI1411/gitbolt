@@ -41,6 +41,13 @@ pub enum Command {
         path: PathBuf,
         generation: Generation,
     },
+    StageLines {
+        path: PathBuf,
+        /// When true, reverse-apply against the staged diff (unstage lines).
+        from_staged: bool,
+        lines: Vec<usize>,
+        generation: Generation,
+    },
     StageAll {
         generation: Generation,
     },
@@ -92,6 +99,7 @@ impl Command {
             | Self::LoadWorktrees { generation }
             | Self::Stage { generation, .. }
             | Self::Unstage { generation, .. }
+            | Self::StageLines { generation, .. }
             | Self::StageAll { generation }
             | Self::UnstageAll { generation }
             | Self::Commit { generation, .. }

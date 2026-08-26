@@ -9,9 +9,11 @@ pub mod commit;
 pub mod diff;
 pub mod error;
 pub mod history;
+pub mod patch;
 pub mod remote;
 pub mod repository;
 pub mod service;
+pub mod stage;
 pub mod status;
 pub mod worktree;
 

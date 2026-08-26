@@ -46,6 +46,8 @@ pub struct DiffState {
     pub target: Option<DiffTarget>,
     pub view: DiffView,
     pub content: Loadable<DiffContent>,
+    /// Selected body-line indices for line-level stage (issue #28).
+    pub selected_lines: Vec<usize>,
 }
 
 /// Commit history with lazy paging.

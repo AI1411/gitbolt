@@ -66,6 +66,7 @@ pub fn reduce(state: &mut AppState, event: UiEvent) -> Vec<Command> {
             };
             state.diff.target = Some(target.clone());
             state.diff.content = Loadable::Loading;
+            state.diff.selected_lines.clear();
             issue(
                 state,
                 vec![Command::LoadDiff {
@@ -86,6 +87,21 @@ pub fn reduce(state: &mut AppState, event: UiEvent) -> Vec<Command> {
             state.diff.view = view;
             Vec::new()
         }
+        UiEvent::ToggleDiffLine(index) => {
+            if let Some(pos) = state.diff.selected_lines.iter().position(|i| *i == index) {
+                state.diff.selected_lines.remove(pos);
+            } else {
+                state.diff.selected_lines.push(index);
+                state.diff.selected_lines.sort_unstable();
+            }
+            Vec::new()
+        }
+        UiEvent::ClearDiffLineSelection => {
+            state.diff.selected_lines.clear();
+            Vec::new()
+        }
+        UiEvent::StageSelectedLines => stage_selected_lines(state, gen, false),
+        UiEvent::UnstageSelectedLines => stage_selected_lines(state, gen, true),
         UiEvent::StageFile(path) => {
             stage_one(state, &path);
             issue(
@@ -289,7 +305,17 @@ pub fn apply(state: &mut AppState, message: AppMessage) -> Vec<Command> {
             issue(state, vec![Command::LoadStatus { generation: gen }])
         }
         AppMessage::StageCompleted { result: Ok(()), .. }
-        | AppMessage::UnstageCompleted { result: Ok(()), .. } => Vec::new(),
+        | AppMessage::UnstageCompleted { result: Ok(()), .. } => {
+            let mut cmds = vec![Command::LoadStatus { generation: gen }];
+            if let Some(target) = state.diff.target.clone() {
+                // Keep showing prior diff while refresh runs (progressive disclosure).
+                cmds.push(Command::LoadDiff {
+                    target,
+                    generation: gen,
+                });
+            }
+            issue(state, cmds)
+        }
         AppMessage::CommitCompleted { result, .. } => match result {
             Ok(_) => {
                 state.ui.commit_message.clear();
@@ -395,6 +421,32 @@ fn merge_recent(repo: &RepositoryState, path: &Path) -> Vec<std::path::PathBuf> 
     let mut recent = repo.recent.clone();
     crate::app::recent::push_recent(&mut recent, path.to_path_buf());
     recent
+}
+
+/// Dispatches line-level stage/unstage for the current selection.
+fn stage_selected_lines(
+    state: &mut AppState,
+    generation: Generation,
+    from_staged: bool,
+) -> Vec<Command> {
+    let Some(target) = state.diff.target.clone() else {
+        set_error(state, "差分が選択されていません".into());
+        return Vec::new();
+    };
+    if state.diff.selected_lines.is_empty() {
+        set_error(state, "ステージする行が選択されていません".into());
+        return Vec::new();
+    }
+    let lines = std::mem::take(&mut state.diff.selected_lines);
+    issue(
+        state,
+        vec![Command::StageLines {
+            path: target.path,
+            from_staged,
+            lines,
+            generation,
+        }],
+    )
 }
 
 /// Validates and dispatches a commit.
@@ -772,5 +824,24 @@ mod tests {
         );
         // -1 for the completed open, +4 for the fan-out loads.
         assert_eq!(state.background.inflight, 4);
+    }
+
+    #[test]
+    fn toggle_diff_line_and_stage_selected_emits_stage_lines() {
+        let mut state = AppState::new();
+        reduce(&mut state, UiEvent::SelectFile(PathBuf::from("f.txt")));
+        reduce(&mut state, UiEvent::ToggleDiffLine(3));
+        reduce(&mut state, UiEvent::ToggleDiffLine(5));
+        assert_eq!(state.diff.selected_lines, vec![3, 5]);
+        let cmds = reduce(&mut state, UiEvent::StageSelectedLines);
+        assert!(state.diff.selected_lines.is_empty());
+        assert!(matches!(
+            cmds.as_slice(),
+            [Command::StageLines {
+                from_staged: false,
+                lines,
+                ..
+            }] if lines == &[3, 5]
+        ));
     }
 }
