@@ -532,11 +532,20 @@ pub fn reduce(state: &mut AppState, event: UiEvent) -> Vec<Command> {
             )
         }
         UiEvent::Search(query) => {
-            state.ui.searching = !query.is_empty();
             state.ui.search_query = query.clone();
+            state.ui.searching = true;
             if state.navigation.active_view == View::Branches {
                 state.branch.filter = query;
             }
+            Vec::new()
+        }
+        UiEvent::BeginListSearch => {
+            state.ui.searching = true;
+            state.ui.search_query.clear();
+            if state.navigation.active_view == View::Branches {
+                state.branch.filter.clear();
+            }
+            state.ui.search_focus_token = state.ui.search_focus_token.saturating_add(1);
             Vec::new()
         }
         UiEvent::OpenCommandPalette => {

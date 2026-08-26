@@ -8,6 +8,7 @@ use crate::app::model::BranchInfo;
 use crate::app::state::AppState;
 use crate::ui::divergence::DivergenceView;
 use crate::ui::error_banner::ConfirmPanel;
+use crate::ui::list_search::ListSearchBar;
 
 /// Props for the branches pane.
 #[derive(Props, Clone, PartialEq)]
@@ -34,7 +35,11 @@ pub fn BranchesView(props: BranchesViewProps) -> Element {
         .or_else(|| props.state.repository.head.branch.clone())
         .unwrap_or_else(|| "(none)".into());
     let show_div = props.state.divergence.left.is_some() || props.state.divergence.loading;
-    let needle = filter_text();
+    let needle = if props.state.ui.searching && !props.state.ui.search_query.is_empty() {
+        props.state.ui.search_query.clone()
+    } else {
+        filter_text()
+    };
     let filtered: Vec<BranchInfo> = filter_branches(&props.state.branch.branches, &needle)
         .into_iter()
         .cloned()
@@ -61,6 +66,12 @@ pub fn BranchesView(props: BranchesViewProps) -> Element {
         div {
             style: "font-size:0.9rem;opacity:0.95;display:flex;flex-direction:column;gap:0.75rem;",
             p { style: "margin:0;opacity:0.75;", "Current: {current}" }
+
+            ListSearchBar {
+                state: props.state.clone(),
+                on_event: props.on_event,
+                placeholder: "Filter branches…".to_string(),
+            }
 
             div {
                 style: "display:flex;gap:0.4rem;flex-wrap:wrap;align-items:center;",

@@ -231,6 +231,8 @@ pub struct UiState {
     pub branch_cleanup: Option<BranchCleanupState>,
     /// True while a text field has focus — shell must not steal keys (issue #84).
     pub typing: bool,
+    /// Bumped to focus the in-view list search field (issue #85).
+    pub search_focus_token: u64,
 }
 
 /// Multi-select cleanup panel state (issue #78).
@@ -258,6 +260,7 @@ impl Default for UiState {
             overlay: Overlay::None,
             branch_cleanup: None,
             typing: false,
+            search_focus_token: 0,
         }
     }
 }

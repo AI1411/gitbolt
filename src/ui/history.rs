@@ -7,6 +7,7 @@ use crate::app::event::UiEvent;
 use crate::app::model::{DiffHunk, Loadable, Oid};
 use crate::app::state::{AppState, HistoryFilter};
 use crate::ui::diff::tint_line;
+use crate::ui::list_search::{matches_query, ListSearchBar};
 
 /// Props for the history view.
 #[derive(Props, Clone, PartialEq)]
@@ -18,7 +19,19 @@ pub struct HistoryViewProps {
 /// Paginated commit list with a simple linear graph column.
 #[component]
 pub fn HistoryView(props: HistoryViewProps) -> Element {
-    let commits = &props.state.history.commits;
+    let q = props.state.ui.search_query.clone();
+    let commits: Vec<_> = props
+        .state
+        .history
+        .commits
+        .iter()
+        .filter(|c| {
+            matches_query(&c.summary, &q)
+                || matches_query(&c.author, &q)
+                || matches_query(&c.oid.0, &q)
+        })
+        .cloned()
+        .collect();
     let loading = props.state.history.loading;
     let has_more = props.state.history.has_more;
     let filter = &props.state.history.filter;
@@ -34,6 +47,11 @@ pub fn HistoryView(props: HistoryViewProps) -> Element {
     rsx! {
         div {
             style: "display:flex;flex-direction:column;gap:0.5rem;font-size:0.9rem;",
+            ListSearchBar {
+                state: props.state.clone(),
+                on_event: props.on_event,
+                placeholder: "Filter commits…".to_string(),
+            }
             if !matches!(filter, HistoryFilter::All) {
                 div {
                     style: "display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;\

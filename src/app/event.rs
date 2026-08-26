@@ -176,6 +176,8 @@ pub enum UiEvent {
 
     /// Update the search query.
     Search(String),
+    /// Enter in-view list search mode (`/`).
+    BeginListSearch,
     /// Dismiss the current error banner.
     DismissError,
 }
