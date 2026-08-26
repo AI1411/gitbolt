@@ -219,6 +219,35 @@ pub trait GitService: Sized {
         Err(GitError::unsupported("branches"))
     }
 
+    /// Merge-base OID of two tips.
+    ///
+    /// # Errors
+    /// Returns a backend error when the tips cannot be resolved.
+    fn merge_base(&self, _a: &str, _b: &str) -> Result<String, GitError> {
+        Err(GitError::unsupported("merge_base"))
+    }
+
+    /// Commits on `tip` since `base` (exclusive).
+    ///
+    /// # Errors
+    /// Returns a backend error when the walk fails.
+    fn commits_not_in(
+        &self,
+        _tip: &str,
+        _base: &str,
+        _limit: usize,
+    ) -> Result<Vec<CommitInfo>, GitError> {
+        Err(GitError::unsupported("commits_not_in"))
+    }
+
+    /// Ahead/behind of `tip` vs `other`.
+    ///
+    /// # Errors
+    /// Returns a backend error when counts cannot be computed.
+    fn ahead_behind(&self, _tip: &str, _other: &str) -> Result<(u32, u32), GitError> {
+        Err(GitError::unsupported("ahead_behind"))
+    }
+
     /// Create a branch.
     ///
     /// # Errors

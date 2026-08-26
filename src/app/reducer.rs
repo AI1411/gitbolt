@@ -83,6 +83,34 @@ pub fn reduce(state: &mut AppState, event: UiEvent) -> Vec<Command> {
             state.selection.branch = Some(name);
             Vec::new()
         }
+        UiEvent::ShowDivergence { other } => {
+            let left = state
+                .repository
+                .head
+                .branch
+                .clone()
+                .or_else(|| state.branch.current.clone())
+                .unwrap_or_else(|| "HEAD".into());
+            state.divergence.left = Some(left.clone());
+            state.divergence.right = Some(other.clone());
+            state.divergence.loading = true;
+            state.divergence.left_only.clear();
+            state.divergence.right_only.clear();
+            state.divergence.merge_base = None;
+            state.navigation.active_view = View::Branches;
+            issue(
+                state,
+                vec![Command::LoadDivergence {
+                    left,
+                    right: other,
+                    generation: gen,
+                }],
+            )
+        }
+        UiEvent::ClearDivergence => {
+            state.divergence = crate::app::state::DivergenceState::default();
+            Vec::new()
+        }
         UiEvent::SetDiffView(view) => {
             state.diff.view = view;
             Vec::new()
@@ -279,6 +307,25 @@ pub fn apply(state: &mut AppState, message: AppMessage) -> Vec<Command> {
                     state.branch.branches = branches.into();
                     state.branch.current = current;
                     state.branch.loaded = true;
+                }
+                Err(err) => set_error(state, err),
+            }
+            Vec::new()
+        }
+        AppMessage::DivergenceLoaded {
+            left,
+            right,
+            result,
+            ..
+        } => {
+            state.divergence.loading = false;
+            state.divergence.left = Some(left);
+            state.divergence.right = Some(right);
+            match result {
+                Ok(data) => {
+                    state.divergence.merge_base = data.merge_base;
+                    state.divergence.left_only = data.left_only;
+                    state.divergence.right_only = data.right_only;
                 }
                 Err(err) => set_error(state, err),
             }

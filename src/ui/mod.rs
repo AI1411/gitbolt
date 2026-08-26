@@ -7,6 +7,7 @@ pub mod branches;
 pub mod changes;
 pub mod context;
 pub mod diff;
+pub mod divergence;
 pub mod history;
 pub mod layout_model;
 pub mod nav;

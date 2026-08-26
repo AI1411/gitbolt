@@ -66,6 +66,17 @@ pub struct BranchState {
     pub loaded: bool,
 }
 
+/// Divergence between two tips (issue #29).
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct DivergenceState {
+    pub left: Option<String>,
+    pub right: Option<String>,
+    pub merge_base: Option<Oid>,
+    pub left_only: Vec<CommitSummary>,
+    pub right_only: Vec<CommitSummary>,
+    pub loading: bool,
+}
+
 /// Worktree list.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct WorktreeState {
@@ -132,6 +143,7 @@ pub struct AppState {
     pub diff: DiffState,
     pub history: HistoryState,
     pub branch: BranchState,
+    pub divergence: DivergenceState,
     pub worktree: WorktreeState,
     pub selection: SelectionState,
     pub navigation: NavigationState,

@@ -30,6 +30,11 @@ pub enum Command {
     LoadBranches {
         generation: Generation,
     },
+    LoadDivergence {
+        left: String,
+        right: String,
+        generation: Generation,
+    },
     LoadWorktrees {
         generation: Generation,
     },
@@ -96,6 +101,7 @@ impl Command {
             | Self::LoadDiff { generation, .. }
             | Self::LoadHistoryPage { generation, .. }
             | Self::LoadBranches { generation }
+            | Self::LoadDivergence { generation, .. }
             | Self::LoadWorktrees { generation }
             | Self::Stage { generation, .. }
             | Self::Unstage { generation, .. }
