@@ -120,7 +120,7 @@ pub fn App() -> Element {
                             on_pin_recent: move |path| {
                                 dispatch(&session_pin, UiEvent::PinRecent(path), &mut snapshot);
                             },
-                            on_prune_recent: move |_| {
+                            on_prune_recent: move |()| {
                                 dispatch(&session_prune, UiEvent::PruneRecent, &mut snapshot);
                             },
                         }
@@ -149,7 +149,7 @@ pub fn App() -> Element {
                             on_pin_recent: move |path| {
                                 dispatch(&session_pin, UiEvent::PinRecent(path), &mut snapshot);
                             },
-                            on_prune_recent: move |_| {
+                            on_prune_recent: move |()| {
                                 dispatch(&session_prune, UiEvent::PruneRecent, &mut snapshot);
                             },
                         }
