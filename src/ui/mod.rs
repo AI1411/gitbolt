@@ -91,6 +91,7 @@ pub fn App() -> Element {
         div {
             class: "gb-root",
             style: crate::ui::theme::root_style(),
+            style { dangerous_inner_html: crate::ui::theme::GLOBAL_CSS }
             match state.repository.status {
                 RepositoryStatus::Ready => {
                     rsx! {

@@ -57,6 +57,12 @@ pub const ROOT_VARS: &str = "\
 --gb-space-3:0.75rem;\
 --gb-space-4:0.85rem;";
 
+/// Global stylesheet (focus rings and later chrome). Injected once on the app root.
+pub const GLOBAL_CSS: &str = r"
+.gb-selectable:focus-visible{outline:2px solid var(--gb-accent);outline-offset:-2px;}
+.gb-selectable{border-radius:var(--gb-radius);}
+";
+
 /// Inline style for the application root (`:root` equivalent for the window).
 #[must_use]
 pub fn root_style() -> String {
@@ -73,6 +79,16 @@ pub fn selected_bg(on: bool) -> &'static str {
         "var(--gb-selected)"
     } else {
         "transparent"
+    }
+}
+
+/// Background + keyboard-cursor accent for a selected row.
+#[must_use]
+pub fn row_style(selected: bool) -> String {
+    if selected {
+        "background:var(--gb-selected);box-shadow:inset 2px 0 0 var(--gb-accent);".into()
+    } else {
+        "background:transparent;box-shadow:none;".into()
     }
 }
 
@@ -115,6 +131,8 @@ mod tests {
     fn selected_bg_toggles() {
         assert_eq!(selected_bg(true), "var(--gb-selected)");
         assert_eq!(selected_bg(false), "transparent");
+        assert!(row_style(true).contains("box-shadow:inset 2px 0 0"));
+        assert!(row_style(false).contains("box-shadow:none"));
     }
 
     #[test]

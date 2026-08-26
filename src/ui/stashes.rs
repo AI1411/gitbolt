@@ -94,14 +94,15 @@ pub fn StashesView(props: StashesViewProps) -> Element {
                         {
                             let index = entry.index;
                             let is_sel = selected == Some(index);
-                            let bg = if is_sel { "var(--gb-selected)" } else { "transparent" };
                             rsx! {
                                 li {
                                     key: "stash-{index}",
+                                    class: "gb-selectable",
                                     style: format!(
                                         "display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;\
                                          padding:0.35rem 0.45rem;border-radius:var(--gb-radius);border:1px solid var(--gb-chip);\
-                                         background:{bg};"
+                                         {};",
+                                        crate::ui::theme::row_style(is_sel)
                                     ),
                                     button {
                                         style: "flex:1;text-align:left;border:0;background:transparent;\

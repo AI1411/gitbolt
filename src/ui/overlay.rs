@@ -63,15 +63,16 @@ pub fn OverlayHost(props: OverlayHostProps) -> Element {
                             style: "overflow:auto;flex:1;padding:0.25rem 0;",
                             for (i, cmd) in items.into_iter().enumerate() {
                                 {
-                                    let bg = if i == selected { "var(--gb-selected)" } else { "transparent" };
+                                    let row = crate::ui::theme::row_style(i == selected);
                                     let label = cmd.label;
                                     let keys = cmd.keys;
                                     rsx! {
                                         button {
                                             key: "{cmd.id}",
+                                            class: "gb-selectable",
                                             style: format!(
                                                 "width:100%;display:flex;justify-content:space-between;gap:0.75rem;\
-                                                 text-align:left;border:0;background:{bg};color:var(--gb-text);cursor:pointer;\
+                                                 text-align:left;border:0;{row};color:var(--gb-text);cursor:pointer;\
                                                  padding:0.4rem 0.85rem;font-size:0.85rem;"
                                             ),
                                             onclick: move |_| {
@@ -117,7 +118,7 @@ pub fn OverlayHost(props: OverlayHostProps) -> Element {
                             style: "overflow:auto;flex:1;padding:0.25rem 0;",
                             for (i, item) in items.into_iter().enumerate() {
                                 {
-                                    let bg = if i == selected { "var(--gb-selected)" } else { "transparent" };
+                                    let row = crate::ui::theme::row_style(i == selected);
                                     let kind = match item.kind {
                                         QuickOpenKind::File => "file",
                                         QuickOpenKind::Branch => "branch",
@@ -128,9 +129,10 @@ pub fn OverlayHost(props: OverlayHostProps) -> Element {
                                     rsx! {
                                         button {
                                             key: "{kind}-{label}",
+                                            class: "gb-selectable",
                                             style: format!(
                                                 "width:100%;display:flex;align-items:baseline;gap:0.65rem;\
-                                                 text-align:left;border:0;background:{bg};color:var(--gb-text);cursor:pointer;\
+                                                 text-align:left;border:0;{row};color:var(--gb-text);cursor:pointer;\
                                                  padding:0.4rem 0.85rem;font-size:0.85rem;"
                                             ),
                                             onclick: move |_| {
