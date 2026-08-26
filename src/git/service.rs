@@ -187,6 +187,22 @@ pub trait GitService: Sized {
         Err(GitError::unsupported("stage_lines"))
     }
 
+    /// Stage all changes.
+    ///
+    /// # Errors
+    /// Returns [`GitError::Unsupported`] until implemented.
+    fn stage_all(&self) -> Result<(), GitError> {
+        Err(GitError::unsupported("stage_all"))
+    }
+
+    /// Unstage all changes.
+    ///
+    /// # Errors
+    /// Returns [`GitError::Unsupported`] until implemented.
+    fn unstage_all(&self) -> Result<(), GitError> {
+        Err(GitError::unsupported("unstage_all"))
+    }
+
     /// Create a commit from the staged changes.
     ///
     /// # Errors

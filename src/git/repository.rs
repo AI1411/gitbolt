@@ -143,6 +143,14 @@ impl GitService for GixService {
         stage::stage_lines(self.workdir()?, path, from_staged, selected)
     }
 
+    fn stage_all(&self) -> Result<(), GitError> {
+        stage::stage_all(self.workdir()?)
+    }
+
+    fn unstage_all(&self) -> Result<(), GitError> {
+        stage::unstage_all(self.workdir()?)
+    }
+
     fn branches(&self) -> Result<Vec<BranchRef>, GitError> {
         branch::list_branches(self.workdir()?)
     }

@@ -37,7 +37,7 @@ pub fn DiffPane(props: DiffViewProps) -> Element {
                     onclick: move |_| props.on_event.call(UiEvent::SetDiffView(DiffMode::Split)),
                     "Split"
                 }
-                span { style: "opacity:0.45;font-size:0.75rem;", "[ / ] hunks" }
+                span { style: "opacity:0.45;font-size:0.75rem;", "[ / ] hunks · s hunk stage" }
                 if !selected.is_empty() {
                     button {
                         style: "padding:0.35rem 0.75rem;border:0;border-radius:4px;cursor:pointer;\
