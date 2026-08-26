@@ -262,6 +262,7 @@ pub fn reduce(state: &mut AppState, event: UiEvent) -> Vec<Command> {
             Vec::new()
         }
         UiEvent::FocusCommitInput => {
+            state.navigation.active_view = View::Changes;
             state.navigation.context_panel_open = true;
             state.ui.commit_focus_token = state.ui.commit_focus_token.wrapping_add(1);
             Vec::new()

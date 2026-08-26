@@ -78,10 +78,16 @@ pub fn ContextPane(props: ContextPaneProps) -> Element {
                         }
                     },
                     View::Worktrees => rsx! {
-                        WorktreeContext { state: props.state.clone() }
+                        WorktreeContext {
+                            state: props.state.clone(),
+                            on_event: props.on_event,
+                        }
                     },
                     View::Stashes => rsx! {
-                        StashContext { state: props.state.clone() }
+                        StashContext {
+                            state: props.state.clone(),
+                            on_event: props.on_event,
+                        }
                     },
                 }
             }
@@ -325,6 +331,29 @@ fn BranchContextPanel(state: AppState, on_event: EventHandler<UiEvent>) -> Eleme
                     "No linked worktree"
                 }
             }
+            div {
+                style: "display:flex;gap:0.35rem;flex-wrap:wrap;margin-top:0.25rem;",
+                {
+                    let checkout = name.clone();
+                    let instant = name.clone();
+                    rsx! {
+                        button {
+                            r#type: "button",
+                            style: "border:1px solid #334155;background:#1e293b;color:#e2e8f0;border-radius:4px;\
+                                    padding:0.25rem 0.55rem;cursor:pointer;font-size:0.75rem;",
+                            onclick: move |_| on_event.call(UiEvent::CheckoutBranch(checkout.clone())),
+                            "Checkout"
+                        }
+                        button {
+                            r#type: "button",
+                            style: "border:1px solid #334155;background:transparent;color:#9fb0c7;border-radius:4px;\
+                                    padding:0.25rem 0.55rem;cursor:pointer;font-size:0.75rem;",
+                            onclick: move |_| on_event.call(UiEvent::InstantWorktree { branch: instant.clone() }),
+                            "Instant Worktree"
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -407,30 +436,77 @@ fn HistoryContext(state: AppState, on_event: EventHandler<UiEvent>) -> Element {
 }
 
 #[component]
-fn WorktreeContext(state: AppState) -> Element {
+fn WorktreeContext(state: AppState, on_event: EventHandler<UiEvent>) -> Element {
     let n = state.worktree.worktrees.len();
+    let selected_branch = state.selection.branch.clone();
     rsx! {
-        p {
-            style: "margin:0;font-size:0.9rem;opacity:0.85;",
-            "{n} worktree(s). Select a branch for Branch Context."
+        div {
+            style: "display:flex;flex-direction:column;gap:0.45rem;",
+            p {
+                style: "margin:0;font-size:0.9rem;opacity:0.85;",
+                "{n} worktree(s). Select a branch for Instant Worktree."
+            }
+            if let Some(branch) = selected_branch {
+                button {
+                    r#type: "button",
+                    style: "align-self:flex-start;border:1px solid #334155;background:#1e293b;color:#e2e8f0;\
+                            border-radius:4px;padding:0.25rem 0.55rem;cursor:pointer;font-size:0.75rem;",
+                    onclick: move |_| {
+                        on_event.call(UiEvent::InstantWorktree {
+                            branch: branch.clone(),
+                        });
+                    },
+                    "Instant Worktree: {branch}"
+                }
+            }
         }
     }
 }
 
 #[component]
-fn StashContext(state: AppState) -> Element {
+fn StashContext(state: AppState, on_event: EventHandler<UiEvent>) -> Element {
+    let selected = state.stash.selected;
     rsx! {
-        p {
-            style: "margin:0;font-size:0.9rem;opacity:0.85;",
-            {
-                if let Some(index) = state.stash.selected {
-                    if let Some(entry) = state.stash.entries.iter().find(|e| e.index == index) {
-                        format!("stash@{{{index}}}\n{}", entry.message)
+        div {
+            style: "display:flex;flex-direction:column;gap:0.45rem;font-size:0.9rem;",
+            p {
+                style: "margin:0;opacity:0.85;",
+                {
+                    if let Some(index) = selected {
+                        if let Some(entry) = state.stash.entries.iter().find(|e| e.index == index) {
+                            format!("stash@{{{index}}}\n{}", entry.message)
+                        } else {
+                            format!("{} stash(es)", state.stash.entries.len())
+                        }
                     } else {
                         format!("{} stash(es)", state.stash.entries.len())
                     }
-                } else {
-                    format!("{} stash(es)", state.stash.entries.len())
+                }
+            }
+            if let Some(index) = selected {
+                div {
+                    style: "display:flex;gap:0.35rem;flex-wrap:wrap;",
+                    button {
+                        r#type: "button",
+                        style: "border:1px solid #334155;background:#1e293b;color:#e2e8f0;border-radius:4px;\
+                                padding:0.25rem 0.55rem;cursor:pointer;font-size:0.75rem;",
+                        onclick: move |_| on_event.call(UiEvent::StashApply(index)),
+                        "Apply"
+                    }
+                    button {
+                        r#type: "button",
+                        style: "border:1px solid #334155;background:transparent;color:#9fb0c7;border-radius:4px;\
+                                padding:0.25rem 0.55rem;cursor:pointer;font-size:0.75rem;",
+                        onclick: move |_| on_event.call(UiEvent::StashPop(index)),
+                        "Pop"
+                    }
+                    button {
+                        r#type: "button",
+                        style: "border:1px solid #7f1d1d;background:transparent;color:#fca5a5;border-radius:4px;\
+                                padding:0.25rem 0.55rem;cursor:pointer;font-size:0.75rem;",
+                        onclick: move |_| on_event.call(UiEvent::RequestDropStash(index)),
+                        "Drop…"
+                    }
                 }
             }
         }
