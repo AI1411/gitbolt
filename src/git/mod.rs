@@ -4,10 +4,24 @@
 
 pub mod blame;
 pub mod branch;
+pub mod cli;
 pub mod commit;
 pub mod diff;
+pub mod error;
 pub mod history;
 pub mod remote;
 pub mod repository;
+pub mod service;
 pub mod status;
 pub mod worktree;
+
+#[cfg(test)]
+pub(crate) mod fixture;
+
+pub use cli::GitCli;
+pub use error::GitError;
+pub use repository::GixService;
+pub use service::{
+    BranchRef, ChangeStatus, CommitInfo, DiffText, FileChange, GitService, Head, RepoStatus,
+    StashEntry, WorktreeRef,
+};

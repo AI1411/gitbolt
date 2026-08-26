@@ -8,6 +8,10 @@ rust-version = "1.83"
 
 [dependencies]
 dioxus = { version = "0.7", features = ["desktop"] }
+gix = { version = "0.83.0", default-features = false, features = ["sha1", "status", "dirwalk", "max-performance-safe"] }
+
+[dev-dependencies]
+tempfile = "3"
 
 [lints.rust]
 unsafe_code = "forbid"
