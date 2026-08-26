@@ -123,9 +123,11 @@ pub fn DiffPane(props: DiffViewProps) -> Element {
                                         key: "{hi}",
                                         style: format!("background:{hunk_bg};"),
                                         div {
-                                            style: "padding:0.25rem 0.65rem;opacity:0.55;background:var(--gb-bg);\
+                                            style: "padding:0.3rem 0.65rem;background:var(--gb-bg);\
+                                                    color:var(--gb-text-muted);font-size:var(--gb-size-label);\
+                                                    letter-spacing:0.02em;border-bottom:1px solid var(--gb-border);\
                                                     display:flex;align-items:center;justify-content:space-between;gap:0.5rem;",
-                                            span { "{hunk.header}" }
+                                            span { style: "opacity:0.95;font-weight:var(--gb-weight-semibold);", "{hunk.header}" }
                                             if hi == focused {
                                                 button {
                                                     r#type: "button",
@@ -219,10 +221,16 @@ fn UnifiedLine(
     let origin = line.change_origin.clone();
     let gutter = heat_color.unwrap_or("transparent");
 
+    let ln = line
+        .old_line
+        .map(|n| n.to_string())
+        .unwrap_or_else(|| String::from("·"));
+    let gutter_w = if heat_color.is_some() { "6px" } else { "3px" };
+
     rsx! {
         div {
             style: format!(
-                "display:flex;align-items:stretch;gap:0.5rem;padding:0.05rem 0.65rem 0.05rem 0;\
+                "display:flex;align-items:stretch;gap:0.4rem;padding:0.05rem 0.65rem 0.05rem 0;\
                  white-space:pre;cursor:{};background:{};color:{};",
                 if stageable { "pointer" } else { "default" },
                 bg,
@@ -235,13 +243,18 @@ fn UnifiedLine(
             },
             span {
                 style: format!(
-                    "flex:0 0 4px;align-self:stretch;background:{gutter};border-radius:1px;"
+                    "flex:0 0 {gutter_w};align-self:stretch;background:{gutter};border-radius:1px;"
                 ),
                 title: if heat_color.is_some() {
                     "Blame heatmap"
                 } else {
                     ""
                 },
+            }
+            span {
+                style: "flex:0 0 3.75ch;text-align:right;opacity:0.38;font-size:0.72em;\
+                        user-select:none;align-self:baseline;padding-top:0.12em;",
+                "{ln}"
             }
             span { style: "flex:0 0 1ch;opacity:0.7;align-self:baseline;", "{line.origin}" }
             span {
@@ -298,9 +311,9 @@ fn SplitHunk(
 ) -> Element {
     rsx! {
         div {
-            style: "display:grid;grid-template-columns:1fr 1fr;gap:0;border-top:1px solid var(--gb-chip);",
+            style: "display:grid;grid-template-columns:1fr 1fr;gap:0;border-top:1px solid var(--gb-border);",
             div {
-                style: "border-right:1px solid var(--gb-chip);",
+                style: "border-right:1px solid var(--gb-border);min-width:0;",
                 for line in lines.iter().filter(|l| l.origin != '+') {
                     UnifiedLine {
                         line: line.clone(),
