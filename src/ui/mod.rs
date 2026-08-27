@@ -19,7 +19,6 @@ pub mod pulse;
 pub mod shell;
 pub mod stashes;
 pub mod theme;
-pub mod worktrees;
 
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};

@@ -227,10 +227,10 @@ fn OverlayFooter(hint: String) -> Element {
 fn CheatSheetBody(modi: String) -> Element {
     let rows: Vec<(String, String)> = vec![
         (
-            "1 / 2 / 3 / 4 / 5".into(),
-            "Changes / History / Branches / Worktrees / Stashes".into(),
+            "1 / 2 / 3 / 4".into(),
+            "Changes / History / Branches / Stashes".into(),
         ),
-        ("B / H / W".into(), "Branches / History / Worktrees".into()),
+        ("B / H / W".into(), "Branches / History / Instant Worktree".into()),
         (
             "j k · Space · [ ] · s".into(),
             "Changes: move · stage · hunk · stage hunk".into(),

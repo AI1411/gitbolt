@@ -220,7 +220,6 @@ pub enum View {
     Changes,
     History,
     Branches,
-    Worktrees,
     Stashes,
 }
 
