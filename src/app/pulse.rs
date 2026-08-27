@@ -123,9 +123,8 @@ pub fn format_divergence(pulse: &PulseSnapshot) -> String {
 #[must_use]
 pub fn segment_view(segment: PulseSegment) -> View {
     match segment {
-        PulseSegment::Branch | PulseSegment::Divergence => View::Branches,
+        PulseSegment::Branch | PulseSegment::Divergence | PulseSegment::Worktrees => View::Branches,
         PulseSegment::Changes | PulseSegment::Staged => View::Changes,
-        PulseSegment::Worktrees => View::Worktrees,
     }
 }
 
@@ -259,6 +258,6 @@ mod tests {
     fn segment_views_match_navigation() {
         assert_eq!(segment_view(PulseSegment::Branch), View::Branches);
         assert_eq!(segment_view(PulseSegment::Changes), View::Changes);
-        assert_eq!(segment_view(PulseSegment::Worktrees), View::Worktrees);
+        assert_eq!(segment_view(PulseSegment::Worktrees), View::Branches);
     }
 }

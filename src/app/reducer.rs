@@ -1164,6 +1164,15 @@ fn confirm_overlay(state: &mut AppState) -> Vec<Command> {
                 state.ui.commit_focus_token = state.ui.commit_focus_token.saturating_add(1);
                 return reduce(state, UiEvent::SetCommitMessage(next));
             }
+            if action == crate::app::palette::PaletteAction::InstantWorktree {
+                let branch = state
+                    .selection
+                    .branch
+                    .clone()
+                    .or_else(|| state.repository.head.branch.clone())
+                    .unwrap_or_default();
+                return reduce(state, UiEvent::InstantWorktree { branch });
+            }
             let event = crate::app::palette::action_to_event(action);
             reduce(state, event)
         }
@@ -1579,9 +1588,6 @@ fn lazy_load_view(state: &mut AppState, view: View) -> Vec<Command> {
         }
         View::Branches if !state.branch.loaded => {
             issue(state, vec![Command::LoadBranches { generation: gen }])
-        }
-        View::Worktrees if !state.worktree.loaded => {
-            issue(state, vec![Command::LoadWorktrees { generation: gen }])
         }
         View::Stashes if !state.stash.loaded => {
             issue(state, vec![Command::LoadStashes { generation: gen }])

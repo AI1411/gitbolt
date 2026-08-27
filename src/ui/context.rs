@@ -78,12 +78,6 @@ pub fn ContextPane(props: ContextPaneProps) -> Element {
                             on_event: props.on_event,
                         }
                     },
-                    View::Worktrees => rsx! {
-                        WorktreeContext {
-                            state: props.state.clone(),
-                            on_event: props.on_event,
-                        }
-                    },
                     View::Stashes => rsx! {
                         StashContext {
                             state: props.state.clone(),
@@ -545,34 +539,6 @@ fn HistoryContext(state: AppState, on_event: EventHandler<UiEvent>) -> Element {
             }
             if let Some(url) = link {
                 RemoteLinkActions { url: url, on_event: on_event }
-            }
-        }
-    }
-}
-
-#[component]
-fn WorktreeContext(state: AppState, on_event: EventHandler<UiEvent>) -> Element {
-    let n = state.worktree.worktrees.len();
-    let selected_branch = state.selection.branch.clone();
-    rsx! {
-        div {
-            style: "display:flex;flex-direction:column;gap:0.45rem;",
-            p {
-                style: "margin:0;font-size:0.9rem;opacity:0.85;",
-                "{n} worktree(s). Select a branch for Instant Worktree."
-            }
-            if let Some(branch) = selected_branch {
-                button {
-                    r#type: "button",
-                    style: "align-self:flex-start;border:1px solid var(--gb-border-strong);background:var(--gb-chip);color:var(--gb-chip-strong);\
-                            border-radius:var(--gb-radius);padding:0.25rem 0.55rem;cursor:pointer;font-size:0.75rem;",
-                    onclick: move |_| {
-                        on_event.call(UiEvent::InstantWorktree {
-                            branch: branch.clone(),
-                        });
-                    },
-                    "Instant Worktree: {branch}"
-                }
             }
         }
     }

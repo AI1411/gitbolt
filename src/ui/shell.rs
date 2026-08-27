@@ -24,7 +24,6 @@ use crate::ui::nav::NavPane;
 use crate::ui::overlay::OverlayHost;
 use crate::ui::pulse::PulseHeader;
 use crate::ui::stashes::StashesView;
-use crate::ui::worktrees::WorktreesView;
 
 /// Props for the ready-state shell.
 #[derive(Props, Clone, PartialEq)]
@@ -157,10 +156,6 @@ pub fn Shell(props: ShellProps) -> Element {
                     }
                     Key::Character(ch) if ch == "4" => {
                         evt.prevent_default();
-                        props.on_event.call(UiEvent::SelectView(View::Worktrees));
-                    }
-                    Key::Character(ch) if ch == "5" => {
-                        evt.prevent_default();
                         props.on_event.call(UiEvent::SelectView(View::Stashes));
                     }
                     Key::Character(ch) if ch == "/" => {
@@ -190,7 +185,25 @@ pub fn Shell(props: ShellProps) -> Element {
                     }
                     Key::Character(ch) if ch.eq_ignore_ascii_case("w") => {
                         evt.prevent_default();
-                        props.on_event.call(UiEvent::SelectView(View::Worktrees));
+                        let branch = props
+                            .state
+                            .selection
+                            .branch
+                            .clone()
+                            .or_else(|| props.state.repository.head.branch.clone())
+                            .filter(|name| {
+                                !props
+                                    .state
+                                    .branch
+                                    .branches
+                                    .iter()
+                                    .any(|b| b.name == *name && b.is_remote)
+                            });
+                        if let Some(branch) = branch {
+                            props.on_event.call(UiEvent::InstantWorktree { branch });
+                        } else {
+                            props.on_event.call(UiEvent::SelectView(View::Branches));
+                        }
                     }
                     Key::Character(ch) if ch.eq_ignore_ascii_case("f") => {
                         evt.prevent_default();
@@ -452,12 +465,6 @@ fn ContentBody(state: AppState, on_event: EventHandler<UiEvent>) -> Element {
         View::Branches => rsx! {
             BranchesView {
                 state: state,
-                on_event: on_event,
-            }
-        },
-        View::Worktrees => rsx! {
-            WorktreesView {
-                state: state.clone(),
                 on_event: on_event,
             }
         },

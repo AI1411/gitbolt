@@ -67,6 +67,18 @@ pub fn BranchesView(props: BranchesViewProps) -> Element {
             style: "font-size:0.9rem;opacity:0.95;display:flex;flex-direction:column;gap:0.75rem;",
             p { style: "margin:0;opacity:0.75;", "Current: {current}" }
 
+            label {
+                style: "display:flex;align-items:center;gap:0.4rem;font-size:0.8rem;opacity:0.8;",
+                input {
+                    r#type: "checkbox",
+                    checked: props.state.ui.open_after_instant_worktree,
+                    onchange: move |evt| {
+                        props.on_event.call(UiEvent::SetOpenAfterInstantWorktree(evt.checked()));
+                    },
+                }
+                "Open Instant Worktree after create"
+            }
+
             ListSearchBar {
                 state: props.state.clone(),
                 on_event: props.on_event,
