@@ -115,6 +115,8 @@ pub struct DiffLine {
     pub body_index: usize,
     /// 1-based line number on the old (HEAD / index) side, when applicable.
     pub old_line: Option<u32>,
+    /// 1-based line number on the new (worktree / result) side, when applicable.
+    pub new_line: Option<u32>,
     /// Commit that last authored `old_line` at HEAD (Change Origin, issue #31).
     pub change_origin: Option<CommitSummary>,
 }

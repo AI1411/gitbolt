@@ -34,6 +34,7 @@ pub fn parse_diff_content(target: DiffTarget, text: &str) -> DiffContent {
     let mut past_headers = false;
     let mut body_index = 0usize;
     let mut old_line: u32 = 0;
+    let mut new_line: u32 = 0;
 
     for line in text.lines() {
         if !past_headers {
@@ -48,6 +49,7 @@ pub fn parse_diff_content(target: DiffTarget, text: &str) -> DiffContent {
                 hunks.push(h);
             }
             old_line = parse_old_start(line).unwrap_or(0);
+            new_line = parse_new_start(line).unwrap_or(0);
             current = Some(DiffHunk {
                 header: line.to_string(),
                 lines: Vec::new(),
@@ -67,8 +69,16 @@ pub fn parse_diff_content(target: DiffTarget, text: &str) -> DiffContent {
             _ if old_line > 0 => Some(old_line),
             _ => None,
         };
+        let line_new = match origin {
+            '-' => None,
+            _ if new_line > 0 => Some(new_line),
+            _ => None,
+        };
         if origin != '+' && old_line > 0 {
             old_line += 1;
+        }
+        if origin != '-' && new_line > 0 {
+            new_line += 1;
         }
         if let Some(h) = current.as_mut() {
             h.lines.push(DiffLine {
@@ -76,6 +86,7 @@ pub fn parse_diff_content(target: DiffTarget, text: &str) -> DiffContent {
                 content,
                 body_index,
                 old_line: line_old,
+                new_line: line_new,
                 change_origin: None,
             });
         }
@@ -117,6 +128,7 @@ pub fn attach_change_origins(
                         content: line.content.clone(),
                         body_index: line.body_index,
                         old_line: line.old_line,
+                        new_line: line.new_line,
                         change_origin,
                     }
                 })
@@ -145,6 +157,14 @@ fn parse_old_start(header: &str) -> Option<u32> {
     after[..end].parse().ok()
 }
 
+/// Parses the new-file start from `@@ -12,3 +14,4 @@` → 14.
+fn parse_new_start(header: &str) -> Option<u32> {
+    let plus = header.rfind('+')?;
+    let after = &header[plus + 1..];
+    let end = after.find([',', ' ']).unwrap_or(after.len());
+    after[..end].parse().ok()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -170,9 +190,34 @@ diff --git a/a.txt b/a.txt
         );
         assert_eq!(content.hunks[0].lines[0].body_index, 1);
         assert_eq!(content.hunks[0].lines[0].old_line, Some(1));
+        assert_eq!(content.hunks[0].lines[0].new_line, Some(1));
         assert_eq!(content.hunks[0].lines[1].body_index, 2);
         assert_eq!(content.hunks[0].lines[1].origin, '+');
         assert_eq!(content.hunks[0].lines[1].old_line, None);
+        assert_eq!(content.hunks[0].lines[1].new_line, Some(2));
+    }
+
+    #[test]
+    fn dual_line_numbers_on_replace() {
+        let text = "\
+diff --git a/a.txt b/a.txt
+--- a/a.txt
++++ b/a.txt
+@@ -2 +2 @@
+-beta
++BETA
+";
+        let content = parse_diff_content(
+            DiffTarget {
+                path: PathBuf::from("a.txt"),
+                staged: false,
+            },
+            text,
+        );
+        assert_eq!(content.hunks[0].lines[0].old_line, Some(2));
+        assert_eq!(content.hunks[0].lines[0].new_line, None);
+        assert_eq!(content.hunks[0].lines[1].old_line, None);
+        assert_eq!(content.hunks[0].lines[1].new_line, Some(2));
     }
 
     #[test]

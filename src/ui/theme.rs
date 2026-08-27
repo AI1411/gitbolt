@@ -43,20 +43,22 @@ pub const ROOT_VARS: &str = "\
 --gb-radius-lg:6px;\
 --gb-radius-xl:8px;\
 --gb-radius-pill:999px;\
---gb-font:system-ui,-apple-system,sans-serif;\
---gb-mono:ui-monospace,Menlo,Consolas,monospace;\
+--gb-font:\"IBM Plex Sans\",\"Source Sans 3\",\"Segoe UI\",system-ui,-apple-system,sans-serif;\
+--gb-mono:\"JetBrains Mono\",\"SF Mono\",\"Cascadia Code\",ui-monospace,Menlo,Consolas,monospace;\
 --gb-size-hero:2rem;\
 --gb-size-title:1.125rem;\
 --gb-size-body:0.875rem;\
 --gb-size-pulse:0.8125rem;\
 --gb-size-label:0.6875rem;\
 --gb-size-hint:0.75rem;\
+--gb-size-diff:0.8125rem;\
 --gb-weight-regular:500;\
 --gb-weight-semibold:600;\
 --gb-space-1:0.25rem;\
 --gb-space-2:0.5rem;\
 --gb-space-3:0.75rem;\
---gb-space-4:0.85rem;";
+--gb-space-4:0.85rem;\
+--gb-row:2.05rem;";
 
 /// Light-theme custom properties (issue #118).
 pub const LIGHT_VARS: &str = "\
@@ -95,20 +97,22 @@ pub const LIGHT_VARS: &str = "\
 --gb-radius-lg:6px;\
 --gb-radius-xl:8px;\
 --gb-radius-pill:999px;\
---gb-font:system-ui,-apple-system,sans-serif;\
---gb-mono:ui-monospace,Menlo,Consolas,monospace;\
+--gb-font:\"IBM Plex Sans\",\"Source Sans 3\",\"Segoe UI\",system-ui,-apple-system,sans-serif;\
+--gb-mono:\"JetBrains Mono\",\"SF Mono\",\"Cascadia Code\",ui-monospace,Menlo,Consolas,monospace;\
 --gb-size-hero:2rem;\
 --gb-size-title:1.125rem;\
 --gb-size-body:0.875rem;\
 --gb-size-pulse:0.8125rem;\
 --gb-size-label:0.6875rem;\
 --gb-size-hint:0.75rem;\
+--gb-size-diff:0.8125rem;\
 --gb-weight-regular:500;\
 --gb-weight-semibold:600;\
 --gb-space-1:0.25rem;\
 --gb-space-2:0.5rem;\
 --gb-space-3:0.75rem;\
---gb-space-4:0.85rem;";
+--gb-space-4:0.85rem;\
+--gb-row:2.05rem;";
 
 /// Global stylesheet (focus rings and later chrome). Injected once on the app root.
 pub const GLOBAL_CSS: &str = r"
@@ -118,6 +122,13 @@ pub const GLOBAL_CSS: &str = r"
 .nav-item.active{box-shadow:inset 3px 0 0 var(--gb-accent);}
 .resize-handle{flex:0 0 5px;cursor:col-resize;background:transparent;}
 .resize-handle:hover,.resize-handle:active{background:var(--gb-accent);opacity:0.45;}
+.gb-hunk-header{position:sticky;top:0;z-index:2;backdrop-filter:blur(6px);}
+.gb-diff-scroll{overflow:auto;min-height:0;}
+.gb-diff-line{display:flex;align-items:stretch;gap:0.35rem;padding:0.08rem 0.55rem 0.08rem 0;white-space:pre;line-height:1.45;}
+.gb-diff-line.add{box-shadow:inset 3px 0 0 var(--gb-add);}
+.gb-diff-line.del{box-shadow:inset 3px 0 0 var(--gb-del);}
+.gb-lineno{flex:0 0 3.5ch;text-align:right;opacity:0.4;font-size:0.72em;user-select:none;align-self:baseline;padding-top:0.1em;font-variant-numeric:tabular-nums;}
+.gb-graph{width:14px;height:100%;min-height:2.05rem;display:block;}
 ";
 
 /// Inline style for the application root (`:root` equivalent for the window).
@@ -183,11 +194,15 @@ mod tests {
             "--gb-mono:",
             "--gb-size-title:",
             "--gb-size-hint:",
+            "--gb-size-diff:",
+            "--gb-mono:",
         ] {
             assert!(css.contains(token), "missing {token}");
         }
         assert!(GLOBAL_CSS.contains(".nav-item.active"));
         assert!(GLOBAL_CSS.contains(".resize-handle:hover"));
+        assert!(GLOBAL_CSS.contains(".gb-hunk-header"));
+        assert!(GLOBAL_CSS.contains(".gb-diff-line.add"));
         let light = root_style(ColorScheme::Light);
         assert!(light.contains("--gb-bg:#f4f6fa"));
         assert_ne!(light, root_style(ColorScheme::Dark));
