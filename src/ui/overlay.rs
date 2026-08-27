@@ -230,7 +230,10 @@ fn CheatSheetBody(modi: String) -> Element {
             "1 / 2 / 3 / 4".into(),
             "Changes / History / Branches / Stashes".into(),
         ),
-        ("B / H / W".into(), "Branches / History / Instant Worktree".into()),
+        (
+            "B / H / W".into(),
+            "Branches / History / Instant Worktree".into(),
+        ),
         (
             "j k · Space · [ ] · s".into(),
             "Changes: move · stage · hunk · stage hunk".into(),

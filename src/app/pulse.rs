@@ -123,9 +123,8 @@ pub fn format_divergence(pulse: &PulseSnapshot) -> String {
 #[must_use]
 pub fn segment_view(segment: PulseSegment) -> View {
     match segment {
-        PulseSegment::Branch | PulseSegment::Divergence => View::Branches,
+        PulseSegment::Branch | PulseSegment::Divergence | PulseSegment::Worktrees => View::Branches,
         PulseSegment::Changes | PulseSegment::Staged => View::Changes,
-        PulseSegment::Worktrees => View::Branches,
     }
 }
 
