@@ -88,6 +88,12 @@ pub fn ChangesView(props: ChangesViewProps) -> Element {
                     onclick: move |_| props.on_event.call(UiEvent::UnstageAll),
                     "Unstage all"
                 }
+                button {
+                    style: "padding:0.3rem 0.55rem;border:1px solid var(--gb-border-strong);border-radius:var(--gb-radius);cursor:pointer;\
+                            background:transparent;color:var(--gb-text-muted);font-size:0.75rem;",
+                    onclick: move |_| props.on_event.call(UiEvent::StashSave { message: None }),
+                    "Stash"
+                }
             }
             p {
                 style: "margin:0;opacity:0.45;font-size:var(--gb-size-hint);",

@@ -7,6 +7,7 @@ use crate::app::event::UiEvent;
 use crate::app::model::{BranchInfo, CommitDetail, DiffHunk, Loadable, View};
 use crate::app::state::{AppState, HistoryFilter};
 use crate::ui::diff::tint_line;
+use crate::ui::error_banner::ConfirmPanel;
 use crate::ui::layout_model::context_heading;
 
 /// Props for the context panel.
@@ -64,6 +65,10 @@ pub fn ContextPane(props: ContextPaneProps) -> Element {
                                 changed_paths: paths,
                                 on_event: props.on_event,
                             }
+                            StashContext {
+                                state: props.state.clone(),
+                                on_event: props.on_event,
+                            }
                         }
                     },
                     View::History => rsx! {
@@ -74,12 +79,6 @@ pub fn ContextPane(props: ContextPaneProps) -> Element {
                     },
                     View::Branches => rsx! {
                         BranchContextPanel {
-                            state: props.state.clone(),
-                            on_event: props.on_event,
-                        }
-                    },
-                    View::Stashes => rsx! {
-                        StashContext {
                             state: props.state.clone(),
                             on_event: props.on_event,
                         }
@@ -547,20 +546,58 @@ fn HistoryContext(state: AppState, on_event: EventHandler<UiEvent>) -> Element {
 #[component]
 fn StashContext(state: AppState, on_event: EventHandler<UiEvent>) -> Element {
     let selected = state.stash.selected;
+    let entries = state.stash.entries.clone();
+    let loaded = state.stash.loaded;
+    let pending_drop = state.ui.confirm_drop_stash;
+
     rsx! {
         div {
-            style: "display:flex;flex-direction:column;gap:0.45rem;font-size:0.9rem;",
-            p {
-                style: "margin:0;opacity:0.85;",
-                {
-                    if let Some(index) = selected {
-                        if let Some(entry) = state.stash.entries.iter().find(|e| e.index == index) {
-                            format!("stash@{{{index}}}\n{}", entry.message)
-                        } else {
-                            format!("{} stash(es)", state.stash.entries.len())
+            style: "display:flex;flex-direction:column;gap:0.45rem;font-size:0.85rem;margin-top:0.35rem;\
+                    padding-top:0.55rem;border-top:1px solid var(--gb-border);",
+            h3 {
+                style: "margin:0;font-size:0.75rem;letter-spacing:0.06em;text-transform:uppercase;opacity:0.6;",
+                "Stashes"
+            }
+            if let Some(index) = pending_drop {
+                ConfirmPanel {
+                    message: format!("Drop stash@{{{index}}}? This cannot be undone."),
+                    confirm_label: String::from("Drop"),
+                    on_confirm: move |()| on_event.call(UiEvent::ConfirmDropStash),
+                    on_cancel: move |()| on_event.call(UiEvent::CancelDropStash),
+                }
+            }
+            if !loaded {
+                p { style: "margin:0;opacity:0.55;", "Loading stashes…" }
+            } else if entries.is_empty() {
+                p { style: "margin:0;opacity:0.55;", "No stashes yet." }
+            } else {
+                ul {
+                    style: "list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:0.25rem;\
+                            max-height:10rem;overflow:auto;",
+                    for entry in entries.iter().cloned() {
+                        {
+                            let index = entry.index;
+                            let is_sel = selected == Some(index);
+                            rsx! {
+                                li {
+                                    key: "stash-{index}",
+                                    button {
+                                        r#type: "button",
+                                        style: format!(
+                                            "width:100%;text-align:left;border:1px solid var(--gb-chip);border-radius:var(--gb-radius);\
+                                             padding:0.25rem 0.4rem;cursor:pointer;font-size:0.78rem;{}",
+                                            crate::ui::theme::row_style(is_sel)
+                                        ),
+                                        onclick: move |_| on_event.call(UiEvent::SelectStash(index)),
+                                        span {
+                                            style: "font-family:var(--gb-mono);opacity:0.65;margin-right:0.35rem;",
+                                            "stash@{{{index}}}"
+                                        }
+                                        span { "{entry.message}" }
+                                    }
+                                }
+                            }
                         }
-                    } else {
-                        format!("{} stash(es)", state.stash.entries.len())
                     }
                 }
             }

@@ -23,7 +23,6 @@ use crate::ui::layout_model::NAV_MIN;
 use crate::ui::nav::NavPane;
 use crate::ui::overlay::OverlayHost;
 use crate::ui::pulse::PulseHeader;
-use crate::ui::stashes::StashesView;
 
 /// Props for the ready-state shell.
 #[derive(Props, Clone, PartialEq)]
@@ -153,10 +152,6 @@ pub fn Shell(props: ShellProps) -> Element {
                     Key::Character(ch) if ch == "3" => {
                         evt.prevent_default();
                         props.on_event.call(UiEvent::SelectView(View::Branches));
-                    }
-                    Key::Character(ch) if ch == "4" => {
-                        evt.prevent_default();
-                        props.on_event.call(UiEvent::SelectView(View::Stashes));
                     }
                     Key::Character(ch) if ch == "/" => {
                         evt.prevent_default();
@@ -464,12 +459,6 @@ fn ContentBody(state: AppState, on_event: EventHandler<UiEvent>) -> Element {
         },
         View::Branches => rsx! {
             BranchesView {
-                state: state,
-                on_event: on_event,
-            }
-        },
-        View::Stashes => rsx! {
-            StashesView {
                 state: state,
                 on_event: on_event,
             }

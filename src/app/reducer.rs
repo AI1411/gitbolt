@@ -712,6 +712,7 @@ pub fn apply(state: &mut AppState, message: AppMessage) -> Vec<Command> {
                         Command::LoadStatus { generation: gen },
                         Command::LoadBranches { generation: gen },
                         Command::LoadWorktrees { generation: gen },
+                        Command::LoadStashes { generation: gen },
                         Command::LoadHistoryPage {
                             filter: state.history.filter.clone(),
                             offset: 0,
@@ -1589,7 +1590,7 @@ fn lazy_load_view(state: &mut AppState, view: View) -> Vec<Command> {
         View::Branches if !state.branch.loaded => {
             issue(state, vec![Command::LoadBranches { generation: gen }])
         }
-        View::Stashes if !state.stash.loaded => {
+        View::Changes if !state.stash.loaded => {
             issue(state, vec![Command::LoadStashes { generation: gen }])
         }
         _ => Vec::new(),
@@ -1726,7 +1727,7 @@ mod tests {
         );
         assert!(state.is_ready());
         assert_eq!(state.repository.head.branch.as_deref(), Some("main"));
-        assert_eq!(cmds.len(), 4);
+        assert_eq!(cmds.len(), 5);
     }
 
     #[test]
@@ -2013,8 +2014,8 @@ mod tests {
                 }),
             },
         );
-        // -1 for the completed open, +4 for the fan-out loads.
-        assert_eq!(state.background.inflight, 4);
+        // -1 for the completed open, +5 for the fan-out loads.
+        assert_eq!(state.background.inflight, 5);
     }
 
     #[test]

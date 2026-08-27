@@ -17,7 +17,6 @@ pub mod open;
 pub mod overlay;
 pub mod pulse;
 pub mod shell;
-pub mod stashes;
 pub mod theme;
 
 use std::path::PathBuf;
