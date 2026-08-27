@@ -19,7 +19,6 @@ pub enum PaletteAction {
     GoHistory,
     GoBranches,
     InstantWorktree,
-    GoStashes,
     Fetch,
     Pull,
     Push,
@@ -67,12 +66,6 @@ pub fn all_commands() -> Vec<PaletteCommand> {
             label: "Instant Worktree",
             keys: "W",
             event: PaletteAction::InstantWorktree,
-        },
-        PaletteCommand {
-            id: "go.stashes",
-            label: "Go to Stashes",
-            keys: "",
-            event: PaletteAction::GoStashes,
         },
         PaletteCommand {
             id: "remote.fetch",
@@ -224,7 +217,6 @@ pub fn action_to_event(action: PaletteAction) -> UiEvent {
         PaletteAction::InstantWorktree => UiEvent::InstantWorktree {
             branch: String::new(),
         },
-        PaletteAction::GoStashes => UiEvent::SelectView(View::Stashes),
         PaletteAction::Fetch => UiEvent::Fetch,
         PaletteAction::Pull => UiEvent::Pull,
         PaletteAction::Push => UiEvent::Push,

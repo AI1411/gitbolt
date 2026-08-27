@@ -14,7 +14,7 @@ pub struct NavPaneProps {
     pub on_event: EventHandler<UiEvent>,
 }
 
-/// Renders Changes / History / Branches / Stashes with counts.
+/// Renders Changes / History / Branches with counts.
 #[component]
 pub fn NavPane(props: NavPaneProps) -> Element {
     let active = props.state.navigation.active_view;
@@ -89,14 +89,6 @@ fn nav_badge(state: &AppState, view: View) -> Option<Badge> {
             } else {
                 None
             }
-        }
-        View::Stashes => {
-            let n = state.stash.entries.len();
-            (n > 0).then(|| Badge {
-                text: n.to_string(),
-                bg: "var(--gb-chip)",
-                fg: "var(--gb-chip-text)",
-            })
         }
         View::Branches | View::History => None,
     }

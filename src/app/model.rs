@@ -220,7 +220,6 @@ pub enum View {
     Changes,
     History,
     Branches,
-    Stashes,
 }
 
 /// Which of the three panes currently has keyboard focus.

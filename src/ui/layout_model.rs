@@ -40,7 +40,6 @@ pub fn nav_items() -> &'static [(View, &'static str)] {
         (View::Changes, "Changes"),
         (View::History, "History"),
         (View::Branches, "Branches"),
-        (View::Stashes, "Stashes"),
     ]
 }
 
@@ -51,7 +50,6 @@ pub fn content_heading(view: View) -> &'static str {
         View::Changes => "Diff",
         View::History => "History",
         View::Branches => "Branches",
-        View::Stashes => "Stashes",
     }
 }
 
@@ -75,7 +73,6 @@ pub fn context_heading(view: View) -> &'static str {
         View::Changes => "Commit / File",
         View::History => "Commit Detail",
         View::Branches => "Branch Context",
-        View::Stashes => "Stash Context",
     }
 }
 
@@ -86,11 +83,10 @@ mod tests {
     #[test]
     fn nav_items_cover_all_views_in_order() {
         let items = nav_items();
-        assert_eq!(items.len(), 4);
+        assert_eq!(items.len(), 3);
         assert_eq!(items[0], (View::Changes, "Changes"));
         assert_eq!(items[1], (View::History, "History"));
         assert_eq!(items[2], (View::Branches, "Branches"));
-        assert_eq!(items[3], (View::Stashes, "Stashes"));
     }
 
     #[test]
