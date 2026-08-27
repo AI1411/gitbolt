@@ -131,6 +131,7 @@ mod tests {
                         content: "a".into(),
                         body_index: 0,
                         old_line: Some(1),
+                        new_line: Some(1),
                         change_origin: Some(summary("aaa", now)),
                     },
                     DiffLine {
@@ -138,6 +139,7 @@ mod tests {
                         content: "b".into(),
                         body_index: 1,
                         old_line: None,
+                        new_line: Some(2),
                         change_origin: None,
                     },
                 ],

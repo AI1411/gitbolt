@@ -15,7 +15,7 @@ pub struct HistoryViewProps {
     pub on_event: EventHandler<UiEvent>,
 }
 
-/// Paginated commit list with a simple linear graph column.
+/// Paginated commit list with a linear graph column.
 #[component]
 pub fn HistoryView(props: HistoryViewProps) -> Element {
     let q = props.state.ui.search_query.clone();
@@ -43,7 +43,7 @@ pub fn HistoryView(props: HistoryViewProps) -> Element {
 
     rsx! {
         div {
-            style: "display:flex;flex-direction:column;gap:0.5rem;font-size:0.9rem;",
+            style: "display:flex;flex-direction:column;gap:var(--gb-space-2);font-size:var(--gb-size-body);",
             ListSearchBar {
                 state: props.state.clone(),
                 on_event: props.on_event,
@@ -54,12 +54,12 @@ pub fn HistoryView(props: HistoryViewProps) -> Element {
                     style: "display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;\
                             padding:0.35rem 0.55rem;border-radius:var(--gb-radius);background:var(--gb-chip);",
                     span {
-                        style: "font-size:0.8rem;opacity:0.85;",
+                        style: "font-size:var(--gb-size-hint);color:var(--gb-text-muted);",
                         "{filter_label(filter)}"
                     }
                     button {
                         style: "padding:0.2rem 0.55rem;border:1px solid var(--gb-border-strong);border-radius:var(--gb-radius);\
-                                cursor:pointer;background:transparent;color:var(--gb-text-muted);font-size:0.75rem;",
+                                cursor:pointer;background:transparent;color:var(--gb-text-muted);font-size:var(--gb-size-hint);",
                         onclick: move |_| props.on_event.call(UiEvent::ClearHistoryFilter),
                         "All commits"
                     }
@@ -67,9 +67,9 @@ pub fn HistoryView(props: HistoryViewProps) -> Element {
             }
 
             if commits.is_empty() && loading {
-                p { style: "margin:0;opacity:0.6;", "Loading history…" }
+                p { style: "margin:0;color:var(--gb-text-muted);", "Loading history…" }
             } else if commits.is_empty() {
-                p { style: "margin:0;opacity:0.6;", "No commits yet." }
+                p { style: "margin:0;color:var(--gb-text-muted);", "No commits yet." }
             } else {
                 ul {
                     style: "list-style:none;margin:0;padding:0;display:flex;flex-direction:column;",
@@ -83,42 +83,40 @@ pub fn HistoryView(props: HistoryViewProps) -> Element {
                                 c.oid.0.clone()
                             };
                             let rel = relative_time(c.timestamp, now);
-                            let graph = if i + 1 < commits.len() { "●\n│" } else { "●" };
+                            let has_next = i + 1 < commits.len();
                             rsx! {
                                 li {
                                     key: "{c.oid.0}",
                                     button {
                                         class: "gb-selectable",
                                         style: format!(
-                                            "width:100%;display:grid;grid-template-columns:1.2rem 1fr;\
-                                             gap:0.55rem;text-align:left;border:0;{};\
-                                             color:var(--gb-text);cursor:pointer;padding:0.35rem 0.45rem;\
-                                             border-radius:var(--gb-radius);",
+                                            "width:100%;display:grid;grid-template-columns:14px 1fr;\
+                                             gap:0.65rem;text-align:left;border:0;{};\
+                                             color:var(--gb-text);cursor:pointer;padding:0.4rem 0.5rem;\
+                                             border-radius:var(--gb-radius);min-height:var(--gb-row);",
                                             crate::ui::theme::row_style(is_sel)
                                         ),
                                         onclick: move |_| {
                                             props.on_event.call(UiEvent::SelectCommit(oid.clone()));
                                         },
-                                        pre {
-                                            style: "margin:0;font-size:0.75rem;line-height:1.1;opacity:0.55;\
-                                                    color:var(--gb-link);font-family:var(--gb-mono);",
-                                            "{graph}"
-                                        }
+                                        CommitGraphMark { has_next: has_next, selected: is_sel }
                                         div {
-                                            style: "display:flex;flex-direction:column;gap:0.1rem;min-width:0;",
+                                            style: "display:flex;flex-direction:column;gap:0.12rem;min-width:0;",
                                             div {
-                                                style: "display:flex;gap:0.5rem;align-items:baseline;flex-wrap:wrap;",
+                                                style: "display:flex;gap:0.5rem;align-items:baseline;min-width:0;",
                                                 span {
-                                                    style: "font-family:var(--gb-mono);font-size:0.75rem;opacity:0.6;",
+                                                    style: "font-family:var(--gb-mono);font-size:var(--gb-size-hint);\
+                                                            color:var(--gb-text-faint);flex:0 0 auto;",
                                                     "{short}"
                                                 }
                                                 span {
-                                                    style: "font-weight:600;font-size:0.85rem;",
+                                                    style: "font-weight:var(--gb-weight-semibold);font-size:var(--gb-size-body);\
+                                                            overflow:hidden;text-overflow:ellipsis;white-space:nowrap;",
                                                     "{c.summary}"
                                                 }
                                             }
                                             div {
-                                                style: "font-size:0.72rem;opacity:0.55;",
+                                                style: "font-size:var(--gb-size-label);color:var(--gb-text-muted);",
                                                 "{c.author} · {rel}"
                                             }
                                         }
@@ -140,6 +138,38 @@ pub fn HistoryView(props: HistoryViewProps) -> Element {
                     if loading { "Loading…" } else { "Load more" }
                 }
             }
+        }
+    }
+}
+
+#[component]
+fn CommitGraphMark(has_next: bool, selected: bool) -> Element {
+    let stroke = if selected {
+        "var(--gb-accent)"
+    } else {
+        "var(--gb-link)"
+    };
+    let fill = if selected {
+        "var(--gb-accent)"
+    } else {
+        "var(--gb-link)"
+    };
+    let line = if has_next {
+        r#"<line x1="7" y1="16" x2="7" y2="36" stroke="var(--gb-border-strong)" stroke-width="1.5"/>"#
+    } else {
+        ""
+    };
+    let svg = format!(
+        r#"<svg class="gb-graph" viewBox="0 0 14 36" width="14" height="36" aria-hidden="true">
+  <line x1="7" y1="0" x2="7" y2="8" stroke="var(--gb-border-strong)" stroke-width="1.5"/>
+  {line}
+  <circle cx="7" cy="12" r="3.4" fill="{fill}" stroke="{stroke}" stroke-width="1"/>
+</svg>"#
+    );
+    rsx! {
+        span {
+            style: "display:flex;align-items:flex-start;justify-content:center;padding-top:0.05rem;",
+            dangerous_inner_html: "{svg}",
         }
     }
 }

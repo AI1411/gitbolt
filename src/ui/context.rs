@@ -160,82 +160,87 @@ fn CommitDetailBody(
 
     rsx! {
         div {
-            style: "display:flex;flex-direction:column;gap:0.55rem;font-size:0.85rem;",
+            style: "display:flex;flex-direction:column;gap:0.65rem;font-size:var(--gb-size-body);",
             div {
-                style: "display:flex;align-items:center;gap:0.35rem;",
-                button {
-                    r#type: "button",
-                    title: "Commit Back (⌘[)",
-                    disabled: !can_back,
-                    style: if can_back {
-                        "border:1px solid var(--gb-border-strong);background:var(--gb-chip);color:var(--gb-chip-strong);border-radius:var(--gb-radius);\
-                         padding:0.15rem 0.45rem;cursor:pointer;font-size:0.75rem;"
-                    } else {
-                        "border:1px solid var(--gb-chip);background:transparent;color:var(--gb-text-disabled);border-radius:var(--gb-radius);\
-                         padding:0.15rem 0.45rem;cursor:default;font-size:0.75rem;opacity:0.5;"
-                    },
-                    onclick: move |_| on_event.call(UiEvent::NavigateCommit { delta: -1 }),
-                    "← Back"
-                }
-                button {
-                    r#type: "button",
-                    title: "Commit Forward (⌘])",
-                    disabled: !can_forward,
-                    style: if can_forward {
-                        "border:1px solid var(--gb-border-strong);background:var(--gb-chip);color:var(--gb-chip-strong);border-radius:var(--gb-radius);\
-                         padding:0.15rem 0.45rem;cursor:pointer;font-size:0.75rem;"
-                    } else {
-                        "border:1px solid var(--gb-chip);background:transparent;color:var(--gb-text-disabled);border-radius:var(--gb-radius);\
-                         padding:0.15rem 0.45rem;cursor:default;font-size:0.75rem;opacity:0.5;"
-                    },
-                    onclick: move |_| on_event.call(UiEvent::NavigateCommit { delta: 1 }),
-                    "Forward →"
+                style: "display:flex;flex-direction:column;gap:0.4rem;padding-bottom:0.55rem;\
+                        border-bottom:1px solid var(--gb-border);",
+                div {
+                    style: "display:flex;align-items:center;gap:0.35rem;flex-wrap:wrap;",
+                    button {
+                        r#type: "button",
+                        title: "Commit Back (⌘[)",
+                        disabled: !can_back,
+                        style: if can_back {
+                            "border:1px solid var(--gb-border-strong);background:var(--gb-chip);color:var(--gb-chip-strong);border-radius:var(--gb-radius);\
+                             padding:0.15rem 0.45rem;cursor:pointer;font-size:var(--gb-size-hint);"
+                        } else {
+                            "border:1px solid var(--gb-chip);background:transparent;color:var(--gb-text-disabled);border-radius:var(--gb-radius);\
+                             padding:0.15rem 0.45rem;cursor:default;font-size:var(--gb-size-hint);opacity:0.5;"
+                        },
+                        onclick: move |_| on_event.call(UiEvent::NavigateCommit { delta: -1 }),
+                        "← Back"
+                    }
+                    button {
+                        r#type: "button",
+                        title: "Commit Forward (⌘])",
+                        disabled: !can_forward,
+                        style: if can_forward {
+                            "border:1px solid var(--gb-border-strong);background:var(--gb-chip);color:var(--gb-chip-strong);border-radius:var(--gb-radius);\
+                             padding:0.15rem 0.45rem;cursor:pointer;font-size:var(--gb-size-hint);"
+                        } else {
+                            "border:1px solid var(--gb-chip);background:transparent;color:var(--gb-text-disabled);border-radius:var(--gb-radius);\
+                             padding:0.15rem 0.45rem;cursor:default;font-size:var(--gb-size-hint);opacity:0.5;"
+                        },
+                        onclick: move |_| on_event.call(UiEvent::NavigateCommit { delta: 1 }),
+                        "Forward →"
+                    }
+                    span {
+                        style: "font-family:var(--gb-mono);font-size:var(--gb-size-hint);color:var(--gb-text-muted);margin-left:0.15rem;",
+                        "{short}"
+                    }
+                    CopyButton {
+                        label: "Copy hash",
+                        text: full_oid.to_string(),
+                        on_event: on_event,
+                    }
+                    if let Some(url) = remote_commit_url {
+                        RemoteLinkActions { url: url, on_event: on_event }
+                    }
                 }
             }
             div {
-                style: "display:flex;align-items:center;gap:0.4rem;flex-wrap:wrap;",
-                span {
-                    style: "font-family:var(--gb-mono);font-size:0.78rem;opacity:0.75;",
-                    "{short}"
-                }
-                CopyButton {
-                    label: "Copy hash",
-                    text: full_oid.to_string(),
+                style: "display:flex;flex-direction:column;gap:0.35rem;",
+                IssueLinkList {
+                    text: format!("{}\n{}", detail.summary, detail.body),
+                    origin_web: origin_web,
                     on_event: on_event,
                 }
-            }
-            if let Some(url) = remote_commit_url {
-                RemoteLinkActions { url: url, on_event: on_event }
-            }
-            IssueLinkList {
-                text: format!("{}\n{}", detail.summary, detail.body),
-                origin_web: origin_web,
-                on_event: on_event,
-            }
-            div {
-                style: "font-weight:600;font-size:0.95rem;",
-                "{detail.summary}"
-            }
-            div {
-                style: "opacity:0.7;font-size:0.8rem;",
-                "{detail.author} · {rel}"
-            }
-            if !detail.body.is_empty() && detail.body != detail.summary {
-                pre {
-                    style: "margin:0;white-space:pre-wrap;font-family:inherit;font-size:0.82rem;\
-                            opacity:0.85;line-height:1.45;",
-                    "{detail.body}"
+                div {
+                    style: "font-weight:var(--gb-weight-semibold);font-size:var(--gb-size-title);line-height:1.35;",
+                    "{detail.summary}"
+                }
+                div {
+                    style: "color:var(--gb-text-muted);font-size:var(--gb-size-hint);",
+                    "{detail.author} · {rel}"
+                }
+                if !detail.body.is_empty() && detail.body != detail.summary {
+                    pre {
+                        style: "margin:0;white-space:pre-wrap;font-family:inherit;font-size:var(--gb-size-body);\
+                                color:var(--gb-text-faint);line-height:1.5;",
+                        "{detail.body}"
+                    }
                 }
             }
             if !detail.files.is_empty() {
                 div {
-                    style: "margin-top:0.25rem;",
+                    style: "margin-top:0.1rem;",
                     div {
-                        style: "font-size:0.72rem;letter-spacing:0.05em;text-transform:uppercase;opacity:0.55;",
+                        style: "font-size:var(--gb-size-label);letter-spacing:0.05em;text-transform:uppercase;\
+                                color:var(--gb-text-muted);",
                         "Changed files ({detail.files.len()})"
                     }
                     p {
-                        style: "margin:0.2rem 0 0;font-size:0.72rem;opacity:0.5;",
+                        style: "margin:0.2rem 0 0;font-size:var(--gb-size-label);color:var(--gb-text-faint);",
                         "Click a file to view its diff below"
                     }
                     ul {
@@ -246,23 +251,24 @@ fn CommitDetailBody(
                                 let path_label = f.path.display().to_string();
                                 let status = f.status;
                                 let selected = selected_file.as_ref() == Some(&f.path);
-                                let bg = if selected { "var(--gb-selected)" } else { "transparent" };
                                 rsx! {
                                     li {
                                         key: "{path_label}",
                                         button {
                                             r#type: "button",
+                                            class: "gb-selectable",
                                             style: format!(
                                                 "display:flex;align-items:center;gap:0.35rem;width:100%;text-align:left;\
-                                                 border:0;border-radius:var(--gb-radius);padding:0.2rem 0.3rem;cursor:pointer;\
-                                                 background:{bg};color:var(--gb-chip-strong);font-family:var(--gb-mono);\
-                                                 font-size:0.78rem;"
+                                                 border:0;border-radius:var(--gb-radius);padding:0.28rem 0.35rem;cursor:pointer;\
+                                                 {};color:var(--gb-chip-strong);font-family:var(--gb-mono);\
+                                                 font-size:var(--gb-size-hint);",
+                                                crate::ui::theme::row_style(selected)
                                             ),
                                             onclick: move |_| {
                                                 on_event.call(UiEvent::SelectCommitFile(path.clone()));
                                             },
-                                            span { style: "opacity:0.55;flex:0 0 auto;", "{status}" }
-                                            span { style: "opacity:0.9;overflow:hidden;text-overflow:ellipsis;", "{path_label}" }
+                                            span { style: "opacity:0.7;flex:0 0 auto;", "{status}" }
+                                            span { style: "opacity:0.95;overflow:hidden;text-overflow:ellipsis;", "{path_label}" }
                                         }
                                     }
                                 }
@@ -338,8 +344,9 @@ fn CommitFileDiffPreview(
                         }
                     } else {
                         div {
-                            style: "padding:0.35rem 0;border:1px solid var(--gb-border);border-radius:var(--gb-radius-lg);\
-                                    background:var(--gb-surface-raised);font-family:var(--gb-mono);font-size:0.75rem;\
+                            class: "gb-diff-scroll",
+                            style: "padding:0;border:1px solid var(--gb-border);border-radius:var(--gb-radius-lg);\
+                                    background:var(--gb-surface-raised);font-family:var(--gb-mono);font-size:var(--gb-size-diff);\
                                     overflow:auto;max-height:50vh;",
                             for (hi, hunk) in content.hunks.iter().enumerate() {
                                 CommitHunkBlock { key: "{hi}", hunk: hunk.clone() }
@@ -357,23 +364,43 @@ fn CommitHunkBlock(hunk: DiffHunk) -> Element {
     rsx! {
         div {
             div {
-                style: "padding:0.2rem 0.5rem;opacity:0.55;background:var(--gb-bg);",
+                class: "gb-hunk-header",
+                style: "padding:0.28rem 0.55rem;background:var(--gb-bg);color:var(--gb-text-muted);\
+                        font-size:var(--gb-size-label);border-bottom:1px solid var(--gb-border);\
+                        font-family:var(--gb-mono);",
                 "{hunk.header}"
             }
             for line in hunk.lines.iter() {
                 {
                     let color = match line.origin {
                         '+' => "var(--gb-add)",
-                        '-' => "var(--gb-danger)",
+                        '-' => "var(--gb-del)",
                         _ => "var(--gb-chip-text)",
                     };
+                    let bg = match line.origin {
+                        '+' => "var(--gb-add-bg)",
+                        '-' => "var(--gb-del-bg)",
+                        _ => "transparent",
+                    };
+                    let origin_class = match line.origin {
+                        '+' => "gb-diff-line add",
+                        '-' => "gb-diff-line del",
+                        _ => "gb-diff-line",
+                    };
+                    let ln_old = line
+                        .old_line
+                        .map_or_else(|| String::from("·"), |n| n.to_string());
+                    let ln_new = line
+                        .new_line
+                        .map_or_else(|| String::from("·"), |n| n.to_string());
                     let tinted = tint_line(&line.content);
                     rsx! {
                         div {
-                            style: format!(
-                                "display:flex;gap:0.5rem;padding:0.05rem 0.5rem;white-space:pre;color:{color};"
-                            ),
-                            span { style: "flex:0 0 1ch;opacity:0.7;", "{line.origin}" }
+                            class: "{origin_class}",
+                            style: format!("background:{bg};color:{color};padding-left:0;"),
+                            span { class: "gb-lineno", "{ln_old}" }
+                            span { class: "gb-lineno", "{ln_new}" }
+                            span { style: "flex:0 0 1.25ch;opacity:0.75;font-weight:600;", "{line.origin}" }
                             span {
                                 style: "flex:1;min-width:0;",
                                 dangerous_inner_html: "{tinted}",

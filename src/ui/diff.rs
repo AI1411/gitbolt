@@ -112,9 +112,10 @@ pub fn DiffPane(props: DiffViewProps) -> Element {
                         }
                     }
                     div {
-                        style: "padding:0.5rem 0;border:1px solid var(--gb-border);border-radius:var(--gb-radius-lg);\
-                                background:var(--gb-surface-raised);font-family:var(--gb-mono);font-size:0.82rem;\
-                                overflow:visible;",
+                        class: "gb-diff-scroll",
+                        style: "padding:0;border:1px solid var(--gb-border);border-radius:var(--gb-radius-lg);\
+                                background:var(--gb-surface-raised);font-family:var(--gb-mono);font-size:var(--gb-size-diff);\
+                                overflow:auto;min-height:0;flex:1;",
                         for (hi, hunk) in content.hunks.iter().enumerate() {
                             {
                                 let hunk_bg = if hi == focused { "var(--gb-selected-row)" } else { "transparent" };
@@ -123,11 +124,12 @@ pub fn DiffPane(props: DiffViewProps) -> Element {
                                         key: "{hi}",
                                         style: format!("background:{hunk_bg};"),
                                         div {
-                                            style: "padding:0.3rem 0.65rem;background:var(--gb-bg);\
+                                            class: "gb-hunk-header",
+                                            style: "padding:0.35rem 0.65rem;background:var(--gb-bg);\
                                                     color:var(--gb-text-muted);font-size:var(--gb-size-label);\
                                                     letter-spacing:0.02em;border-bottom:1px solid var(--gb-border);\
                                                     display:flex;align-items:center;justify-content:space-between;gap:0.5rem;",
-                                            span { style: "opacity:0.95;font-weight:var(--gb-weight-semibold);", "{hunk.header}" }
+                                            span { style: "opacity:0.95;font-weight:var(--gb-weight-semibold);font-family:var(--gb-mono);", "{hunk.header}" }
                                             if hi == focused {
                                                 button {
                                                     r#type: "button",
@@ -221,16 +223,24 @@ fn UnifiedLine(
     let origin = line.change_origin.clone();
     let gutter = heat_color.unwrap_or("transparent");
 
-    let ln = line
+    let ln_old = line
         .old_line
         .map_or_else(|| String::from("·"), |n| n.to_string());
+    let ln_new = line
+        .new_line
+        .map_or_else(|| String::from("·"), |n| n.to_string());
     let gutter_w = if heat_color.is_some() { "6px" } else { "3px" };
+    let origin_class = match line.origin {
+        '+' => "gb-diff-line add",
+        '-' => "gb-diff-line del",
+        _ => "gb-diff-line",
+    };
 
     rsx! {
         div {
+            class: "{origin_class}",
             style: format!(
-                "display:flex;align-items:stretch;gap:0.4rem;padding:0.05rem 0.65rem 0.05rem 0;\
-                 white-space:pre;cursor:{};background:{};color:{};",
+                "cursor:{};background:{};color:{};",
                 if stageable { "pointer" } else { "default" },
                 bg,
                 color,
@@ -250,12 +260,9 @@ fn UnifiedLine(
                     ""
                 },
             }
-            span {
-                style: "flex:0 0 3.75ch;text-align:right;opacity:0.38;font-size:0.72em;\
-                        user-select:none;align-self:baseline;padding-top:0.12em;",
-                "{ln}"
-            }
-            span { style: "flex:0 0 1ch;opacity:0.7;align-self:baseline;", "{line.origin}" }
+            span { class: "gb-lineno", "{ln_old}" }
+            span { class: "gb-lineno", "{ln_new}" }
+            span { style: "flex:0 0 1.25ch;opacity:0.75;align-self:baseline;font-weight:600;", "{line.origin}" }
             span {
                 style: "flex:1;min-width:0;align-self:baseline;",
                 dangerous_inner_html: "{tinted}",
